@@ -40,7 +40,6 @@ claude plugin install ccf@ccf
 | `/ccf:ccf-check` | 对照规格验证实现（一致性、约定、SOLID/OOP、前后端交叉检查）。 |
 | `/ccf:ccf-fix` | 有纪律的调试：复现 → 逐步追踪日志/数据库 → 根因 → 失败测试 → 修复。 |
 | `/ccf:ccf-updatespec` | 用本次会话的经验更新规格**和系统 memory**（包括新工具及其「何时使用」）。 |
-| `/ccf:ccf-compact` | 从进行中的任务生成最优压缩提示，让你主动运行 `/compact <hint>`。 |
 
 典型流程：`ccf-init` → （plan mode）`ccf-plan` → 实现 → `ccf-check` → `/code-review` → `ccf-updatespec`。
 
@@ -64,9 +63,7 @@ claude plugin install ccf@ccf
 
 ## 压缩感知机制
 
-主动的 `/compact <hint>` 优于让 auto-compact 自动触发（当上下文已「腐化」时，模型处于最不清醒的状态）。CCF 支持：
-- `/ccf:ccf-compact` 从进行中的任务生成一个好的提示。
-- `SessionStart` 钩子（匹配器 `compact`）在压缩后自动从 `.claude/plan/PLAN.md` 重新加载进行中的任务，恢复正确的工作上下文。
+主动的 `/compact <hint>` 优于让 auto-compact 自动触发（当上下文已「腐化」时，模型处于最不清醒的状态）。在你压缩之后，CCF 的 `SessionStart` 钩子（匹配器 `compact`）会自动从 `.claude/plan/PLAN.md` 重新加载进行中的任务，恢复正确的工作上下文，无需你重新粘贴。
 
 ## 架构
 

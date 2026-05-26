@@ -40,7 +40,6 @@ After installing, open Claude Code in your project folder and run `/ccf:ccf-init
 | `/ccf:ccf-check` | Verify the implementation against the spec (conformance, conventions, SOLID/OOP, BE↔FE cross-check). |
 | `/ccf:ccf-fix` | Disciplined debugging: reproduce → trace logs/DB step by step → root cause → failing test → fix. |
 | `/ccf:ccf-updatespec` | Update the spec **and system memory** with this session's lessons (incl. new tools with "when to use"). |
-| `/ccf:ccf-compact` | Generate an optimal compaction hint from the in-progress task so you can run `/compact <hint>` proactively. |
 
 Typical flow: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → `/code-review` → `ccf-updatespec`.
 
@@ -64,9 +63,7 @@ Principle: **no duplication**. A rule in CLAUDE.md that keeps getting forgotten 
 
 ## Compact-aware mechanism
 
-A proactive `/compact <hint>` beats letting auto-compact fire (when context has "rotted" the model is at its least sharp). CCF supports:
-- `/ccf:ccf-compact` generates a good hint from the in-progress task.
-- The `SessionStart` hook (matcher `compact`) auto re-loads the in-progress task from `.claude/plan/PLAN.md` after compaction, restoring the right work context.
+A proactive `/compact <hint>` beats letting auto-compact fire (when context has "rotted" the model is at its least sharp). After you compact, CCF's `SessionStart` hook (matcher `compact`) auto re-loads the in-progress task from `.claude/plan/PLAN.md`, restoring the right work context so you don't have to paste it back.
 
 ## Architecture
 

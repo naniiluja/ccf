@@ -11,7 +11,7 @@ CCF is a **Claude Code plugin** that imposes a context-first, spec-driven, stric
 ## Repo layout
 - **git init at the root** (`D:/projects/ccf`). The root holds `CLAUDE.md`, `.claude/`, `package.json`, `tsconfig.json`, `bin/`, `README.md`, `LICENSE`, `.claude-plugin/marketplace.json`.
 - `plugins/ccf/` — the plugin itself. `.claude-plugin/plugin.json` is the manifest (ONLY the manifest goes in `.claude-plugin/`); the component directories live at the **plugin root**:
-  - `commands/*.md` — 6 slash commands (`ccf-init`, `ccf-plan`, `ccf-check`, `ccf-fix`, `ccf-updatespec`, `ccf-compact`).
+  - `commands/*.md` — 5 slash commands (`ccf-init`, `ccf-plan`, `ccf-check`, `ccf-fix`, `ccf-updatespec`).
   - `agents/*.md` — 6 subagents (`ccf-codebase-analyzer`, `ccf-best-practice-researcher`, `ccf-implementer`, `ccf-spec-writer`, `ccf-spec-checker`, `ccf-debugger`).
   - `hooks/*.mjs` + `hooks/hooks.json` + `hooks/lib/io.mjs` — 3 hooks (plan-mode-guard, session-start, updatespec-nudge) sharing `lib/io.mjs`.
   - `templates/{root,backend,frontend}/**` — `*.tmpl` files with `{{...}}` placeholders for `/ccf-init` to instantiate.

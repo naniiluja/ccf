@@ -22,7 +22,6 @@ Two remote HTTP servers, auto started/stopped by Claude Code at plugin scope:
 ## CCF self-checks (internal commands)
 - `/ccf:ccf-check` — verify the implementation against this spec (conformance, conventions, SOLID, cross-check).
 - `/ccf:ccf-updatespec` — refresh the spec after a session; **also records new tools with "when to use"** into this very file.
-- `/ccf:ccf-compact` — generate a hint for a proactive `/compact` before context rot.
 
 ## Convention for adding a new tool
 When integrating a new tool/MCP, add an entry here in the format "**name** — when to use — how to call", and update the `allowed-tools`/`tools` of the related commands/agents.

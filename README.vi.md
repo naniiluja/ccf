@@ -40,7 +40,6 @@ Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:ccf-init
 | `/ccf:ccf-check` | Verify implementation so với spec (conformance, convention, SOLID/OOP, cross-check BE↔FE). |
 | `/ccf:ccf-fix` | Debug có kỷ luật: tái hiện → trace log/DB từng bước → root cause → failing test → fix. |
 | `/ccf:ccf-updatespec` | Cập nhật spec **và memory hệ thống** với bài học trong session (gồm công cụ mới kèm "dùng khi nào"). |
-| `/ccf:ccf-compact` | Sinh hint compact tối ưu từ task đang làm để bạn chạy `/compact <hint>` chủ động. |
 
 Luồng điển hình: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → `/code-review` → `ccf-updatespec`.
 
@@ -64,9 +63,7 @@ Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → 
 
 ## Cơ chế compact-aware
 
-`/compact <hint>` chủ động tốt hơn để auto-compact tự kích hoạt (lúc context đã "rot" mô hình kém minh mẫn nhất). CCF hỗ trợ:
-- `/ccf:ccf-compact` sinh hint tốt từ task đang làm.
-- Hook `SessionStart` (matcher `compact`) tự re-load task in-progress từ `.claude/plan/PLAN.md` sau khi compact, khôi phục đúng context công việc.
+`/compact <hint>` chủ động tốt hơn để auto-compact tự kích hoạt (lúc context đã "rot" mô hình kém minh mẫn nhất). Sau khi bạn compact, hook `SessionStart` của CCF (matcher `compact`) tự re-load task in-progress từ `.claude/plan/PLAN.md`, khôi phục đúng context công việc để bạn không phải dán lại.
 
 ## Kiến trúc
 
