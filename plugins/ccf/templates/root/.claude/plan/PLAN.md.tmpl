@@ -1,0 +1,18 @@
+# Implementation Plan — {{PROJECT_NAME}}
+
+> **Execution rule: STRICTLY SEQUENTIAL.** Làm đúng một task một lần, theo thứ tự.
+> Không bắt đầu task N+1 khi task N chưa implement + test + check (`/ccf:ccf-check`).
+> Status `in-progress` được hook session-start đọc để re-load context sau compact, và `/ccf:ccf-compact` đọc để sinh hint — luôn cập nhật status kịp thời.
+
+## Milestones
+{{MILESTONE_LIST}}
+
+## Task backlog (theo thứ tự thực thi)
+| # | Task | Scope (BE/FE/infra) | Depends on | Status |
+|---|------|---------------------|-----------|--------|
+| 001 | {{TASK_001}} | {{SCOPE_001}} | — | todo |
+| 002 | {{TASK_002}} | {{SCOPE_002}} | 001 | todo |
+{{MORE_TASKS}}
+
+> Status: `todo` / `in-progress` / `done` / `blocked`.
+> Chi tiết mỗi task trong `task-NNN-*.md`.

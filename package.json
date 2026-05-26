@@ -1,0 +1,37 @@
+{
+  "name": "ccf",
+  "version": "0.1.0",
+  "description": "Claude Context First — a context-first, spec-driven, strictly sequential development workflow plugin for Claude Code.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "ccf": "./bin/ccf-bootstrap.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "plugins",
+    "bin",
+    ".claude-plugin",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "claude-code",
+    "claude",
+    "plugin",
+    "context-first",
+    "spec-driven",
+    "workflow"
+  ],
+  "author": {
+    "name": "naniiluja"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/naniiluja/ccf.git"
+  },
+  "homepage": "https://github.com/naniiluja/ccf",
+  "license": "MIT"
+}

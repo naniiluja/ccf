@@ -1,0 +1,21 @@
+# Architecture
+
+## Phân lớp & ranh giới
+{{LAYERING}}
+<!-- Ví dụ: presentation → application/service → domain → infrastructure -->
+
+## Hướng phụ thuộc
+- Phụ thuộc chỉ đi theo một chiều: {{DEPENDENCY_DIRECTION}}.
+- Business logic KHÔNG phụ thuộc framework/IO trực tiếp.
+
+## Design pattern
+- Backend: {{BE_PATTERN}}.
+- Frontend: {{FE_PATTERN}}.
+
+## Nơi đặt thứ gì
+{{WHERE_THINGS_GO}}
+<!-- Ví dụ: API handlers ở `be/src/api/handlers/`; domain model ở `be/src/domain/` -->
+
+## Quy tắc verifiable
+- Mỗi module một trách nhiệm rõ ràng (Single Responsibility).
+- Không import vòng giữa các lớp.

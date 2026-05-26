@@ -1,0 +1,31 @@
+# {{PROJECT_NAME}}
+
+> Quản lý bởi **CCF (Claude Context First)**. Workflow: Explore → Plan → Implement → Commit.
+> **STRICTLY SEQUENTIAL**: một task một lần, không phát triển song song nhiều feature.
+> Ground mọi quyết định thiết kế bằng Context7 + Microsoft Learn.
+> Giữ spec này luôn tươi bằng `/ccf:ccf-updatespec`.
+
+## Hệ thống này là gì
+{{ONE_PARAGRAPH_SYSTEM_DESCRIPTION}}
+
+## Bố cục repo (monorepo)
+- Thư mục gốc chứa `CLAUDE.md`, `.claude/`, file docker, file CI/CD. **git init ở gốc**, không ở thư mục con.
+{{MONOREPO_LAYOUT}}
+<!-- Ví dụ fullstack:
+- `be/` — backend (có CLAUDE.md + .claude/ riêng).
+- `fe/` — frontend (có CLAUDE.md + .claude/ riêng).
+-->
+
+## Rules (import — giữ file này < 200 dòng, chi tiết nằm trong .claude/rules/)
+@.claude/rules/tech-stack.md
+@.claude/rules/architecture.md
+@.claude/rules/coding-conventions.md
+@.claude/rules/logging.md
+@.claude/rules/testing.md
+@.claude/rules/error-handling.md
+@.claude/rules/debugging.md
+@.claude/rules/tooling.md
+@.claude/rules/git-workflow.md
+
+## Kế hoạch hiện tại
+Xem `.claude/plan/PLAN.md` để biết backlog tuần tự. Thực thi **một task một lần**, theo đúng thứ tự, không bắt đầu task N+1 khi task N chưa implement + test + check xong.

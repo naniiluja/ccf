@@ -1,0 +1,14 @@
+---
+paths: ["fe/**"]
+---
+
+# State Management
+
+## Quy tắc
+- Thư viện state: {{STATE_LIBRARY}} (chọn loại ổn định, được support rộng).
+- Server state vs client state tách bạch: {{SERVER_VS_CLIENT_STATE}}.
+- Data fetching: {{DATA_FETCHING}} (vd react-query); xử lý loading/error tường minh.
+- Không đặt state toàn cục thứ chỉ một component dùng.
+
+## Đồng bộ với API
+- Shape dữ liệu khớp contract backend; validate response ở boundary.

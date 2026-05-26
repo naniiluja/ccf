@@ -1,0 +1,15 @@
+# Debugging (có kỷ luật, không vội)
+
+Quy trình bắt buộc khi điều tra lỗi (dùng bởi `/ccf:ccf-fix`):
+1. **Tái hiện** — dựng lại lỗi từ triệu chứng/input/môi trường trước khi đụng code.
+2. **Trace từng bước** — lần theo correlation ID qua log, đọc entry+exit mỗi boundary.
+3. **Query DB read-only** (nếu có MCP) — xác minh trạng thái dữ liệu từng bước.
+4. **Cô lập bằng bằng chứng** — thu hẹp vùng nghi ngờ bằng file:line/log/row, không phải linh cảm.
+5. **Failing test** — viết test tái hiện bug (đỏ) trước.
+6. **Fix tối thiểu** — sửa đúng phạm vi, không tiện tay refactor.
+
+> Tuyệt đối không đoán mò và sửa ngay khi chưa có bằng chứng.
+
+## Bug đã gặp (cập nhật bởi /ccf:ccf-updatespec)
+{{KNOWN_BUGS}}
+<!-- Mỗi entry: triệu chứng — root cause — cách phòng tránh — file liên quan -->

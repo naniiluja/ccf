@@ -1,0 +1,17 @@
+---
+paths: ["be/**"]
+---
+
+# API Design
+
+API contract là **nguồn sự thật** cho frontend tiêu thụ.
+
+## Quy tắc
+- Kiểu API: {{API_STYLE}} (vd REST).
+- Versioning: {{API_VERSIONING}}.
+- Status code: dùng đúng ngữ nghĩa HTTP — {{STATUS_CODE_RULES}}.
+- Request/response shape: validate ở boundary; shape khai báo tường minh.
+- Naming endpoint: {{ENDPOINT_NAMING}}.
+
+## Contract
+- Mọi endpoint phải có shape request/response rõ ràng để FE đối chiếu khi `/ccf:ccf-check` cross-check.

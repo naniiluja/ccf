@@ -1,0 +1,21 @@
+# Tech Stack
+
+Triết lý: ưu tiên stack **ổn định nhất, được hỗ trợ rộng nhất, ít bug nhất** — mainstream, tránh bleeding-edge. Mỗi thư viện chọn lựa chọn phổ biến/được maintain tốt nhất.
+
+## Stack đã chọn
+{{TECH_STACK_TABLE}}
+<!-- Ví dụ:
+- Ngôn ngữ: {{LANGUAGE}}
+- Backend framework: {{BE_FRAMEWORK}} (phiên bản: {{BE_VERSION}})
+- Frontend framework: {{FE_FRAMEWORK}} (phiên bản: {{FE_VERSION}})
+- Database: {{DATABASE}}
+- Hosting: {{HOSTING}}
+-->
+
+## Thư viện chính (mỗi concern một lựa chọn cố định)
+{{LIBRARY_CHOICES}}
+<!-- Ví dụ: routing = X, state = Y, HTTP client = Z, validation = W -->
+
+## Quy tắc
+- Không thêm thư viện mới ngoài danh sách trên mà chưa đối chiếu best practice qua Context7 và cập nhật file này.
+- Pin phiên bản trong lockfile; nâng cấp major phải có lý do ghi lại.

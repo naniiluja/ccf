@@ -1,0 +1,18 @@
+---
+paths: ["be/**"]
+---
+
+# Data Layer
+
+## Schema & migration
+- DB: {{DATABASE}}.
+- Migration: {{MIGRATION_TOOL}}; mọi thay đổi schema qua migration, không sửa tay.
+- Naming bảng/cột: {{DB_NAMING}}.
+
+## Query pattern
+- Truy cập DB qua {{DATA_ACCESS_PATTERN}} (vd repository); không rải raw query khắp nơi.
+- Tránh N+1; index cho truy vấn nóng.
+
+## Quy tắc
+- Không để business logic trong DB layer.
+- Transaction cho thao tác nhiều bước cần atomic.

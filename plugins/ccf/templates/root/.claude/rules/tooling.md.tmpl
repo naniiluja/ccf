@@ -1,0 +1,21 @@
+# Tooling (skill / MCP / subagent khả dụng — DÙNG KHI NÀO)
+
+Danh mục công cụ của dự án này, kèm **khi nào nên dùng** để agent session sau tự quyết định. Cập nhật bởi `/ccf:ccf-updatespec` mỗi khi thêm công cụ mới.
+
+## MCP servers
+- **context7** — tra tài liệu thư viện/framework hiện hành. **Dùng khi:** cần API syntax/best practice/migration của một lib. Cách: `resolve-library-id` → `query-docs`.
+- **microsoft-learn** — tra tài liệu Microsoft/.NET/Azure. **Dùng khi:** làm việc với platform Microsoft.
+{{EXTRA_MCP}}
+<!-- Ví dụ sau khi user cài Supabase MCP:
+- **supabase** — quản lý DB/migration/edge function. **Dùng khi:** cần xem schema (`list_tables`), chạy migration (`apply_migration`), debug DB (`get_logs`). Input/output: ...
+-->
+
+## Skills
+{{SKILLS}}
+<!-- Mỗi skill: tên — DÙNG KHI NÀO — ví dụ trigger -->
+
+## Subagents (CCF)
+- **ccf-implementer** — implement một task từ plan (có MCP). **Dùng khi:** execute task sau /ccf-plan.
+- **ccf-spec-checker** — review conformance/SOLID. **Dùng khi:** /ccf-check.
+- **ccf-debugger** — điều tra một nhánh root cause. **Dùng khi:** /ccf-fix cần cô lập.
+- **ccf-best-practice-researcher** — fetch best practice. **Dùng khi:** cần ground quyết định.

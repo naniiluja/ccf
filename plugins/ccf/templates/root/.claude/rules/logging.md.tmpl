@@ -1,0 +1,17 @@
+# Logging (tối ưu cho AI trace)
+
+Mục tiêu: log đủ cấu trúc để Claude grep ra **full trace** của một request chỉ bằng correlation ID.
+
+## Bắt buộc
+- **Structured log** (JSON), không log dạng chuỗi tự do.
+- **Correlation/request ID** gắn vào mọi log của cùng một request; sinh ở entry point và truyền xuyên suốt.
+- Mỗi **cross-boundary call** log cả entry và exit kèm correlation ID + thời gian.
+- Prefix event-name nhất quán: `{{LOG_PREFIX_CONVENTION}}` (vd `[auth.login.start]`, `[auth.login.end]`).
+
+## Log level
+- `error`: lỗi cần chú ý. `warn`: bất thường nhưng xử lý được. `info`: mốc nghiệp vụ. `debug`: chi tiết phát triển.
+- Không log secret/PII.
+
+## Công cụ
+- Thư viện logging: {{LOG_LIBRARY}}.
+- Nơi log đổ về: {{LOG_SINK}}.

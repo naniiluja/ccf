@@ -1,0 +1,14 @@
+---
+paths: ["be/**"]
+---
+
+# Backend Conventions
+
+## Cấu trúc
+- Tổ chức thư mục: {{BE_FOLDER_STRUCTURE}}.
+- Dependency injection: {{DI_APPROACH}}.
+
+## Quy tắc verifiable
+- Handler mỏng, logic ở service/domain.
+- Config qua env var, không hardcode secret.
+- Mọi endpoint có test (theo `../.claude/rules/testing.md`).

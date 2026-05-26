@@ -1,0 +1,16 @@
+# Git Workflow
+
+## Quy tắc quan trọng nhất
+- **KHÔNG commit/push khi người dùng chưa yêu cầu rõ ràng.** Mọi thao tác git phải được xác nhận trước.
+
+## Khi được yêu cầu commit
+- Nếu đang ở branch mặc định (`main`/`master`): tạo branch mới trước.
+- Commit message theo conventional commits: `{{COMMIT_CONVENTION}}` (vd `feat:`, `fix:`, `refactor:`).
+- Một commit một thay đổi logic; không gộp nhiều việc không liên quan.
+
+## Branch & PR
+- Quy ước đặt tên branch: {{BRANCH_NAMING}}.
+- Quy tắc PR: {{PR_RULES}}.
+
+## Monorepo
+- git chỉ ở thư mục gốc; không git init trong `be/`, `fe/`.

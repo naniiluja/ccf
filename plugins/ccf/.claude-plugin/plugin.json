@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ccf",
+  "version": "0.1.0",
+  "description": "Claude Context First — a context-first, spec-driven, strictly sequential development workflow. Keeps CLAUDE.md/.claude specs continuously fresh and grounds every design decision in best practices fetched from Context7 and Microsoft Learn.",
+  "author": {
+    "name": "naniiluja"
+  },
+  "homepage": "https://github.com/naniiluja/ccf",
+  "repository": "https://github.com/naniiluja/ccf",
+  "license": "MIT",
+  "keywords": ["context-first", "spec-driven", "workflow", "sequential"]
+}
