@@ -1,6 +1,6 @@
 {
   "name": "@naniiluja/ccf",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Claude Context First — a context-first, spec-driven, strictly sequential development workflow plugin for Claude Code.",
   "type": "module",
   "bin": {

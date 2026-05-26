@@ -31,3 +31,4 @@ paths: plugins/ccf/hooks/**
 - Limit recursion depth when walking the tree (e.g. `newestMtime(dir, depth)`); always skip `node_modules` and `.git`.
 - Hooks run synchronously and block Claude — keep them fast; `hooks.json` sets a `timeout` (seconds) per hook.
 - When adding a new hook: add an entry to `hooks.json` + a comment, reuse `io.mjs`, add the file to `tsconfig.json`'s `include` if it doesn't match the glob.
+- **`plugin.json` MUST declare `"hooks": "./hooks/hooks.json"`** — hooks are NOT auto-discovered the way commands/agents/MCP are; without this field the whole `hooks.json` is silently ignored (the install shows everything else working but no hooks).

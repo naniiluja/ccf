@@ -19,8 +19,8 @@ description: CCF plugin architecture — artifact types, boundaries, distributio
 - Judgment/interpretation logic → goes in the **command/agent prompt**.
 
 ## Distribution flow
-`bin/ccf-bootstrap.mjs` (npx) → `claude plugin marketplace add` + `install` → Claude Code reads `.claude-plugin/marketplace.json` → points to `plugins/ccf` → reads `.claude-plugin/plugin.json` → loads commands/agents/hooks/.mcp.json.
+`bin/ccf-bootstrap.mjs` (npx) → `claude plugin marketplace add` + `install` → Claude Code reads `.claude-plugin/marketplace.json` → points to `plugins/ccf` → reads `.claude-plugin/plugin.json` → loads commands/agents/.mcp.json (auto-discovered by directory) and hooks **only if `plugin.json` declares `"hooks": "./hooks/hooks.json"`**. Unlike commands/agents/MCP, the bare existence of `hooks/hooks.json` is NOT enough — the manifest must point to it explicitly, or hooks load silently as nothing.
 
 ## Invariants
-- Every command name in docs/prompts must match a real file in `commands/`. There are currently **6** commands and **6** agents — if README/MEMORY says "5", that is drift to fix, not the source of truth.
+- Every command name in docs/prompts must match a real file in `commands/`. There are currently **5** commands and **6** agents — keep README/MEMORY in sync; the real files in `commands/`+`agents/` are the source of truth.
 - Components reference each other by name (e.g. a command calls the `ccf-implementer` agent); renaming a file ⇒ update every reference.
