@@ -29,6 +29,7 @@ Invoke the `grill-me` skill to interview the user **one question at a time**. Be
 - (i) Testing strategy?
 - (j) **Tech stack — must be the most stable, best-supported, least-buggy** (mainstream); for each library pick the most popular/well-maintained option.
 - (k) **Monorepo rule:** work in the root folder; if fullstack create `be/` + `fe/`; **git init at the root, NOT in sub-folders**; the root holds CLAUDE.md, `.claude/`, docker, CI/CD.
+- (l) **Git conventions:** first check whether the repo already has commits (read-only `git log`/`git branch -a`) — an "empty" project may still carry a few commits. If a pattern exists, infer the commit/branch convention from it (don't invent). If history is empty/too thin, ask the user (or default to conventional commits: `feat:`/`fix:`/`refactor:`…). This fills `git-workflow.md`'s `{{COMMIT_CONVENTION}}` / `{{BRANCH_NAMING}}` / `{{PR_RULES}}`.
 
 Synthesize into a **"decisions summary"** and present it for the user to confirm.
 
@@ -66,6 +67,7 @@ Synthesize the 5 reports. Validate the observed patterns against best practices 
 
 ### B3. Generate spec reflecting the ACTUAL codebase
 Generate `CLAUDE.md` + `.claude/` describing the existing codebase (not an idealized one), using the same templates + the same < 200-line / `@import` rules. For a monorepo with several sub-packages, generate nested CLAUDE.md per package.
+- **Git conventions from history (do NOT invent):** fill `git-workflow.md`'s `{{COMMIT_CONVENTION}}` / `{{BRANCH_NAMING}}` / `{{PR_RULES}}` from the **git patterns slice-5 inferred from `git log`/`git branch`** — match the repo's real commit subject style, body/trailer usage, and branch naming. If history is thin (≤2 commits) or inconsistent, do NOT silently pick one: state the patterns you observed, propose a standard convention, and have the user confirm before writing it into the spec.
 
 ### B4. Closing
 Recommend `/ccf:ccf-plan` for new work. Do NOT commit.

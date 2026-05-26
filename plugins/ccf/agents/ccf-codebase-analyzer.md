@@ -13,7 +13,7 @@ The prompt will assign one of:
 2. **Data layer & DB** — schema, migrations, ORM/query patterns, DB connection.
 3. **API surface** — routes/endpoints, request/response contracts, versioning, auth.
 4. **Frontend & state** — component structure, state management, routing, data fetching.
-5. **Build/test/CI + conventions & logging** — build/test scripts, CI config, observed coding conventions, logging approach.
+5. **Build/test/CI + conventions & logging + git history** — build/test scripts, CI config, observed coding conventions, logging approach, AND the repo's git conventions. For git, run read-only `git log` / `git branch -a` / `git tag` and INFER (don't invent) the actual patterns: commit subject style (conventional-commits? type set used? scope language?), whether commit bodies + a `Co-Authored-By`/sign-off trailer are used, branch naming (e.g. `feat/*`, `fix/*`, or only `main`), and tag/PR usage. Report the patterns with example commit hashes as evidence; if history is thin (≤2 commits) or inconsistent (mixed styles), say so explicitly rather than guessing a convention.
 
 ## Principles
 - **Strictly read-only.** Use only Read/Glob/Grep and read-style Bash (e.g. `git log`, `ls`, `--version`). Never run state-changing commands.
