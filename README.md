@@ -37,7 +37,7 @@ Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:ccf-init
 | `/ccf:ccf-plan` | Tạo plan tuần tự cho một feature. **Yêu cầu plan mode** (Shift+Tab). Sau plan, execute từng task bằng agent. |
 | `/ccf:ccf-check` | Verify implementation so với spec (conformance, convention, SOLID/OOP, cross-check BE↔FE). |
 | `/ccf:ccf-fix` | Debug có kỷ luật: tái hiện → trace log/DB từng bước → root cause → failing test → fix. |
-| `/ccf:ccf-updatespec` | Cập nhật spec với bài học trong session (gồm công cụ mới kèm "dùng khi nào"). |
+| `/ccf:ccf-updatespec` | Cập nhật spec **và memory hệ thống** với bài học trong session — feedback chống lỗi vào memory (ưu tiên cao), rule dự án vào spec; gồm công cụ mới kèm "dùng khi nào". |
 | `/ccf:ccf-compact` | Sinh hint compact tối ưu từ task đang làm để bạn chạy `/compact <hint>` chủ động. |
 
 Luồng điển hình: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → `/code-review` → `ccf-updatespec`.
@@ -50,6 +50,15 @@ Plugin tự bundle 2 MCP server (plugin scope, Claude Code tự start/stop):
 - **context7** — `https://mcp.context7.com/mcp` (remote HTTP, chạy ngay không cần key).
 
 > **Context7 rate limit:** plugin chạy Context7 không cần API key (rate limit free). Nếu gặp rate-limit, lấy free key tại [context7.com/dashboard](https://context7.com/dashboard), set env var `CONTEXT7_API_KEY`, rồi khởi động lại Claude Code.
+
+## Spec vs Memory (hai tầng context)
+
+`/ccf:ccf-updatespec` ghi bài học vào **hai nơi** với mục đích khác nhau:
+
+- **Spec** (`CLAUDE.md` + `.claude/rules/`) — nạp như *user message*, trọng số thấp hơn. Giữ **rule dự án**: convention, architecture, tech-stack, tooling.
+- **Memory** (`~/.claude/projects/<path>/memory/`) — nạp vào *system prompt*, **không bị giảm trọng số** nên Claude tuân mạnh hơn. Giữ **feedback chống lỗi** + **user preference** xuyên session → giúp Claude bớt lặp sai lầm.
+
+Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → viết một `feedback` memory để *gia cố* (kèm "vì sao"), thay vì chép lại nội dung.
 
 ## Cơ chế compact-aware
 

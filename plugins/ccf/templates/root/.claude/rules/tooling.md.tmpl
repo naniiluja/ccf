@@ -19,3 +19,7 @@ Danh mục công cụ của dự án này, kèm **khi nào nên dùng** để ag
 - **ccf-spec-checker** — review conformance/SOLID. **Dùng khi:** /ccf-check.
 - **ccf-debugger** — điều tra một nhánh root cause. **Dùng khi:** /ccf-fix cần cô lập.
 - **ccf-best-practice-researcher** — fetch best practice. **Dùng khi:** cần ground quyết định.
+
+## Memory hệ thống vs Spec (DÙNG KHI NÀO ghi vào đâu)
+- **Spec** (file này + các rule khác): rule dự án suy ra được/thuộc repo. Trọng số thấp hơn (user message).
+- **Memory** (`~/.claude/projects/<path>/memory/`): `feedback` chống lỗi + `user` preference. Trọng số cao (system prompt) → Claude bớt lặp sai. Cập nhật qua `/ccf:ccf-updatespec`. **Không trùng** nội dung CLAUDE.md.

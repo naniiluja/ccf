@@ -33,5 +33,8 @@
     "url": "git+https://github.com/naniiluja/ccf.git"
   },
   "homepage": "https://github.com/naniiluja/ccf",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.19.19"
+  }
 }
