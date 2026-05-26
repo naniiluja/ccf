@@ -1,78 +1,80 @@
 # CCF — Claude Context First
 
-Một plugin workflow cho [Claude Code](https://code.claude.com) áp đặt cách làm việc **context-first, spec-driven, strictly sequential**:
+**English** · [Tiếng Việt](./README.vi.md) · [简体中文](./README.zh-CN.md)
 
-- **Context-first**: spec sống trong `CLAUDE.md` + `.claude/`, được cập nhật liên tục để mỗi session luôn có context tươi.
-- **Grounding**: mọi quyết định thiết kế tham chiếu best practice từ **Context7** và **Microsoft Learn** (2 MCP server đi kèm plugin).
-- **Strictly sequential**: làm một task một lần (waterfall), không phát triển song song nhiều feature — để đảm bảo chất lượng.
-- **Monorepo**: git init ở thư mục gốc; nếu fullstack thì có `be/` và `fe/` riêng, mỗi cái có spec lồng.
+A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **context-first, spec-driven, strictly sequential** way of working:
 
-## Cài đặt
+- **Context-first**: the spec lives in `CLAUDE.md` + `.claude/`, kept continuously fresh so every session starts with fresh context.
+- **Grounding**: every design decision references best practices from **Context7** and **Microsoft Learn** (two MCP servers bundled with the plugin).
+- **Strictly sequential**: one task at a time (waterfall), no parallel feature development — to maximize quality.
+- **Monorepo**: git init at the root; for fullstack, separate `be/` and `fe/` each with a nested spec.
 
-### Qua marketplace (khuyến nghị)
+## Install
+
+### Via marketplace (recommended)
 ```
 /plugin marketplace add naniiluja/ccf
 /plugin install ccf@ccf
 ```
 
-### Qua npx
+### Via npx
 ```
 npx ccf
 ```
-(chạy `claude plugin marketplace add` + `install` giúp bạn)
+(runs `claude plugin marketplace add` + `install` for you)
 
-### Local (để phát triển)
+### Local (for development)
 ```
 claude plugin marketplace add D:/projects/ccf
 claude plugin install ccf@ccf
 ```
 
-Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:ccf-init`.
+After installing, open Claude Code in your project folder and run `/ccf:ccf-init`.
 
-## 6 lệnh
+## The 6 commands
 
-| Lệnh | Tác dụng |
-|------|----------|
-| `/ccf:ccf-init` | Bootstrap dự án mới (phỏng vấn → sinh CLAUDE.md + .claude + plan) hoặc onboard dự án có sẵn (5 agent phân tích). |
-| `/ccf:ccf-plan` | Tạo plan tuần tự cho một feature. **Yêu cầu plan mode** (Shift+Tab). Sau plan, execute từng task bằng agent. |
-| `/ccf:ccf-check` | Verify implementation so với spec (conformance, convention, SOLID/OOP, cross-check BE↔FE). |
-| `/ccf:ccf-fix` | Debug có kỷ luật: tái hiện → trace log/DB từng bước → root cause → failing test → fix. |
-| `/ccf:ccf-updatespec` | Cập nhật spec **và memory hệ thống** với bài học trong session — feedback chống lỗi vào memory (ưu tiên cao), rule dự án vào spec; gồm công cụ mới kèm "dùng khi nào". |
-| `/ccf:ccf-compact` | Sinh hint compact tối ưu từ task đang làm để bạn chạy `/compact <hint>` chủ động. |
+| Command | What it does |
+|---------|--------------|
+| `/ccf:ccf-init` | Bootstrap a new project (interview → generate CLAUDE.md + .claude + plan) or onboard an existing one (5 analyzer agents). |
+| `/ccf:ccf-plan` | Create a sequential plan for one feature. **Requires plan mode** (Shift+Tab). After planning, execute each task with an agent. |
+| `/ccf:ccf-check` | Verify the implementation against the spec (conformance, conventions, SOLID/OOP, BE↔FE cross-check). |
+| `/ccf:ccf-fix` | Disciplined debugging: reproduce → trace logs/DB step by step → root cause → failing test → fix. |
+| `/ccf:ccf-updatespec` | Update the spec **and system memory** with this session's lessons (incl. new tools with "when to use"). |
+| `/ccf:ccf-compact` | Generate an optimal compaction hint from the in-progress task so you can run `/compact <hint>` proactively. |
 
-Luồng điển hình: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → `/code-review` → `ccf-updatespec`.
+Typical flow: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → `/code-review` → `ccf-updatespec`.
 
-## MCP server đi kèm
+## Bundled MCP servers
 
-Plugin tự bundle 2 MCP server (plugin scope, Claude Code tự start/stop):
+The plugin bundles 2 MCP servers (plugin scope, auto started/stopped by Claude Code):
 
-- **microsoft-learn** — `https://learn.microsoft.com/api/mcp` (remote HTTP, không cần auth).
-- **context7** — `https://mcp.context7.com/mcp` (remote HTTP, chạy ngay không cần key).
+- **microsoft-learn** — `https://learn.microsoft.com/api/mcp` (remote HTTP, no auth required).
+- **context7** — `https://mcp.context7.com/mcp` (remote HTTP, works out of the box without a key).
 
-> **Context7 rate limit:** plugin chạy Context7 không cần API key (rate limit free). Nếu gặp rate-limit, lấy free key tại [context7.com/dashboard](https://context7.com/dashboard), set env var `CONTEXT7_API_KEY`, rồi khởi động lại Claude Code.
+> **Context7 rate limit:** the plugin runs Context7 without an API key (free rate limit). If you hit a rate limit, get a free key at [context7.com/dashboard](https://context7.com/dashboard), set the `CONTEXT7_API_KEY` env var, and restart Claude Code.
 
-## Spec vs Memory (hai tầng context)
+## Spec vs Memory (two context tiers)
 
-`/ccf:ccf-updatespec` ghi bài học vào **hai nơi** với mục đích khác nhau:
+`/ccf:ccf-updatespec` records lessons in **two places** with different purposes:
 
-- **Spec** (`CLAUDE.md` + `.claude/rules/`) — nạp như *user message*, trọng số thấp hơn. Giữ **rule dự án**: convention, architecture, tech-stack, tooling.
-- **Memory** (`~/.claude/projects/<path>/memory/`) — nạp vào *system prompt*, **không bị giảm trọng số** nên Claude tuân mạnh hơn. Giữ **feedback chống lỗi** + **user preference** xuyên session → giúp Claude bớt lặp sai lầm.
+- **Spec** (`CLAUDE.md` + `.claude/rules/`) — loaded as a *user message*, lower weight. Holds **project rules**: conventions, architecture, tech-stack, tooling.
+- **Memory** (`~/.claude/projects/<path>/memory/`) — loaded into the *system prompt*, **not down-weighted**, so Claude follows it more strongly. Holds **anti-mistake feedback** + **user preferences** across sessions → helps Claude repeat fewer mistakes.
 
-Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → viết một `feedback` memory để *gia cố* (kèm "vì sao"), thay vì chép lại nội dung.
+Principle: **no duplication**. A rule in CLAUDE.md that keeps getting forgotten → write a `feedback` memory that *reinforces* it (with the "why"), rather than copying its content.
 
-## Cơ chế compact-aware
+## Compact-aware mechanism
 
-`/compact <hint>` chủ động tốt hơn để auto-compact tự kích hoạt (lúc context đã "rot" mô hình kém minh mẫn nhất). CCF hỗ trợ:
-- `/ccf:ccf-compact` sinh hint tốt từ task đang làm.
-- Hook `SessionStart` (matcher `compact`) tự re-load task in-progress từ `.claude/plan/PLAN.md` sau khi compact, khôi phục đúng context công việc.
+A proactive `/compact <hint>` beats letting auto-compact fire (when context has "rotted" the model is at its least sharp). CCF supports:
+- `/ccf:ccf-compact` generates a good hint from the in-progress task.
+- The `SessionStart` hook (matcher `compact`) auto re-loads the in-progress task from `.claude/plan/PLAN.md` after compaction, restoring the right work context.
 
-## Kiến trúc
+## Architecture
 
-- **Command** = file markdown prompt điều khiển Claude trong session (không phải script).
-- **Hook** = `.mjs` chạy trực tiếp bằng `node` — không build step, không dependency, Windows-clean.
-- **Agent** = 6 subagent chuyên biệt (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
+- **Commands** = markdown prompts that drive Claude in-session (not scripts).
+- **Hooks** = `.mjs` run directly with `node` — no build step, no dependency, Windows-clean.
+- **Agents** = 6 specialized subagents (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
 
-Xem `plugins/ccf/` cho chi tiết. Yêu cầu Node ≥ 18 cho hook.
+See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.
 
 ## License
 

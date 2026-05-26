@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// CCF session-start hook — bơm reminder context-first + tín hiệu freshness.
-// Matcher: startup|clear|compact (re-inject sau compact/clear).
-// Vế khôi phục của cơ chế compact-aware: sau compact, re-load task đang in-progress từ PLAN.md.
+// CCF session-start hook — inject the context-first reminder + a freshness signal.
+// Matcher: startup|clear|compact (re-inject after compact/clear).
+// The recovery half of the compact-aware mechanism: after compact, re-load the in-progress task from PLAN.md.
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -18,30 +18,30 @@ const hasClaudeMd = existsSync(join(cwd, "CLAUDE.md"));
 const managed = existsSync(planDir) || hasClaudeMd;
 
 let msg =
-  "<ccf>Dự án này theo workflow CCF (Claude Context First): context-first, spec-driven, " +
-  "STRICTLY SEQUENTIAL (một task một lần, không phát triển song song nhiều feature). " +
-  "Ground mọi quyết định thiết kế bằng Context7 + Microsoft Learn. Giữ CLAUDE.md/.claude luôn tươi.";
+  "<ccf>This project follows the CCF (Claude Context First) workflow: context-first, spec-driven, " +
+  "STRICTLY SEQUENTIAL (one task at a time, no parallel feature development). " +
+  "Ground every design decision in Context7 + Microsoft Learn. Keep CLAUDE.md/.claude always fresh.";
 
 if (!managed) {
-  msg += " Dự án CHƯA được CCF khởi tạo — chạy /ccf:ccf-init để bắt đầu.</ccf>";
+  msg += " This project is NOT yet CCF-initialized — run /ccf:ccf-init to start.</ccf>";
   emitContext("SessionStart", msg);
 }
 
-// --- Đã CCF-managed ---
+// --- Already CCF-managed ---
 
-// Tín hiệu freshness: spec cũ hơn code → nhắc updatespec.
+// Freshness signal: spec older than code → nudge updatespec.
 if (specsOlderThanCode(cwd, rulesDir)) {
   msg +=
-    " Spec có vẻ cũ hơn code — cân nhắc chạy /ccf:ccf-updatespec để cập nhật context.";
+    " The spec looks older than the code — consider running /ccf:ccf-updatespec to refresh context.";
 }
 
-// Re-load task in-progress sau compact/clear.
+// Re-load the in-progress task after compact/clear.
 if (source === "compact" || source === "clear") {
   const task = findInProgressTask(planFile);
   if (task) {
     msg +=
-      ` Bạn đang dở task ${task.id}: ${task.title}.` +
-      ` Đọc .claude/plan/ (task ${task.id}) để tiếp tục đúng chỗ thay vì đọc lại toàn bộ.`;
+      ` You were mid-way through task ${task.id}: ${task.title}.` +
+      ` Read .claude/plan/ (task ${task.id}) to resume exactly where you left off instead of re-reading everything.`;
   }
 }
 
@@ -51,8 +51,8 @@ emitContext("SessionStart", msg);
 // ----------------------------------------------------------------------------
 
 /**
- * So sánh mtime mới nhất của file nguồn vs .claude/rules. True nếu code mới hơn spec.
- * Heuristic nhẹ — chỉ để nhắc, không phải kết luận chắc chắn.
+ * Compare the newest mtime of source files vs .claude/rules. True if code is newer than spec.
+ * Lightweight heuristic — only for nudging, not a hard conclusion.
  * @param {string} root
  * @param {string} rules
  */
@@ -60,7 +60,7 @@ function specsOlderThanCode(root, rules) {
   if (!existsSync(rules)) return false;
   const specMtime = newestMtime(rules, 0);
   if (specMtime === 0) return false;
-  // Quét nông các thư mục nguồn phổ biến để tránh đi sâu toàn repo.
+  // Shallow-scan common source directories to avoid walking the whole repo.
   const srcDirs = ["src", "be", "fe", "app", "lib", "packages"].map((d) => join(root, d));
   let codeMtime = 0;
   for (const d of srcDirs) {
@@ -70,9 +70,9 @@ function specsOlderThanCode(root, rules) {
 }
 
 /**
- * mtime lớn nhất của file .md/.ts/.js... trong cây, giới hạn độ sâu để rẻ.
+ * Largest mtime of .md/.ts/.js... files in the tree, depth-limited to stay cheap.
  * @param {string} dir
- * @param {number} depth còn lại được phép đệ quy
+ * @param {number} depth remaining recursion allowance
  * @returns {number}
  */
 function newestMtime(dir, depth) {
@@ -93,15 +93,15 @@ function newestMtime(dir, depth) {
         newest = Math.max(newest, statSync(full).mtimeMs);
       }
     } catch {
-      // bỏ qua file không đọc được
+      // skip unreadable files
     }
   }
   return newest;
 }
 
 /**
- * Tìm task đầu tiên có status "in-progress" trong bảng task của PLAN.md.
- * Định dạng hàng: | 001 | Title | BE | — | in-progress |
+ * Find the first task with status "in-progress" in PLAN.md's task table.
+ * Row format: | 001 | Title | BE | — | in-progress |
  * @param {string} file
  * @returns {{ id: string, title: string } | null}
  */

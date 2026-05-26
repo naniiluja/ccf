@@ -1,28 +1,28 @@
 ---
-description: Convention code JS/Node và markdown trong dự án plugin CCF.
+description: JS/Node and markdown conventions for the CCF plugin project.
 ---
 
 # Coding conventions
 
 ## JavaScript / Node (`*.mjs`)
-- **ESM thuần**: `import ... from "node:..."`. Luôn prefix `node:` cho built-in module.
-- **JSDoc bắt buộc** cho mọi hàm export và hàm có tham số: `@param`/`@returns` với kiểu — vì `tsconfig.json` bật `checkJs` + `strict`, type sai sẽ fail `tsc` (xem cách chạy `tsc` kèm tiền điều kiện `@types/node` ở `testing.md`).
-- Hàm thuần nhỏ, một trách nhiệm. Helper dùng chung (vd I/O hook) đặt ở `hooks/lib/` và import lại — DRY, không copy-paste contract stdin/stdout.
-- Đặt tên rõ nghĩa (`findInProgressTask`, `specsOlderThanCode`); không viết tắt khó hiểu.
-- Comment giải thích **tại sao** (vd "tránh treo khi không có stdin"), không lặp lại cái code đã nói.
-- Ép kiểu đầu vào ngoài tầm kiểm soát: `String(input.x ?? "")`, `Number(...)` — không tin dữ liệu stdin.
+- **Pure ESM**: `import ... from "node:..."`. Always prefix `node:` for built-in modules.
+- **JSDoc required** for every exported function and every function with parameters: `@param`/`@returns` with types — because `tsconfig.json` enables `checkJs` + `strict`, wrong types fail `tsc` (see how to run `tsc` with the `@types/node` prerequisite in `testing.md`).
+- Small pure functions, one responsibility. Shared helpers (e.g. hook I/O) live in `hooks/lib/` and are imported — DRY, don't copy-paste the stdin/stdout contract.
+- Use meaningful names (`findInProgressTask`, `specsOlderThanCode`); no cryptic abbreviations.
+- Comments explain **why** (e.g. "avoid hanging when there is no stdin"), not what the code already says.
+- Coerce untrusted input: `String(input.x ?? "")`, `Number(...)` — don't trust stdin data.
 
 ## Markdown (command / agent / rule / template)
-- Frontmatter YAML hợp lệ, đúng các field cho từng loại (xem `components.md`).
-- Heading phân cấp rõ; command/agent dùng heading đánh số bước.
-- Câu lệnh hướng Claude viết ở thể mệnh lệnh, dứt khoát (vd "DỪNG.", "KHÔNG commit").
-- Giữ ngắn gọn, mỗi câu thêm thông tin mới — đây là context Claude phải nạp, dài = tốn token + loãng.
+- Valid YAML frontmatter, with the correct fields per type (see `components.md`).
+- Clear heading hierarchy; commands/agents use numbered step headings.
+- Instructions to Claude are written in the imperative, decisively (e.g. "STOP.", "Do NOT commit").
+- Keep it concise, each sentence adds new information — this is context Claude must load, longer = more tokens + dilution.
 
-## Ngôn ngữ
-- Toàn bộ prose (comment, prompt, rule) bằng **tiếng Việt có dấu đầy đủ**. Giữ nguyên định danh kỹ thuật (tên tool, field, command) ở dạng gốc.
+## Language
+- All prose (comments, prompts, rules) in **English**. Keep technical identifiers (tool names, fields, commands) in their original form.
 
-## Nguyên tắc thiết kế (áp dụng mọi thay đổi)
-- **KISS**: chọn giải pháp đơn giản nhất chạy được; hook ưu tiên heuristic nhẹ hơn là phân tích nặng.
-- **YAGNI**: chỉ thêm rule/command/field khi có nhu cầu thật. Không sinh rule rỗng cho thứ không áp dụng (vd dự án này KHÔNG có data-layer/api/component rule).
-- **DRY**: contract hook ở một chỗ (`io.mjs`); convention ở `.claude/rules/`, không nhắc lại trong từng prompt.
-- **SRP**: một file một trách nhiệm.
+## Design principles (apply to every change)
+- **KISS**: pick the simplest thing that works; hooks prefer lightweight heuristics over heavy analysis.
+- **YAGNI**: only add a rule/command/field when there's a real need. Don't generate empty rules for things that don't apply (e.g. this project has NO data-layer/api/component rule).
+- **DRY**: the hook contract lives in one place (`io.mjs`); conventions in `.claude/rules/`, not repeated in every prompt.
+- **SRP**: one file, one responsibility.

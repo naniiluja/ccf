@@ -1,14 +1,14 @@
-// CCF hook I/O helpers — chạy trực tiếp bằng `node`, không build step, không dependency.
-// Hợp đồng hook của Claude Code: nhận JSON qua stdin, trả JSON qua stdout / dùng exit code.
+// CCF hook I/O helpers — run directly with `node`, no build step, no dependency.
+// Claude Code hook contract: receive JSON on stdin, return JSON on stdout / use exit codes.
 
 /**
- * Đọc toàn bộ stdin và parse JSON. Nếu rỗng hoặc lỗi → trả {} để hook không bao giờ crash.
+ * Read all of stdin and parse JSON. If empty or on error → return {} so the hook never crashes.
  * @returns {Promise<Record<string, any>>}
  */
 export async function readStdinJson() {
   return new Promise((resolve) => {
     let raw = "";
-    // Nếu không có stdin (chạy tay không pipe), tránh treo: resolve {} khi stream đóng.
+    // If there is no stdin (run manually without a pipe), avoid hanging: resolve {} when the stream closes.
     if (process.stdin.isTTY) {
       resolve({});
       return;
@@ -34,10 +34,10 @@ export async function readStdinJson() {
 }
 
 /**
- * Bơm context cho Claude qua additionalContext (được hỗ trợ ở SessionStart, PreToolUse,
- * PostToolUse, Stop...). In JSON ra stdout rồi exit 0.
- * @param {string} eventName tên hook event (vd "SessionStart", "Stop")
- * @param {string} text nội dung context cần bơm
+ * Inject context for Claude via additionalContext (supported at SessionStart, PreToolUse,
+ * PostToolUse, Stop...). Print JSON to stdout then exit 0.
+ * @param {string} eventName the hook event name (e.g. "SessionStart", "Stop")
+ * @param {string} text the context to inject
  */
 export function emitContext(eventName, text) {
   process.stdout.write(
@@ -52,9 +52,9 @@ export function emitContext(eventName, text) {
 }
 
 /**
- * Chặn prompt ở UserPromptSubmit: ghi lý do ra stderr (Claude/người dùng thấy) rồi exit 2.
- * Exit code 2 = blocking error theo hợp đồng hook.
- * @param {string} reason lý do chặn
+ * Block a prompt at UserPromptSubmit: write the reason to stderr (shown to Claude/the user) then exit 2.
+ * Exit code 2 = blocking error per the hook contract.
+ * @param {string} reason the reason for blocking
  */
 export function blockUserPrompt(reason) {
   process.stderr.write(reason);

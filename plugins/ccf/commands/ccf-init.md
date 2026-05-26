@@ -1,78 +1,78 @@
 ---
-description: Bootstrap dự án mới hoặc onboard dự án có sẵn vào workflow CCF — sinh CLAUDE.md + .claude spec + plan tuần tự ban đầu.
-argument-hint: "[tùy chọn: mô tả ngắn thứ bạn muốn xây]"
+description: Bootstrap a new project or onboard an existing one into the CCF workflow — generate CLAUDE.md + .claude specs + an initial sequential plan.
+argument-hint: "[optional: short description of what you want to build]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill, WebFetch, mcp__context7__resolve-library-id, mcp__context7__query-docs, mcp__microsoft-learn__*
 model: opus
 ---
 
-Bạn đang chạy CCF `/ccf-init`. Nhiệm vụ: tạo một lớp context tươi, grounding best-practice (CLAUDE.md + `.claude/`) và một plan implementation tuần tự ban đầu. Theo workflow Anthropic Explore → Plan. **KHÔNG viết code ứng dụng trong lệnh này.**
+You are running CCF `/ccf-init`. Task: produce a fresh, best-practice-grounded context layer (CLAUDE.md + `.claude/`) and an initial sequential implementation plan. Follow Anthropic's Explore → Plan workflow. **Do NOT write application code in this command.**
 
-Template nằm ở `${CLAUDE_PLUGIN_ROOT}/templates/`. Đọc và instantiate chúng (thay placeholder `{{...}}`) khi sinh file thật vào dự án.
+Templates live in `${CLAUDE_PLUGIN_ROOT}/templates/`. Read and instantiate them (replacing `{{...}}` placeholders) when generating real files into the project.
 
-## Bước 0: Phân loại dự án
-Scan read-only `cwd` (Glob `**/*` bỏ qua `node_modules`/`.git`; kiểm tra `package.json`, `src/`, `CLAUDE.md` sẵn có). Phân loại **EMPTY** (chưa có gì đáng kể) hay **EXISTING** (đã có code).
+## Step 0: Classify the project
+Scan `cwd` read-only (Glob `**/*` excluding `node_modules`/`.git`; check for `package.json`, `src/`, an existing `CLAUDE.md`). Classify as **EMPTY** (nothing substantial yet) or **EXISTING** (has code).
 
 ---
 
-## Nhánh A — EMPTY project
+## Branch A — EMPTY project
 
 ### A1. Interview (grill-me)
-Gọi skill `grill-me` để phỏng vấn người dùng **từng câu một**. Trước mỗi câu, nếu có thể trả lời bằng explore codebase thì explore trước; chỉ hỏi điều code không nói được. Đi qua cây quyết định sau (mỗi câu kèm đề xuất của bạn):
-- (a) Hệ thống gì + bài toán cốt lõi?
-- (b) Budget/chi phí chấp nhận được?
-- (c) Loại app: REST API / frontend / backend / fullstack?
-- (d) Quy mô người dùng dự kiến? → **dựa vào quy mô, đề xuất hosting** (vd Supabase hoặc Railway) và bảo người dùng cài MCP tương ứng (`/plugin install ...`).
-- (e) Design pattern cho FE & BE?
-- (f) Hệ thống logging tối ưu cho AI trace (structured log, correlation ID, prefix nhất quán)?
+Invoke the `grill-me` skill to interview the user **one question at a time**. Before each question, if it can be answered by exploring the codebase, explore first; only ask what code cannot tell you. Walk this decision tree (give your recommendation with each question):
+- (a) What system + the core problem?
+- (b) Acceptable budget/cost?
+- (c) App type: REST API / frontend / backend / fullstack?
+- (d) Expected user scale? → **based on scale, propose hosting** (e.g. Supabase or Railway) and tell the user to install the corresponding MCP (`/plugin install ...`).
+- (e) Design patterns for FE & BE?
+- (f) AI-traceable logging system (structured logs, correlation ID, consistent prefixes)?
 - (g) Database?
-- (h) Coding convention?
-- (i) Chiến lược testing?
-- (j) **Tech stack — phải ổn định nhất, được support rộng nhất, ít bug nhất** (mainstream); mỗi thư viện chọn loại phổ biến/được maintain tốt nhất.
-- (k) **Quy tắc monorepo:** làm việc trong thư mục gốc; nếu fullstack tạo `be/` + `fe/`; **git init ở gốc, KHÔNG ở thư mục con**; gốc chứa CLAUDE.md, `.claude/`, docker, CI/CD.
+- (h) Coding conventions?
+- (i) Testing strategy?
+- (j) **Tech stack — must be the most stable, best-supported, least-buggy** (mainstream); for each library pick the most popular/well-maintained option.
+- (k) **Monorepo rule:** work in the root folder; if fullstack create `be/` + `fe/`; **git init at the root, NOT in sub-folders**; the root holds CLAUDE.md, `.claude/`, docker, CI/CD.
 
-Tổng hợp thành **"decisions summary"** và trình người dùng xác nhận.
+Synthesize into a **"decisions summary"** and present it for the user to confirm.
 
-### A2. Grounding best-practice
-Với mỗi design pattern / DB design / framework đã chọn, **đối chiếu tài liệu trước khi viết spec**. Giao `ccf-best-practice-researcher` (qua Task) — hoặc gọi trực tiếp Context7 (`resolve-library-id` → `query-docs`) và Microsoft Learn docs tool. Trích dẫn những gì học được vào spec.
+### A2. Best-practice grounding
+For each chosen design pattern / DB design / framework, **consult the docs before writing the spec**. Delegate to `ccf-best-practice-researcher` (via Task) — or directly call Context7 (`resolve-library-id` → `query-docs`) and the Microsoft Learn docs tool. Cite what you learned in the spec.
 
-### A3. Sinh file spec
-Đọc template ở `${CLAUDE_PLUGIN_ROOT}/templates/root/`, instantiate, ghi root `CLAUDE.md` + `.claude/rules/*` vào thư mục gốc. Nếu **fullstack**: ghi thêm `CLAUDE.md` + `.claude/rules/*` lồng trong `be/` (template `templates/backend/`) và `fe/` (template `templates/frontend/`).
-- Mọi `CLAUDE.md` < 200 dòng; đẩy chi tiết vào `.claude/rules/*` qua `@import` (max depth 5).
-- Rule cụ thể & verifiable. Loại bỏ thứ Claude tự suy ra được.
-- Rule scope theo path dùng frontmatter `paths:` (vd `be/**`, `fe/**`).
+### A3. Generate spec files
+Read the templates in `${CLAUDE_PLUGIN_ROOT}/templates/root/`, instantiate them, write the root `CLAUDE.md` + `.claude/rules/*` into the root folder. If **fullstack**: also write nested `CLAUDE.md` + `.claude/rules/*` inside `be/` (template `templates/backend/`) and `fe/` (template `templates/frontend/`).
+- Every `CLAUDE.md` < 200 lines; push detail into `.claude/rules/*` via `@import` (max depth 5).
+- Specific & verifiable rules. Omit anything Claude can infer.
+- Path-scoped rules use `paths:` frontmatter (e.g. `be/**`, `fe/**`).
 
-### A4. Sinh plan ban đầu
-Sinh một plan lớn ở `.claude/plan/` dùng template (`PLAN.md` index + các `task-NNN-*.md`), cấu trúc **tuần tự waterfall** (nhỏ → lớn, spec → test → implement). Mỗi task đúng một predecessor.
+### A4. Generate the initial plan
+Generate one large plan in `.claude/plan/` using the templates (`PLAN.md` index + `task-NNN-*.md` files), structured as a **sequential waterfall** (smallest → largest, spec → test → implement). Each task has exactly one predecessor.
 
-### A5. Kết thúc
-KHÔNG chạy git. Bảo người dùng start session mới và chạy `/ccf:ccf-plan` (trong plan mode) khi sẵn sàng chi tiết hóa feature đầu tiên. Nhắc: nếu Context7 gặp rate-limit, set free `CONTEXT7_API_KEY` env var rồi khởi động lại Claude Code.
+### A5. Closing
+Do NOT run git. Tell the user to start a fresh session and run `/ccf:ccf-plan` (in plan mode) when ready to detail the first feature. Remind them: if Context7 hits a rate limit, set a free `CONTEXT7_API_KEY` env var and restart Claude Code.
 
 ---
 
-## Nhánh B — EXISTING project
+## Branch B — EXISTING project
 
-### B1. Phân tích bằng 5 agent song song
-Launch **5 subagent `ccf-codebase-analyzer` song song** (qua Task — đây là chỗ DUY NHẤT CCF cho phép song song, vì là research read-only). Mỗi cái một slice:
+### B1. Analyze with 5 parallel agents
+Launch **5 `ccf-codebase-analyzer` subagents in parallel** (via Task — this is the ONLY place CCF allows parallelism, since it's read-only research). Assign each one slice:
 1. Architecture & module boundaries
 2. Data layer & DB
 3. API surface
 4. Frontend & state
-5. Build/test/CI + convention & logging
+5. Build/test/CI + conventions & logging
 
-Mỗi agent trả report có cấu trúc; **không được ghi file**.
+Each returns a structured report; they must NOT write files.
 
-### B2. Tổng hợp + validate
-Tổng hợp 5 report. Đối chiếu pattern quan sát được với best practice qua Context7 + Microsoft Learn (hoặc `ccf-best-practice-researcher`), flag drift.
+### B2. Synthesize + validate
+Synthesize the 5 reports. Validate the observed patterns against best practices via Context7 + Microsoft Learn (or `ccf-best-practice-researcher`), flagging drift.
 
-### B3. Sinh spec phản ánh code THỰC TẾ
-Sinh `CLAUDE.md` + `.claude/` mô tả codebase đang có (không phải lý tưởng hóa), cùng bộ template + cùng quy tắc < 200 dòng / `@import`. Nếu là monorepo nhiều sub-package, sinh nested CLAUDE.md cho từng package.
+### B3. Generate spec reflecting the ACTUAL codebase
+Generate `CLAUDE.md` + `.claude/` describing the existing codebase (not an idealized one), using the same templates + the same < 200-line / `@import` rules. For a monorepo with several sub-packages, generate nested CLAUDE.md per package.
 
-### B4. Kết thúc
-Đề xuất chạy `/ccf:ccf-plan` cho công việc mới. KHÔNG commit.
+### B4. Closing
+Recommend `/ccf:ccf-plan` for new work. Do NOT commit.
 
 ---
 
-## Guardrails (cả hai nhánh)
-- Một task một lần; KHÔNG spawn agent **ghi** song song (chỉ research read-only mới được song song).
-- Spec phải verifiable.
-- KHÔNG chạy git khi người dùng chưa yêu cầu.
+## Guardrails (both branches)
+- One task at a time; do NOT spawn **writing** agents in parallel (only read-only research may run in parallel).
+- Specs must be verifiable.
+- Do NOT run git unless the user asks.

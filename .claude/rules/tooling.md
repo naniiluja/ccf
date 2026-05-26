@@ -1,28 +1,28 @@
 ---
-description: Công cụ và MCP dùng trong/để phát triển plugin CCF — kèm "dùng khi nào".
+description: Tools and MCP used in / for developing the CCF plugin — with "when to use".
 ---
 
 # Tooling
 
-## MCP server bundle theo plugin (`plugins/ccf/.mcp.json`)
-Hai remote HTTP server, Claude Code tự start/stop theo plugin scope:
-- **context7** (`https://mcp.context7.com/mcp`) — **dùng khi**: cần tra schema/contract/cú pháp của Claude Code, thư viện, framework, CLI. Quy trình: `resolve-library-id` → `query-docs`. Chạy không cần API key (rate-limit free); nếu bị rate-limit, set env `CONTEXT7_API_KEY` (lấy free ở context7.com/dashboard) rồi restart Claude Code.
-- **microsoft-learn** (`https://learn.microsoft.com/api/mcp`) — **dùng khi**: cần hướng dẫn platform Microsoft/Azure/.NET. Không cần auth. Tools: `microsoft_docs_search` (breadth) → `microsoft_code_sample_search` (ví dụ) → `microsoft_docs_fetch` (depth).
+## Plugin-bundled MCP servers (`plugins/ccf/.mcp.json`)
+Two remote HTTP servers, auto started/stopped by Claude Code at plugin scope:
+- **context7** (`https://mcp.context7.com/mcp`) — **use when**: you need to look up the schema/contract/syntax of Claude Code, a library, framework, or CLI. Flow: `resolve-library-id` → `query-docs`. Runs without an API key (free rate limit); if rate-limited, set env `CONTEXT7_API_KEY` (free at context7.com/dashboard) and restart Claude Code.
+- **microsoft-learn** (`https://learn.microsoft.com/api/mcp`) — **use when**: you need Microsoft/Azure/.NET platform guidance. No auth. Tools: `microsoft_docs_search` (breadth) → `microsoft_code_sample_search` (examples) → `microsoft_docs_fetch` (depth).
 
-> Grounding là luật CCF: trước khi viết spec/quyết định về schema Claude Code hay thư viện, tra tài liệu chính thức rồi TRÍCH DẪN, không dựa trí nhớ.
+> Grounding is a CCF law: before writing a spec/decision about Claude Code's schema or a library, consult the official docs and CITE them, don't rely on memory.
 
-## Subagent grounding
-- `ccf-best-practice-researcher` — **dùng khi**: muốn fan-out việc tra cứu best-practice ra context riêng để không làm ngập main conversation. Nó gọi Context7/MS Learn và trả khuyến nghị có trích dẫn.
+## Grounding subagent
+- `ccf-best-practice-researcher` — **use when**: you want to fan out best-practice lookups into a separate context so they don't flood the main conversation. It calls Context7/MS Learn and returns a cited recommendation.
 
-## Công cụ phát triển plugin
-- **Node ≥ 18** — chạy hook và `bin/ccf-bootstrap.mjs`.
-- **`tsc`** — type-check JS qua `tsconfig.json`. **Dùng khi**: vừa sửa bất kỳ `.mjs` nào. Chạy `npm install` (một lần) rồi `npx tsc --noEmit`. Cần `@types/node` (đã ở `devDependencies`) vì `tsconfig` đặt `"types": ["node"]` — đây là devDependency type-check, không phải runtime dep.
-- **`claude plugin` CLI** — `marketplace add` / `install`. **Dùng khi**: cài thử local hoặc trong `bin/ccf-bootstrap.mjs`.
+## Plugin development tools
+- **Node ≥ 18** — runs the hooks and `bin/ccf-bootstrap.mjs`.
+- **`tsc`** — type-checks JS via `tsconfig.json`. **Use when**: you just edited any `.mjs`. Run `npm install` (once) then `npx tsc --noEmit`. Needs `@types/node` (already in `devDependencies`) because `tsconfig` sets `"types": ["node"]` — this is a type-check devDependency, not a runtime dep.
+- **`claude plugin` CLI** — `marketplace add` / `install`. **Use when**: installing locally or in `bin/ccf-bootstrap.mjs`.
 
-## Tự kiểm CCF (lệnh nội bộ)
-- `/ccf:ccf-check` — verify implementation so với spec này (conformance, convention, SOLID, cross-check).
-- `/ccf:ccf-updatespec` — refresh spec sau session; **ghi cả công cụ mới kèm "dùng khi nào"** vào chính file này.
-- `/ccf:ccf-compact` — sinh hint cho `/compact` chủ động trước khi context rot.
+## CCF self-checks (internal commands)
+- `/ccf:ccf-check` — verify the implementation against this spec (conformance, conventions, SOLID, cross-check).
+- `/ccf:ccf-updatespec` — refresh the spec after a session; **also records new tools with "when to use"** into this very file.
+- `/ccf:ccf-compact` — generate a hint for a proactive `/compact` before context rot.
 
-## Quy ước thêm tool mới
-Khi tích hợp công cụ/MCP mới, thêm mục ở đây với định dạng "**tên** — dùng khi nào — cách gọi", và cập nhật `allowed-tools`/`tools` của command/agent liên quan.
+## Convention for adding a new tool
+When integrating a new tool/MCP, add an entry here in the format "**name** — when to use — how to call", and update the `allowed-tools`/`tools` of the related commands/agents.

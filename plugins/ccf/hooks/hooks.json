@@ -1,5 +1,5 @@
 {
-  "description": "CCF: cưỡng chế plan mode cho /ccf-plan, bơm reminder context-first + re-load task sau compact, nhắc cập nhật spec.",
+  "description": "CCF: enforce plan mode for /ccf-plan, inject the context-first reminder + re-load the task after compact, nudge spec updates.",
   "hooks": {
     "UserPromptSubmit": [
       {

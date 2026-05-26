@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// CCF updatespec nudge — sự kiện Stop, THUẦN ADVISORY (không bao giờ block).
-// Nếu code thay đổi gần đây hơn spec, nhắc chạy /ccf-check rồi /ccf-updatespec.
+// CCF updatespec nudge — Stop event, PURELY ADVISORY (never blocks).
+// If code changed more recently than the spec, nudge to run /ccf-check then /ccf-updatespec.
 
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -8,7 +8,7 @@ import { readStdinJson, emitContext } from "./lib/io.mjs";
 
 const input = await readStdinJson();
 
-// Tránh vòng lặp: nếu Stop được kích bởi chính hook Stop trước đó thì thôi.
+// Avoid loops: if this Stop was triggered by a previous Stop hook, bail out.
 if (input.stop_hook_active) {
   process.exit(0);
 }
@@ -16,7 +16,7 @@ if (input.stop_hook_active) {
 const cwd = String(input.cwd ?? process.cwd());
 const rulesDir = join(cwd, ".claude", "rules");
 
-// Chỉ nhắc khi đây là dự án CCF-managed (có .claude/rules).
+// Only nudge for CCF-managed projects (those with .claude/rules).
 if (!existsSync(rulesDir)) {
   process.exit(0);
 }
@@ -24,8 +24,8 @@ if (!existsSync(rulesDir)) {
 if (codeNewerThanSpec(cwd, rulesDir)) {
   emitContext(
     "Stop",
-    "<ccf>Code đã thay đổi trong session này nhưng spec chưa được cập nhật. " +
-      "Cân nhắc chạy /ccf:ccf-check rồi /ccf:ccf-updatespec để giữ context tươi cho session sau.</ccf>",
+    "<ccf>Code changed this session but the spec wasn't updated. " +
+      "Consider running /ccf:ccf-check then /ccf:ccf-updatespec to keep context fresh for future sessions.</ccf>",
   );
 }
 
@@ -71,7 +71,7 @@ function newestMtime(dir, depth) {
         newest = Math.max(newest, statSync(full).mtimeMs);
       }
     } catch {
-      // bỏ qua
+      // skip
     }
   }
   return newest;

@@ -4,11 +4,11 @@ paths: ["fe/**"]
 
 # Frontend Conventions
 
-## Cấu trúc
-- Tổ chức thư mục: {{FE_FOLDER_STRUCTURE}}.
+## Structure
+- Folder organization: {{FE_FOLDER_STRUCTURE}}.
 - Routing: {{ROUTING}}.
 
-## Quy tắc verifiable
-- Component có test (theo `../.claude/rules/testing.md`).
-- Không gọi API trực tiếp trong component trình bày; qua lớp service/hook.
+## Verifiable rules
+- Components have tests (per `../.claude/rules/testing.md`).
+- Don't call the API directly in presentational components; go through a service/hook layer.
 - Accessibility: {{A11Y_RULES}}.

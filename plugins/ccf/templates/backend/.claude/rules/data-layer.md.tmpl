@@ -4,15 +4,15 @@ paths: ["be/**"]
 
 # Data Layer
 
-## Schema & migration
+## Schema & migrations
 - DB: {{DATABASE}}.
-- Migration: {{MIGRATION_TOOL}}; mọi thay đổi schema qua migration, không sửa tay.
-- Naming bảng/cột: {{DB_NAMING}}.
+- Migrations: {{MIGRATION_TOOL}}; every schema change goes through a migration, never edited by hand.
+- Table/column naming: {{DB_NAMING}}.
 
-## Query pattern
-- Truy cập DB qua {{DATA_ACCESS_PATTERN}} (vd repository); không rải raw query khắp nơi.
-- Tránh N+1; index cho truy vấn nóng.
+## Query patterns
+- Access the DB via {{DATA_ACCESS_PATTERN}} (e.g. repository); don't scatter raw queries everywhere.
+- Avoid N+1; index hot queries.
 
-## Quy tắc
-- Không để business logic trong DB layer.
-- Transaction cho thao tác nhiều bước cần atomic.
+## Rules
+- No business logic in the DB layer.
+- Use transactions for multi-step operations that must be atomic.

@@ -1,15 +1,15 @@
 # {{PROJECT_NAME}} — Frontend
 
-> Sub-package của monorepo CCF. Kế thừa spec gốc ở `../CLAUDE.md`. git nằm ở repo gốc, KHÔNG ở đây.
-> STRICTLY SEQUENTIAL, verification-first — xem spec gốc.
+> A sub-package of the CCF monorepo. Inherits the root spec at `../CLAUDE.md`. git lives at the repo root, NOT here.
+> STRICTLY SEQUENTIAL, verification-first — see the root spec.
 
-## Frontend này là gì
+## What this frontend is
 {{FE_DESCRIPTION}}
 
-## Rules frontend (import)
+## Frontend rules (imported)
 @.claude/rules/component-design.md
 @.claude/rules/state-management.md
 @.claude/rules/frontend-conventions.md
 
-> Rule gốc (tech-stack, logging, testing, error-handling, debugging...) áp dụng từ `../.claude/rules/`.
-> API contract do backend định nghĩa (`../be/.claude/rules/api-design.md`) là nguồn sự thật khi gọi API.
+> Root rules (tech-stack, logging, testing, error-handling, debugging...) apply from `../.claude/rules/`.
+> The API contract defined by the backend (`../be/.claude/rules/api-design.md`) is the source of truth when calling the API.

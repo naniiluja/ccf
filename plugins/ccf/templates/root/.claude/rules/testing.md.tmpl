@@ -1,17 +1,17 @@
 # Testing (verification-first)
 
-Triết lý: **viết failing test TRƯỚC** khi implement/fix — đây là việc có đòn bẩy cao nhất để Claude tự kiểm chứng.
+Philosophy: **write a failing test FIRST** before implementing/fixing — this is the single highest-leverage thing to let Claude verify its own work.
 
-## Quy tắc
-- Mỗi task: viết test tái hiện acceptance criteria (đỏ) → implement → test xanh.
-- Bug-fix: viết test tái hiện bug (đỏ) trước, rồi mới sửa.
-- Acceptance criteria của task = test cụ thể, không phải mô tả chung chung.
+## Rules
+- Each task: write a test reproducing the acceptance criteria (red) → implement → test green.
+- Bug fix: write a test reproducing the bug (red) first, then fix.
+- A task's acceptance criteria = concrete tests, not vague descriptions.
 
-## Công cụ & vị trí
+## Tooling & location
 - Test framework: {{TEST_FRAMEWORK}}.
-- Lệnh chạy test: `{{TEST_CMD}}`.
-- Test nằm ở: {{TEST_LOCATION}}.
+- Run command: `{{TEST_CMD}}`.
+- Tests live in: {{TEST_LOCATION}}.
 
 ## Coverage
-- Mục tiêu coverage: {{COVERAGE_TARGET}}.
-- Đường nghiệp vụ chính phải có test trước khi đánh dấu task `done`.
+- Coverage target: {{COVERAGE_TARGET}}.
+- Core business paths must have tests before marking a task `done`.

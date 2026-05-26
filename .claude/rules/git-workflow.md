@@ -1,28 +1,28 @@
 ---
-description: Quy ước git và phân phối/versioning cho plugin CCF.
+description: Git and distribution/versioning conventions for the CCF plugin.
 ---
 
-# Git workflow & phân phối
+# Git workflow & distribution
 
 ## Git
-- **KHÔNG commit/push/tạo branch khi người dùng chưa yêu cầu rõ ràng.** Đây là luật cứng của CCF và của output style — áp dụng cho cả hook, command, agent, spec.
-- git init ở **gốc repo**, không ở thư mục con. `.gitignore` đã loại `node_modules/`, `dist/`, `*.log`, `.env*`.
-- Khi được yêu cầu commit: message mô tả thay đổi theo loại artifact (vd `feat: thêm hook X`, `docs: đồng bộ README`).
+- **Do NOT commit/push/create branches unless the user explicitly asks.** This is a hard rule of CCF and of the output style — it applies to hooks, commands, agents, and the spec.
+- git init at the **repo root**, not in sub-folders. `.gitignore` already excludes `node_modules/`, `dist/`, `*.log`, `.env*`.
+- When asked to commit: the message describes the change by artifact type (e.g. `feat: add hook X`, `docs: sync README`).
 
-## Versioning (đồng bộ 3 nơi — dễ drift)
-Số version xuất hiện ở **ba** file, phải khớp nhau khi bump:
+## Versioning (synced in 3 places — easy to drift)
+The version number appears in **three** files and must match on every bump:
 1. `package.json` → `version`
 2. `plugins/ccf/.claude-plugin/plugin.json` → `version`
 3. `.claude-plugin/marketplace.json` → `plugins[0].version`
 
-Thứ tự resolution của Claude Code: `plugin.json` > `marketplace.json` > git SHA. Nhưng vẫn giữ cả ba đồng bộ để tránh nhầm lẫn cho người cài.
+Claude Code's resolution order: `plugin.json` > `marketplace.json` > git SHA. Still, keep all three in sync to avoid confusing installers.
 
-## Đồng bộ khi đổi cấu trúc plugin
-Một thay đổi cấu trúc thường phải sửa nhiều file — kiểm đủ trước khi coi là xong:
-- Thêm/đổi/xóa **command** → `commands/`, README (bảng lệnh), cross-reference trong các prompt khác.
-- Thêm/đổi/xóa **agent** → `agents/`, mọi command gọi nó qua Task, README nếu liệt kê.
-- Thêm/đổi **hook** → `hooks/<file>.mjs`, `hooks/hooks.json`, `tsconfig.json` (glob `include`).
-- Thêm **MCP** → `.mcp.json`, `allowed-tools`/`tools` của command/agent dùng nó, `tooling.md`.
+## Syncing on plugin structure changes
+A structural change usually touches multiple files — check all before calling it done:
+- Add/change/remove a **command** → `commands/`, README (command table), cross-references in other prompts.
+- Add/change/remove an **agent** → `agents/`, every command that calls it via Task, README if listed.
+- Add/change a **hook** → `hooks/<file>.mjs`, `hooks/hooks.json`, `tsconfig.json` (the `include` glob).
+- Add an **MCP** → `.mcp.json`, the `allowed-tools`/`tools` of commands/agents that use it, `tooling.md`.
 
-## README là tài liệu người dùng, spec là cho Claude
-README + spec phải nhất quán về số lượng/ tên command. Nếu lệch (vd README ghi "5 command" trong khi có 6), coi là **drift** cần sửa ở lần chạm tới — README/MEMORY không phải nguồn chân lý, file thật trong `commands/`+`agents/` mới là.
+## README is the user doc, the spec is for Claude
+The README + spec must be consistent on the count/names of commands. If they diverge (e.g. README says "5 commands" while there are 6), treat it as **drift** to fix on next touch — README/MEMORY is not the source of truth; the real files in `commands/`+`agents/` are.

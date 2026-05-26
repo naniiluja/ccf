@@ -1,49 +1,49 @@
 ---
-description: Refresh CCF spec (.claude/rules + CLAUDE.md) VÀ memory hệ thống với những gì học được trong session, để session sau có context tươi và bớt lặp lỗi. Ghi cả công cụ mới kèm "dùng khi nào".
+description: Refresh the CCF spec (.claude/rules + CLAUDE.md) AND system memory with what was learned this session, so future sessions start fresh and repeat fewer mistakes. Also records new tools with "when to use".
 argument-hint: ""
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 model: opus
 ---
 
-Bạn đang chạy CCF `/ccf-updatespec`. Mục tiêu: cô đọng bài học của session này vào **hai nơi** — spec dự án (`.claude/`) và memory hệ thống của Claude Code — để session sau khởi đầu với context tươi và Claude bớt lặp lỗi.
+You are running CCF `/ccf-updatespec`. Goal: distill this session's lessons into **two places** — the project spec (`.claude/`) and Claude Code's system memory — so future sessions start with fresh context and Claude repeats fewer mistakes.
 
-> **Vì sao hai nơi (quan trọng — quyết định ghi cái gì vào đâu):**
-> - **Spec** (`CLAUDE.md` + `.claude/rules/`) được nạp như *user message*, bị gắn nhãn "có thể không liên quan" → trọng số thấp hơn. Hợp để ghi **rule dự án**: convention, architecture, tech-stack, tooling.
-> - **Memory** (`~/.claude/projects/<path>/memory/`) được nạp vào *system prompt*, **không bị giảm trọng số** → Claude tuân theo mạnh hơn. Hợp để ghi **feedback chống lỗi** và **user preference** xuyên session.
-> - **KHÔNG trùng lặp:** thứ gì đã ở CLAUDE.md thì ĐỪNG chép lại vào memory. Nếu một rule trong CLAUDE.md hay bị quên/làm sai, viết một `feedback` memory để *gia cố* nó (nêu rõ vì sao), thay vì lặp lại nội dung.
+> **Why two places (important — decides what goes where):**
+> - **Spec** (`CLAUDE.md` + `.claude/rules/`) is loaded as a *user message*, tagged "may not be relevant" → lower weight. Good for **project rules**: conventions, architecture, tech-stack, tooling.
+> - **Memory** (`~/.claude/projects/<path>/memory/`) is loaded into the *system prompt*, **not down-weighted** → Claude follows it more strongly. Good for **anti-mistake feedback** and **user preferences** across sessions.
+> - **No duplication:** anything already in CLAUDE.md must NOT be copied into memory. If a rule in CLAUDE.md keeps getting forgotten/violated, write a `feedback` memory that *reinforces* it (stating why), rather than repeating its content.
 
-## Các bước
+## Steps
 
-### 1. Reflect & phân loại
-Rà soát session này để tìm bài học, rồi phân loại mỗi cái thuộc **spec** hay **memory**:
-- → **Spec**: convention/pattern dự án, architecture, tech-stack, công cụ mới (rule có thể suy ra từ code hoặc thuộc về repo).
-- → **Memory (`feedback`)**: lỗi mà bạn (Claude) đã mắc + cách sửa, *và cả cách làm đúng đã được người dùng xác nhận* — để không trôi dạt khỏi hướng đã validate.
-- → **Memory (`user`)**: sở thích/cử chỉ/cách làm việc người dùng thể hiện (vd "luôn dùng X", "đừng tự ý refactor").
-- → **Memory (`project`)**: ràng buộc dự án không suy ra được từ code/git (deadline, freeze...). Đổi ngày tương đối thành ngày tuyệt đối.
-- KHÔNG ghi vào memory: thứ suy ra được từ code, git history, hay đã có trong CLAUDE.md; tiến độ task tạm thời (dùng plan).
+### 1. Reflect & classify
+Review this session for lessons, then classify each as **spec** or **memory**:
+- → **Spec**: project conventions/patterns, architecture, tech-stack, new tooling (rules derivable from code or belonging to the repo).
+- → **Memory (`feedback`)**: mistakes you (Claude) made + their fixes, *and also correct approaches the user confirmed* — so you don't drift away from validated approaches.
+- → **Memory (`user`)**: preferences/habits/working style the user expressed (e.g. "always use X", "don't refactor unprompted").
+- → **Memory (`project`)**: project constraints not derivable from code/git (deadlines, freezes...). Convert relative dates to absolute.
+- Do NOT put in memory: anything derivable from code, git history, or already in CLAUDE.md; transient task progress (use the plan).
 
-### 2. Định vị spec
-Tìm mọi `CLAUDE.md` + `.claude/rules/*` (root + nested). Mỗi bài học thuộc về file gần cwd nhất; bài học theo path → rule có frontmatter `paths:`.
+### 2. Locate the spec
+Find every `CLAUDE.md` + `.claude/rules/*` (root + nested). Each lesson belongs to the file closest to cwd; path-scoped lessons go in a rule with `paths:` frontmatter.
 
-### 3. Cập nhật modular
-- Viết bài học thành **rule cụ thể, verifiable**.
-- Mỗi rule file < 50 dòng, một topic; tạo `.claude/rules/<topic>.md` mới nếu chưa có file phù hợp + thêm dòng `@.claude/rules/<topic>.md` vào CLAUDE.md liên quan.
-- Giữ mọi CLAUDE.md < 200 dòng (có thể giao `ccf-spec-writer` draft qua Task).
-- **Show diff + một dòng "vì sao"** trước khi ghi, rồi mới Edit/Write.
+### 3. Update modularly
+- Write lessons as **specific, verifiable rules**.
+- Each rule file < 50 lines, one topic; create a new `.claude/rules/<topic>.md` if none fits + add a `@.claude/rules/<topic>.md` import line to the relevant CLAUDE.md.
+- Keep every CLAUDE.md < 200 lines (you may delegate drafting to `ccf-spec-writer` via Task).
+- **Show a diff + a one-line "why"** before writing, then Edit/Write.
 
-### 4. Ghi lại công cụ mới (quan trọng)
-Nếu session này có thêm **skill / MCP server / subagent / tool** mới (vd người dùng cài MCP Supabase, thêm một skill), ghi vào `.claude/rules/tooling.md` **kèm giải thích DÙNG TRONG TRƯỜNG HỢP NÀO** — trigger cụ thể, input/output, ví dụ — để agent ở session sau tự biết khi nào nên gọi. Đây là cốt lõi context-first: spec không chỉ nói có gì mà nói **dùng khi nào**.
+### 4. Record new tools (important)
+If this session added a new **skill / MCP server / subagent / tool** (e.g. the user installed the Supabase MCP, added a skill), record it in `.claude/rules/tooling.md` **with an explanation of WHEN TO USE it** — specific trigger, input/output, example — so a future session's agent knows when to call it. This is the core of context-first: the spec says not just what exists but **when to use it**.
 
-### 5. Cập nhật memory hệ thống (chống lỗi xuyên session)
-Với các bài học đã phân loại thuộc **memory** ở bước 1, ghi vào thư mục memory của dự án này: `~/.claude/projects/<sanitized-project-path>/memory/`.
-- Mỗi memory là **một file** giữ **một fact**, có frontmatter `name` (kebab-case), `description` (một dòng — dùng để recall), `metadata.type` (`feedback` | `user` | `project` | `reference`).
-- Với `feedback`/`project`: body theo sau bằng dòng `**Why:**` và `**How to apply:**` (có "vì sao" để Claude tự xử lý edge case sau này).
-- Trước khi tạo mới, **kiểm tra file đã tồn tại** che cùng nội dung → cập nhật file đó thay vì tạo trùng; xóa memory hóa ra sai.
-- Sau khi ghi file, thêm **một dòng** trỏ vào `MEMORY.md` (`- [Tiêu đề](file.md) — hook`). MEMORY.md chỉ là index (một dòng/memory, < ~200 ký tự), KHÔNG đặt nội dung memory ở đó. Liên kết memory liên quan bằng `[[tên-file]]`.
-- Memory nhắc tới file/hàm/flag cụ thể: ưu tiên mô tả không phụ thuộc dòng (vd "auth qua middleware ở main.go" thay vì "dòng 42").
+### 5. Update system memory (cross-session anti-mistake)
+For the lessons classified as **memory** in step 1, write them to this project's memory directory: `~/.claude/projects/<sanitized-project-path>/memory/`.
+- Each memory is **one file** holding **one fact**, with frontmatter `name` (kebab-case), `description` (one line — used for recall), `metadata.type` (`feedback` | `user` | `project` | `reference`).
+- For `feedback`/`project`: the body is followed by `**Why:**` and `**How to apply:**` lines (include the why so Claude can handle edge cases later).
+- Before creating a new file, **check for an existing file** covering the same fact → update it instead of duplicating; delete memories that turn out to be wrong.
+- After writing the file, add **one line** pointing to it in `MEMORY.md` (`- [Title](file.md) — hook`). MEMORY.md is only an index (one line per memory, < ~200 chars), do NOT put memory content there. Link related memories with `[[file-name]]`.
+- Memories that mention a specific file/function/flag: prefer line-independent descriptions (e.g. "auth via middleware in main.go" rather than "line 42").
 
-### 6. Sync plan
-Nếu `.claude/plan/` thay đổi (task xong, đổi thứ tự, thêm mới), cập nhật `PLAN.md` và status từng task.
+### 6. Sync the plan
+If `.claude/plan/` changed (tasks done, reordered, added), update `PLAN.md` and each task's status.
 
-## Kết thúc (bắt buộc, đúng output style)
-HỎI người dùng có muốn commit và/hoặc push không. **KHÔNG chạy bất kỳ lệnh git nào khi người dùng chưa đồng ý rõ ràng.** Nếu đồng ý: nếu đang ở branch mặc định thì tạo branch trước, dùng commit message conventional.
+## Closing (mandatory, per output style)
+ASK the user whether to commit and/or push. **Do NOT run any git command unless the user explicitly agrees.** If they agree: if on the default branch, create a branch first, and use a conventional commit message.

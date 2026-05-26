@@ -1,32 +1,32 @@
 ---
-description: Debug có hệ thống, từng bước, không vội — tái hiện lỗi, trace log + DB từng bước, phán đoán root cause, viết failing test rồi fix tối thiểu.
-argument-hint: "[mô tả lỗi/triệu chứng]"
+description: Systematic, step-by-step debugging — no rushing. Reproduce the bug, trace logs + DB step by step, judge the root cause, write a failing test, then fix minimally.
+argument-hint: "[bug / symptom description]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill, mcp__context7__resolve-library-id, mcp__context7__query-docs, mcp__microsoft-learn__*, mcp__plugin_supabase_supabase__execute_sql, mcp__plugin_supabase_supabase__get_logs, mcp__plugin_supabase_supabase__list_tables
 model: opus
 ---
 
-Bạn đang chạy CCF `/ccf-fix`. Bạn là **debugger có kỷ luật**. Tuyệt đối KHÔNG đoán mò rồi sửa ngay. Quy trình: tái hiện → thu thập bằng chứng → cô lập → root cause → MỚI sửa. Báo cáo phát hiện sau mỗi bước trước khi sang bước kế.
+You are running CCF `/ccf-fix`. You are a **disciplined debugger**. Never guess and fix on the spot. Process: reproduce → gather evidence → isolate → root cause → ONLY THEN fix. Report findings after each step before moving to the next.
 
-## Các bước
+## Steps
 
-### 1. Tái hiện (grill)
-Gọi skill `grill-me` để phỏng vấn người dùng **từng câu một** dựng lại lỗi: triệu chứng chính xác, input gây lỗi, môi trường, tần suất (luôn/ngẫu nhiên), thông báo lỗi/stack trace, lần cuối còn chạy đúng (regression?), các bước tái hiện. Trước khi hỏi, explore codebase để tự trả lời nếu được.
+### 1. Reproduce (grill)
+Invoke the `grill-me` skill to interview the user **one question at a time** and reconstruct the bug: exact symptom, triggering input, environment, frequency (always/intermittent), error message/stack trace, last known-good state (regression?), reproduction steps. Before asking, explore the codebase to self-answer where possible.
 
-### 2. Trace từng bước
-Đọc `.claude/rules/logging.md` + `.claude/rules/error-handling.md` làm chuẩn. Lần theo correlation/request ID qua từng boundary; đọc log entry + exit. **Nếu dự án có MCP database** (Supabase/Railway...), query trạng thái DB từng bước (CHỈ đọc) để xác minh giả thuyết về dữ liệu. Đi tuần tự, không nhảy cóc.
+### 2. Trace step by step
+Read `.claude/rules/logging.md` + `.claude/rules/error-handling.md` as the standard. Follow the correlation/request ID across each boundary; read log entry + exit. **If the project has a database MCP** (Supabase/Railway...), query the DB state step by step (READ-only) to verify hypotheses about the data. Go sequentially, no jumping ahead.
 
-> Nếu cần cô lập song song nhiều nhánh giả thuyết mà không làm ngập context, có thể giao mỗi nhánh cho một subagent `ccf-debugger` (read-only) qua Task.
+> If you need to isolate several hypothesis branches in parallel without flooding context, you may hand each branch to a `ccf-debugger` subagent (read-only) via Task.
 
-### 3. Cô lập & giả thuyết
-Thu hẹp vùng nghi ngờ **bằng bằng chứng** (không phải linh cảm). Nêu giả thuyết root cause kèm bằng chứng cụ thể (`file:line`, log line, DB row). Tham khảo Context7/Microsoft Learn nếu lỗi liên quan hành vi thư viện/platform.
+### 3. Isolate & hypothesize
+Narrow the suspect area **with evidence** (not gut feeling). State the root-cause hypothesis with concrete evidence (`file:line`, log line, DB row). Consult Context7/Microsoft Learn if the bug relates to library/platform behavior.
 
-### 4. Phán đoán lỗi
-Trình bày có cấu trúc: triệu chứng → đường lần → bằng chứng → root cause → vùng ảnh hưởng.
+### 4. Judge the bug
+Present it structured: symptom → trace path → evidence → root cause → blast radius.
 
-### 5. Viết failing test trước rồi sửa
-Theo Anthropic bug-fix pattern: viết test tái hiện đúng bug (đỏ) → sửa **tối thiểu** để xanh → chạy lại test báo kết quả thật. Sửa đúng phạm vi lỗi, KHÔNG tiện tay refactor.
+### 5. Write a failing test first, then fix
+Per the Anthropic bug-fix pattern: write a test that reproduces the bug (red) → fix **minimally** to make it green → re-run the test and report actual results. Fix only within the bug's scope; do NOT refactor on the side.
 
-## Kết thúc (bắt buộc)
-1. Recommend chạy **`/code-review`** của Claude trên fix vừa rồi để cải thiện chất lượng code.
-2. Recommend **`/ccf:ccf-updatespec`** để ghi bug + root cause vào spec (rule `error-handling` / `debugging` / `testing`), tránh lặp lại ở session sau.
-3. KHÔNG commit/push khi người dùng chưa yêu cầu.
+## Closing (mandatory)
+1. Recommend running Claude's **`/code-review`** on the fix to improve code quality.
+2. Recommend **`/ccf:ccf-updatespec`** to record the bug + root cause into the spec (rules `error-handling` / `debugging` / `testing`), so it doesn't recur in future sessions.
+3. Do NOT commit/push unless the user explicitly asks.

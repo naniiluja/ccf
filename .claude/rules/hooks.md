@@ -1,33 +1,33 @@
 ---
-description: Hợp đồng hook Claude Code và quy ước viết hook .mjs của CCF.
+description: Claude Code hook contract and CCF's .mjs hook conventions.
 paths: plugins/ccf/hooks/**
 ---
 
 # Hooks (`plugins/ccf/hooks/*.mjs`)
 
-## Bất biến tuyệt đối
-- **No-build, no-dependency, Windows-clean.** Hook là `.mjs` ESM chạy thẳng bằng `node` (Node ≥ 18). KHÔNG thêm npm dependency, KHÔNG thêm bước transpile/bundle. Mọi I/O qua `node:fs`, `node:path`, `node:child_process` built-in.
-- Type-check bằng `tsc` với `checkJs` + JSDoc (xem `tsconfig.json`). KHÔNG đổi sang `.ts`.
-- Đường dẫn trong `hooks.json` dùng `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.mjs"` — biến này CHỈ expand trong hook command.
+## Absolute invariants
+- **No-build, no-dependency, Windows-clean.** Hooks are `.mjs` ESM run directly with `node` (Node ≥ 18). Do NOT add an npm dependency, do NOT add a transpile/bundle step. All I/O via `node:fs`, `node:path`, `node:child_process` built-ins.
+- Type-check with `tsc` using `checkJs` + JSDoc (see `tsconfig.json`). Do NOT switch to `.ts`.
+- Paths in `hooks.json` use `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.mjs"` — this variable ONLY expands in a hook command.
 
-## Hợp đồng I/O (đã đóng gói trong `hooks/lib/io.mjs` — dùng lại, đừng tự viết)
-- **Đọc stdin**: `readStdinJson()` — luôn trả `{}` khi rỗng/TTY/parse lỗi để hook KHÔNG BAO GIỜ crash.
-- **Bơm context (không block)**: `emitContext(eventName, text)` — in `{ hookSpecificOutput: { hookEventName, additionalContext } }` rồi `exit 0`. Dùng cho SessionStart, Stop, PreToolUse, PostToolUse.
-- **Chặn prompt**: `blockUserPrompt(reason)` — ghi `reason` ra stderr rồi `exit 2`. Chỉ UserPromptSubmit.
+## I/O contract (packaged in `hooks/lib/io.mjs` — reuse it, don't rewrite)
+- **Read stdin**: `readStdinJson()` — always returns `{}` on empty/TTY/parse error so the hook NEVER crashes.
+- **Inject context (non-blocking)**: `emitContext(eventName, text)` — prints `{ hookSpecificOutput: { hookEventName, additionalContext } }` then `exit 0`. For SessionStart, Stop, PreToolUse, PostToolUse.
+- **Block a prompt**: `blockUserPrompt(reason)` — writes `reason` to stderr then `exit 2`. UserPromptSubmit only.
 
-## Exit code semantics (theo tài liệu Claude Code)
-- `exit 0` — không quyết định, luồng tiếp tục bình thường (kể cả khi đã emit additionalContext).
-- `exit 2` — **BLOCK**; stderr được gửi về làm feedback. Đây là cách chặn duy nhất CCF dùng.
-- `exit 1` — non-blocking error, KHÔNG chặn. CCF tránh dùng (sẽ gây nhiễu mà không có tác dụng chặn).
+## Exit code semantics (per Claude Code docs)
+- `exit 0` — no decision, the flow continues normally (even after emitting additionalContext).
+- `exit 2` — **BLOCK**; stderr is sent back as feedback. This is the only blocking mechanism CCF uses.
+- `exit 1` — non-blocking error, does NOT block. CCF avoids it (it adds noise without blocking).
 
-## Sự kiện CCF đang dùng (`hooks.json`)
-- `UserPromptSubmit` → `plan-mode-guard.mjs`: chỉ can thiệp prompt chứa `/ccf-plan` (regex namespaced + bare); chặn nếu `permission_mode !== "plan"`. Mọi prompt khác `exit 0` ngay.
-- `SessionStart` (matcher `startup|clear|compact`) → `session-start.mjs`: bơm reminder context-first; nếu đã CCF-managed thì thêm tín hiệu freshness + re-load task in-progress sau `compact`/`clear`.
-- `Stop` → `updatespec-nudge.mjs`: THUẦN ADVISORY, không bao giờ block. Phải kiểm `input.stop_hook_active` để tránh vòng lặp.
+## Events CCF currently uses (`hooks.json`)
+- `UserPromptSubmit` → `plan-mode-guard.mjs`: only intervenes on prompts containing `/ccf-plan` (namespaced + bare regex); blocks if `permission_mode !== "plan"`. Every other prompt `exit 0` immediately.
+- `SessionStart` (matcher `startup|clear|compact`) → `session-start.mjs`: injects the context-first reminder; if CCF-managed, adds a freshness signal + re-loads the in-progress task after `compact`/`clear`.
+- `Stop` → `updatespec-nudge.mjs`: PURELY ADVISORY, never blocks. Must check `input.stop_hook_active` to avoid loops.
 
-## Quy ước viết hook
-- Mỗi hook bắt đầu bằng `#!/usr/bin/env node` + comment mô tả event, cơ chế, vai trò.
-- Phòng thủ: mọi `readdirSync`/`statSync`/`readFileSync` bọc try/catch, lỗi → bỏ qua entry (heuristic freshness chỉ để nhắc, không được làm hỏng session).
-- Giới hạn độ sâu đệ quy khi quét cây (vd `newestMtime(dir, depth)`); luôn skip `node_modules` và `.git`.
-- Hook chạy đồng bộ và block Claude — giữ nhanh; `hooks.json` đặt `timeout` (giây) cho mỗi hook.
-- Khi thêm hook mới: thêm entry vào `hooks.json` + comment, tái dùng `io.mjs`, thêm file vào `include` của `tsconfig.json` nếu chưa khớp glob.
+## Hook-writing conventions
+- Each hook starts with `#!/usr/bin/env node` + a comment describing the event, mechanism, role.
+- Defensive: wrap every `readdirSync`/`statSync`/`readFileSync` in try/catch, on error → skip the entry (the freshness heuristic is only for nudging, must not break the session).
+- Limit recursion depth when walking the tree (e.g. `newestMtime(dir, depth)`); always skip `node_modules` and `.git`.
+- Hooks run synchronously and block Claude — keep them fast; `hooks.json` sets a `timeout` (seconds) per hook.
+- When adding a new hook: add an entry to `hooks.json` + a comment, reuse `io.mjs`, add the file to `tsconfig.json`'s `include` if it doesn't match the glob.

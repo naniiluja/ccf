@@ -1,19 +1,19 @@
 # Coding Conventions
 
-## Định dạng (verifiable)
-- Indentation: {{INDENT}} (vd "Use 2-space indentation").
-- Formatter: chạy `{{FORMAT_CMD}}` trước khi commit.
-- Linter: `{{LINT_CMD}}` phải pass.
+## Formatting (verifiable)
+- Indentation: {{INDENT}} (e.g. "Use 2-space indentation").
+- Formatter: run `{{FORMAT_CMD}}` before committing.
+- Linter: `{{LINT_CMD}}` must pass.
 
 ## Naming
-- File: {{FILE_NAMING}}.
-- Biến/hàm: {{VAR_NAMING}}.
-- Hằng: {{CONST_NAMING}}.
+- Files: {{FILE_NAMING}}.
+- Variables/functions: {{VAR_NAMING}}.
+- Constants: {{CONST_NAMING}}.
 
-## Cấu trúc file
-- Một file tối đa ~{{MAX_FILE_LINES}} dòng; vượt thì tách.
-- Thứ tự import: {{IMPORT_ORDER}}.
+## File structure
+- A file is at most ~{{MAX_FILE_LINES}} lines; split if it exceeds.
+- Import order: {{IMPORT_ORDER}}.
 
-## Quy tắc chung
-- Không để code chết / import thừa.
-- Comment phải cùng ngôn ngữ với codebase hiện có.
+## General rules
+- No dead code / unused imports.
+- Comments must match the existing codebase's language.

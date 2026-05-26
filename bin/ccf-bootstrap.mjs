@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// CCF npx bootstrap — tối thiểu. Chỉ shell out tới `claude plugin` CLI; không tự ghi file.
-// Dùng: `npx ccf` (hoặc sau khi clone repo: `node bin/ccf-bootstrap.mjs`).
+// CCF npx bootstrap — minimal. Only shells out to the `claude plugin` CLI; writes no files itself.
+// Usage: `npx ccf` (or after cloning the repo: `node bin/ccf-bootstrap.mjs`).
 
 import { spawnSync } from "node:child_process";
 
-const REPO = "naniiluja/ccf"; // đổi nếu fork/đổi remote
+const REPO = "naniiluja/ccf"; // change if you fork / change the remote
 const MARKETPLACE = "ccf";
 
 /**
- * Chạy một lệnh, kế thừa stdio. Trả về true nếu exit code 0.
+ * Run a command, inheriting stdio. Returns true if exit code is 0.
  * @param {string} cmd
  * @param {string[]} args
  */
@@ -19,10 +19,10 @@ function run(cmd, args) {
 
 function manualInstructions() {
   console.log("");
-  console.log("Không gọi được `claude` CLI tự động. Cài thủ công:");
+  console.log("Could not invoke the `claude` CLI automatically. Install manually:");
   console.log(`  1. claude plugin marketplace add ${REPO}`);
   console.log(`  2. claude plugin install ccf@${MARKETPLACE}`);
-  console.log("  3. Mở Claude Code ở thư mục dự án rồi chạy /ccf:ccf-init");
+  console.log("  3. Open Claude Code in your project folder and run /ccf:ccf-init");
   console.log("");
 }
 
@@ -41,4 +41,4 @@ if (!ok2) {
 }
 
 console.log("");
-console.log("CCF đã cài. Mở Claude Code ở thư mục dự án và chạy /ccf:ccf-init để bắt đầu.");
+console.log("CCF installed. Open Claude Code in your project folder and run /ccf:ccf-init to start.");

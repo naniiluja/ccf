@@ -1,25 +1,25 @@
 ---
-description: Sinh hint compact tối ưu từ task đang làm, rồi hướng dẫn bạn chạy /compact <hint> — tránh để auto-compact tự kích hoạt khi context đã rot.
+description: Generate an optimal compaction hint from the in-progress task, then guide you to run /compact <hint> — so you compact proactively instead of letting auto-compact fire when context has already rotted.
 argument-hint: ""
 allowed-tools: Read, Glob, Grep
 model: sonnet
 ---
 
-Bạn đang chạy CCF `/ccf-compact`. Mục tiêu: giúp người dùng **compact chủ động có hint** thay vì để auto-compact tự kích hoạt.
+You are running CCF `/ccf-compact`. Goal: help the user **compact proactively with a hint** instead of letting auto-compact fire on its own.
 
-## Vì sao
-Auto-compact kích hoạt khi context đã đầy — đúng lúc mô hình kém minh mẫn nhất (context rot), nên bản tóm tắt dễ giữ sai thứ. Compact chủ động sớm với hint cụ thể giữ lại đúng phần cần thiết.
+## Why
+Auto-compact triggers when context is already full — exactly when the model is least sharp (context rot), so its summary tends to keep the wrong things. Proactive early compaction with a specific hint keeps exactly what matters.
 
-> Lưu ý: bạn (Claude) KHÔNG tự chạy được `/compact`. Lệnh này chỉ **sinh hint tốt nhất** rồi in ra dòng lệnh để người dùng copy.
+> Note: you (Claude) CANNOT run `/compact` yourself. This command only **generates the best hint** and prints the line for the user to copy.
 
-## Các bước
-1. **Xác định task đang làm:** đọc `.claude/plan/PLAN.md`, tìm task có status `in-progress`. Đọc file `task-NNN-*.md` tương ứng (goal, spec refs, files to touch, acceptance criteria còn dở). Nếu không có task in-progress, dựa vào việc đang làm gần nhất trong session.
-2. **Tổng hợp những gì cần GIỮ:** task NNN + goal + spec refs + (các) file đang sửa + quyết định/phát hiện quan trọng đã rút ra trong session này.
-3. **Tổng hợp những gì nên BỎ:** log debug đã giải quyết xong, kết quả explore không còn liên quan, các nhánh tiếp cận đã từ bỏ, output dài đã dùng xong.
-4. **In ra cho người dùng đúng dòng lệnh để copy**, theo mẫu:
+## Steps
+1. **Identify the in-progress task:** read `.claude/plan/PLAN.md` and find the task with status `in-progress`. Read its `task-NNN-*.md` (goal, spec refs, files to touch, outstanding acceptance criteria). If there is no in-progress task, fall back to the most recent work in this session.
+2. **Summarize what to KEEP:** task NNN + goal + spec refs + the file(s) being edited + key decisions/findings made this session.
+3. **Summarize what to DROP:** resolved debug logs, exploration output no longer relevant, abandoned approaches, long outputs already consumed.
+4. **Print the exact line for the user to copy**, in this shape:
    ```
-   /compact focus on <task NNN + goal + file đang sửa + quyết định cần giữ>, drop <thứ không còn liên quan>
+   /compact focus on <task NNN + goal + file being edited + decisions to keep>, drop <what is no longer relevant>
    ```
-5. Nhắc người dùng: sau khi compact, hook SessionStart của CCF sẽ tự re-load task in-progress từ plan, nên không cần dán lại toàn bộ context.
+5. Remind the user: after compacting, CCF's SessionStart hook will automatically re-load the in-progress task from the plan, so they don't need to paste the whole context back.
 
-Giữ hint ngắn gọn, cụ thể, đúng trọng tâm task hiện tại.
+Keep the hint short, specific, and focused on the current task.

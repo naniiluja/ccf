@@ -4,11 +4,11 @@ paths: ["fe/**"]
 
 # State Management
 
-## Quy tắc
-- Thư viện state: {{STATE_LIBRARY}} (chọn loại ổn định, được support rộng).
-- Server state vs client state tách bạch: {{SERVER_VS_CLIENT_STATE}}.
-- Data fetching: {{DATA_FETCHING}} (vd react-query); xử lý loading/error tường minh.
-- Không đặt state toàn cục thứ chỉ một component dùng.
+## Rules
+- State library: {{STATE_LIBRARY}} (pick a stable, widely-supported option).
+- Separate server state from client state: {{SERVER_VS_CLIENT_STATE}}.
+- Data fetching: {{DATA_FETCHING}} (e.g. react-query); handle loading/error explicitly.
+- Don't put in global state something only one component uses.
 
-## Đồng bộ với API
-- Shape dữ liệu khớp contract backend; validate response ở boundary.
+## Sync with the API
+- Data shapes match the backend contract; validate responses at the boundary.

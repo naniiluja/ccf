@@ -1,25 +1,25 @@
-# Tooling (skill / MCP / subagent khả dụng — DÙNG KHI NÀO)
+# Tooling (available skills / MCP / subagents — WHEN TO USE)
 
-Danh mục công cụ của dự án này, kèm **khi nào nên dùng** để agent session sau tự quyết định. Cập nhật bởi `/ccf:ccf-updatespec` mỗi khi thêm công cụ mới.
+A catalog of this project's tools, with **when to use** each, so future-session agents can decide. Updated by `/ccf:ccf-updatespec` whenever a new tool is added.
 
 ## MCP servers
-- **context7** — tra tài liệu thư viện/framework hiện hành. **Dùng khi:** cần API syntax/best practice/migration của một lib. Cách: `resolve-library-id` → `query-docs`.
-- **microsoft-learn** — tra tài liệu Microsoft/.NET/Azure. **Dùng khi:** làm việc với platform Microsoft.
+- **context7** — look up current docs for libraries/frameworks. **Use when:** you need a lib's API syntax/best practice/migration. How: `resolve-library-id` → `query-docs`.
+- **microsoft-learn** — look up Microsoft/.NET/Azure docs. **Use when:** working with a Microsoft platform.
 {{EXTRA_MCP}}
-<!-- Ví dụ sau khi user cài Supabase MCP:
-- **supabase** — quản lý DB/migration/edge function. **Dùng khi:** cần xem schema (`list_tables`), chạy migration (`apply_migration`), debug DB (`get_logs`). Input/output: ...
+<!-- Example after the user installs the Supabase MCP:
+- **supabase** — manage DB/migrations/edge functions. **Use when:** you need the schema (`list_tables`), to run a migration (`apply_migration`), or to debug the DB (`get_logs`). Input/output: ...
 -->
 
 ## Skills
 {{SKILLS}}
-<!-- Mỗi skill: tên — DÙNG KHI NÀO — ví dụ trigger -->
+<!-- Each skill: name — WHEN TO USE — example trigger -->
 
 ## Subagents (CCF)
-- **ccf-implementer** — implement một task từ plan (có MCP). **Dùng khi:** execute task sau /ccf-plan.
-- **ccf-spec-checker** — review conformance/SOLID. **Dùng khi:** /ccf-check.
-- **ccf-debugger** — điều tra một nhánh root cause. **Dùng khi:** /ccf-fix cần cô lập.
-- **ccf-best-practice-researcher** — fetch best practice. **Dùng khi:** cần ground quyết định.
+- **ccf-implementer** — implement one task from the plan (has MCP). **Use when:** executing a task after /ccf-plan.
+- **ccf-spec-checker** — review conformance/SOLID. **Use when:** /ccf-check.
+- **ccf-debugger** — investigate one root-cause branch. **Use when:** /ccf-fix needs isolation.
+- **ccf-best-practice-researcher** — fetch best practices. **Use when:** grounding a decision.
 
-## Memory hệ thống vs Spec (DÙNG KHI NÀO ghi vào đâu)
-- **Spec** (file này + các rule khác): rule dự án suy ra được/thuộc repo. Trọng số thấp hơn (user message).
-- **Memory** (`~/.claude/projects/<path>/memory/`): `feedback` chống lỗi + `user` preference. Trọng số cao (system prompt) → Claude bớt lặp sai. Cập nhật qua `/ccf:ccf-updatespec`. **Không trùng** nội dung CLAUDE.md.
+## System memory vs Spec (WHEN TO write where)
+- **Spec** (this file + other rules): project rules that are derivable / belong to the repo. Lower weight (user message).
+- **Memory** (`~/.claude/projects/<path>/memory/`): `feedback` anti-mistakes + `user` preferences. Higher weight (system prompt) → Claude repeats fewer mistakes. Updated via `/ccf:ccf-updatespec`. **Do not duplicate** CLAUDE.md content.

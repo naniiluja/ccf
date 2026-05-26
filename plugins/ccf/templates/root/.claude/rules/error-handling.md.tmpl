@@ -1,14 +1,14 @@
 # Error Handling
 
 ## Taxonomy
-- Phân biệt **lỗi nghiệp vụ dự kiến** (validation, not-found...) vs **lỗi hệ thống** (bug, downstream fail).
-- Lỗi hướng người dùng vs lỗi nội bộ: thông điệp khác nhau, không lộ chi tiết nội bộ ra ngoài.
+- Distinguish **expected business errors** (validation, not-found...) from **system errors** (bugs, downstream failures).
+- User-facing vs internal errors: different messages; never leak internal detail outward.
 
-## Quy tắc verifiable
-- **Không silent catch.** Bắt được lỗi phải log (kèm correlation ID) hoặc re-throw có ngữ cảnh.
-- Wrap lỗi với ngữ cảnh khi vượt boundary, không nuốt stack trace gốc.
-- Retry chỉ cho lỗi tạm thời (network/timeout) với backoff; không retry lỗi nghiệp vụ.
+## Verifiable rules
+- **No silent catch.** A caught error must be logged (with the correlation ID) or re-thrown with context.
+- Wrap errors with context when crossing a boundary; don't swallow the original stack trace.
+- Retry only transient errors (network/timeout) with backoff; never retry business errors.
 
-## Định dạng lỗi
-- Error type/shape chuẩn: {{ERROR_SHAPE}}.
-- Mã lỗi/HTTP status mapping: {{ERROR_MAPPING}}.
+## Error format
+- Standard error type/shape: {{ERROR_SHAPE}}.
+- Error code / HTTP status mapping: {{ERROR_MAPPING}}.
