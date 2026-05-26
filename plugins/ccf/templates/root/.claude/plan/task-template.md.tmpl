@@ -1,9 +1,10 @@
 # Task {{NNN}} — {{TITLE}}
 
-- **Scope:** {{BE|FE|infra}}
+- **Vertical slice:** {{LAYERS}}    <!-- the layers this slice crosses end-to-end, e.g. DB + service + UI -->
 - **Depends on:** {{PREDECESSOR}}   <!-- exactly ONE predecessor to keep the sequential chain -->
 - **Spec refs:** {{SPEC_REFS}}      <!-- links to related rules/requirements -->
 - **Implemented by:** {{AGENT}} + MCP {{MCP}}  <!-- e.g. ccf-implementer + supabase -->
+- **Gate (must be GREEN before the next slice):** {{GATE}}  <!-- which test types: unit always; integration when crossing a boundary; e2e for the user-visible path -->
 
 ## Goal (one sentence)
 {{GOAL}}
@@ -18,10 +19,10 @@
 ## Files to touch
 - {{PATH}} — {{WHAT}}
 
-## Steps (smallest → largest)
-1. Write the failing test
-2. Implement minimally
-3. Run the test / verify actual output
+## Steps (thin end-to-end slice)
+1. Write the failing test (cover the slice's user-visible behavior, not just one layer)
+2. Implement minimally across the layers the slice touches
+3. Run the test / verify actual output — the gate above must be GREEN
 4. `/ccf:ccf-check` → `/code-review` → `/ccf:ccf-updatespec`
 
 ## Notes / best-practice sources

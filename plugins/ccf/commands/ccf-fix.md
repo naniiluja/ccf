@@ -26,6 +26,9 @@ Present it structured: symptom → trace path → evidence → root cause → bl
 ### 5. Write a failing test first, then fix
 Per the Anthropic bug-fix pattern: write a test that reproduces the bug (red) → fix **minimally** to make it green → re-run the test and report actual results. Fix only within the bug's scope; do NOT refactor on the side.
 
+### 6. Step back — is this the elegant fix?
+Once green, judge honestly whether the minimal fix is a band-aid (e.g. a guard that masks a design flaw, a special-case patch). If so, describe — knowing everything you now know about the root cause — the **elegant solution** you'd write from scratch, and offer it to the user as a SEPARATE, opt-in change. Do NOT auto-apply it: the bug fix and the redesign are different units of work (sequential law). The user decides whether to take the elegant path now or log it as a follow-up.
+
 ## Closing (mandatory)
 1. Recommend running Claude's **`/code-review`** on the fix to improve code quality.
 2. Recommend **`/ccf:ccf-updatespec`** to record the bug + root cause into the spec (rules `error-handling` / `debugging` / `testing`), so it doesn't recur in future sessions.

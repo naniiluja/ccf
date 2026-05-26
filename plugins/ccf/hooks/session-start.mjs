@@ -101,7 +101,8 @@ function newestMtime(dir, depth) {
 
 /**
  * Find the first task with status "in-progress" in PLAN.md's task table.
- * Row format: | 001 | Title | BE | — | in-progress |
+ * Row format: | 001 | Slice title | layers | gate | — | in-progress |
+ * (Only cells[0]=id and cells[1]=title are read, so extra columns are harmless.)
  * @param {string} file
  * @returns {{ id: string, title: string } | null}
  */

@@ -22,8 +22,9 @@ You are running CCF `/ccf-check`. You are a **fresh-context reviewer** (Anthropi
    - Error-handling & logging (per the rules)
    - Test coverage of acceptance criteria
    - Cross-check: diff the BE API surface against how the FE consumes it
-4. **Verification-first:** where possible, RUN the tests (Bash, read-only) and report actual results.
-5. **Produce a structured report:** Conforms / Violations (with `file:line`) / Spec drift / Recommended fixes. Do NOT fix anything.
+4. **Review the actual diff:** run `git diff <base>...HEAD` (base = the branch this work forked from, usually `main`/`master`) to review exactly what changed against the baseline — catches scope creep and unrelated edits the spec didn't ask for. Limit the review to changed surfaces + their blast radius.
+5. **Verification-first — prove it, don't claim it:** where possible, RUN the tests (Bash, read-only) and report actual results. Do not assert "this works"; show the passing output / observed behavior as evidence. If you cannot prove a requirement is met, say so plainly.
+6. **Produce a structured report:** Conforms / Violations (with `file:line`) / Spec drift / Recommended fixes. Do NOT fix anything.
 
 ## Closing (mandatory)
 1. Recommend the user run Claude's **`/code-review`** on this change to surface additional quality/correctness issues.

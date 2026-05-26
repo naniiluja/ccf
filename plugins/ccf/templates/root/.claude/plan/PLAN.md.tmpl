@@ -1,17 +1,18 @@
 # Implementation Plan — {{PROJECT_NAME}}
 
-> **Execution rule: STRICTLY SEQUENTIAL.** Do exactly one task at a time, in order.
-> Do not start task N+1 until task N is implemented + tested + checked (`/ccf:ccf-check`).
+> **Execution rule: STRICTLY SEQUENTIAL + VERTICAL SLICES.** Do exactly one task at a time, in order.
+> Each task is a thin tracer-bullet that crosses all the layers it touches (DB + service + UI) — NOT a horizontal "all-DB-then-all-API" phase — so integration is proven early.
+> Do not start task N+1 until task N's **gate is GREEN** (implemented + tested + checked via `/ccf:ccf-check`).
 > The `in-progress` status is read by the session-start hook to re-load context after compact — keep status up to date.
 
 ## Milestones
 {{MILESTONE_LIST}}
 
 ## Task backlog (in execution order)
-| # | Task | Scope (BE/FE/infra) | Depends on | Status |
-|---|------|---------------------|-----------|--------|
-| 001 | {{TASK_001}} | {{SCOPE_001}} | — | todo |
-| 002 | {{TASK_002}} | {{SCOPE_002}} | 001 | todo |
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 001 | {{TASK_001}} | {{LAYERS_001}} | {{GATE_001}} | — | todo |
+| 002 | {{TASK_002}} | {{LAYERS_002}} | {{GATE_002}} | 001 | todo |
 {{MORE_TASKS}}
 
 > Status: `todo` / `in-progress` / `done` / `blocked`.

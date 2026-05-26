@@ -43,7 +43,7 @@ Read the templates in `${CLAUDE_PLUGIN_ROOT}/templates/root/`, instantiate them,
 - Path-scoped rules use `paths:` frontmatter (e.g. `be/**`, `fe/**`).
 
 ### A4. Generate the initial plan
-Generate one large plan in `.claude/plan/` using the templates (`PLAN.md` index + `task-NNN-*.md` files), structured as a **sequential waterfall** (smallest → largest, spec → test → implement). Each task has exactly one predecessor.
+Generate one large plan in `.claude/plan/` using the templates (`PLAN.md` index + `task-NNN-*.md` files), structured as a **sequential waterfall of VERTICAL SLICES** — each task a thin tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, spec → failing test → implement. Each task has exactly one predecessor and names the test gate that must be green before the next slice.
 
 ### A5. Closing
 Do NOT run git. Tell the user to start a fresh session and run `/ccf:ccf-plan` (in plan mode) when ready to detail the first feature. Remind them: if Context7 hits a rate limit, set a free `CONTEXT7_API_KEY` env var and restart Claude Code.
