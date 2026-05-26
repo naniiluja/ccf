@@ -19,7 +19,7 @@ A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **c
 
 ### Via npx
 ```
-npx ccf
+npx @naniiluja/ccf
 ```
 (runs `claude plugin marketplace add` + `install` for you)
 

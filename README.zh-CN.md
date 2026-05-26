@@ -19,7 +19,7 @@
 
 ### 通过 npx
 ```
-npx ccf
+npx @naniiluja/ccf
 ```
 （替你执行 `claude plugin marketplace add` + `install`）
 

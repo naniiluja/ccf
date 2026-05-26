@@ -19,7 +19,7 @@ Một plugin workflow cho [Claude Code](https://code.claude.com) áp đặt các
 
 ### Qua npx
 ```
-npx ccf
+npx @naniiluja/ccf
 ```
 (chạy `claude plugin marketplace add` + `install` giúp bạn)
 
