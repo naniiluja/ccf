@@ -31,7 +31,7 @@ claude plugin install ccf@ccf
 
 Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:ccf-init`.
 
-## 6 lệnh
+## 5 lệnh
 
 | Lệnh | Tác dụng |
 |------|----------|

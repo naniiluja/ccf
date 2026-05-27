@@ -31,7 +31,7 @@ claude plugin install ccf@ccf
 
 After installing, open Claude Code in your project folder and run `/ccf:ccf-init`.
 
-## The 6 commands
+## The 5 commands
 
 | Command | What it does |
 |---------|--------------|

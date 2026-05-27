@@ -31,7 +31,7 @@ claude plugin install ccf@ccf
 
 安装后，在你的项目文件夹中打开 Claude Code 并运行 `/ccf:ccf-init`。
 
-## 6 个命令
+## 5 个命令
 
 | 命令 | 作用 |
 |------|------|
