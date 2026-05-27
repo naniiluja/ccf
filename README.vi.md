@@ -76,10 +76,11 @@ Command và agent là *prompt* (model có thể chọn lờ một prompt đi). *
 | **plan-mode-guard** | `UserPromptSubmit` | Nếu prompt chứa `/ccf:ccf-plan` nhưng session **không ở plan mode**, nó **chặn** (exit 2) và bảo bạn vào plan mode. Mọi prompt khác đi qua nguyên vẹn. Đây là nửa *được cưỡng chế* của "planning là read-only và review trước khi execute". |
 | **session-start** | `SessionStart` (`startup\|clear\|compact`) | Inject lời nhắc context-first để model tỉnh dậy đã ở chế độ CCF. Nếu **CCF-managed**, nó thêm *freshness signal* khi code có vẻ mới hơn spec, và sau `compact`/`clear` nó **re-load task in-progress** từ `.claude/plan/PLAN.md` để bạn resume đúng chỗ. |
 | **updatespec-nudge** | `Stop` | Thuần **advisory**, không bao giờ chặn. Khi bạn dừng và code đã đổi nhưng spec thì chưa, nó nudge `/ccf:ccf-check` rồi `/ccf:ccf-updatespec`. Chống loop re-trigger qua `stop_hook_active`. |
+| **context-nudge** | `PostToolUse` | Thuần **advisory**, không bao giờ chặn. Đọc transcript của session để ước lượng mức dùng context; khi vượt ~40% cửa sổ context của model (vùng "dumb zone"), nó nudge bạn chạy **`/compact` chủ động** — kèm sẵn một hint pre-fill từ task đang dở — thay vì đợi auto-compact (vốn kích hoạt lúc model kém sắc bén nhất). Best-effort: không đọc được transcript thì im lặng. |
 
 **Freshness heuristic (dùng chung, single source of truth ở `hooks/lib/freshness.mjs`):** cả hai hook freshness so `mtime` mới nhất của file *code* với `mtime` mới nhất của file *spec* (`.md` trong `.claude/rules`). Nó **đi qua cây thư mục dự án có giới hạn độ sâu** — nên hoạt động với *mọi* layout (`src/`, `server/`, `packages/x/src`, kiểu plugin `plugins/x/hooks`, hay code ở root), không phải một danh sách tên thư mục cố định. Đây là nudge nhẹ, không bao giờ là kết luận chắc chắn — phán xét ở mức nội dung "spec còn chính xác không?" được để cho `/ccf:ccf-updatespec`.
 
-**Vì sao hook phải được khai báo, không auto-discover:** khác với command/agent/MCP, hook chỉ load **vì** `plugin.json` khai báo `"hooks": "./hooks/hooks.json"`. Thiếu dòng đó, mọi thứ khác vẫn chạy nhưng hook bị lờ đi âm thầm.
+**Vì sao hook được auto-load, không cần khai báo:** giống command/agent/MCP, hook tự load từ vị trí chuẩn `hooks/hooks.json` — Claude Code hiện tại (v2.1.x) tự discover. **Đừng** thêm field `"hooks"` vào `plugin.json` trỏ về đúng path chuẩn: nó nạp file hai lần và lỗi `Duplicate hooks file detected`. Field `manifest.hooks` chỉ dành cho các file hook *bổ sung* ở path không chuẩn.
 
 ## MCP server đi kèm
 
@@ -111,7 +112,7 @@ Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → 
 
 - **Command** = file markdown prompt điều khiển Claude trong session (không phải script).
 - **Agent** = 6 subagent chuyên biệt (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
-- **Hook** = 3 `.mjs` chạy trực tiếp bằng `node` — không build step, không dependency, Windows-clean; heuristic freshness dùng chung nằm ở `hooks/lib/`.
+- **Hook** = 4 `.mjs` chạy trực tiếp bằng `node` — không build step, không dependency, Windows-clean; các helper dùng chung (freshness, đọc plan, context-usage) nằm ở `hooks/lib/`.
 - **Template** = file placeholder `{{...}}` (`root/` luôn dùng, `backend/` + `frontend/` khi fullstack) mà `/ccf:ccf-init` instantiate.
 
 Xem `plugins/ccf/` cho chi tiết. Yêu cầu Node ≥ 18 cho hook.

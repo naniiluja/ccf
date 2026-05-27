@@ -76,10 +76,11 @@ Commands and agents are *prompts* (a model can choose to ignore a prompt). **Hoo
 | **plan-mode-guard** | `UserPromptSubmit` | If a prompt contains `/ccf:ccf-plan` but the session is **not in plan mode**, it **blocks** (exit 2) and tells you to enter plan mode. Every other prompt passes through untouched. This is the *enforced* half of "planning is read-only and reviewed before execution". |
 | **session-start** | `SessionStart` (`startup\|clear\|compact`) | Injects the context-first reminder so the model wakes up already in CCF mode. If **CCF-managed**, it adds a *freshness signal* when the code looks newer than the spec, and after a `compact`/`clear` it **re-loads the in-progress task** from `.claude/plan/PLAN.md` so you resume exactly where you left off. |
 | **updatespec-nudge** | `Stop` | Purely **advisory**, never blocks. When you stop and the code changed but the spec didn't, it nudges `/ccf:ccf-check` then `/ccf:ccf-updatespec`. Guards against re-trigger loops via `stop_hook_active`. |
+| **context-nudge** | `PostToolUse` | Purely **advisory**, never blocks. Reads the session transcript to estimate context usage; once it crosses ~40% of the model window (the "dumb zone"), it nudges you to run a **proactive `/compact`** — with a ready-made hint pre-filled from your in-progress task — instead of waiting for auto-compact (which fires when the model is least sharp). Best-effort: if it can't read the transcript it stays silent. |
 
 **Freshness heuristic (shared, single source of truth in `hooks/lib/freshness.mjs`):** both freshness-aware hooks compare the newest `mtime` of *code* files against the newest `mtime` of *spec* files (`.md` under `.claude/rules`). It **walks the project tree depth-limited** — so it works for *any* layout (`src/`, `server/`, `packages/x/src`, plugin-style `plugins/x/hooks`, or code at the root), not a fixed list of folder names. It is a lightweight nudge, never a hard conclusion — a content-level "is the spec still accurate?" judgment is left to `/ccf:ccf-updatespec`.
 
-**Why hooks are declared, not auto-discovered:** unlike commands/agents/MCP, hooks load **only** because `plugin.json` declares `"hooks": "./hooks/hooks.json"`. Without that line, everything else still works but the hooks are silently ignored.
+**Why hooks are auto-loaded, not declared:** like commands/agents/MCP, hooks load automatically from the standard `hooks/hooks.json` location — current Claude Code (v2.1.x) auto-discovers it. Do **not** add a `"hooks"` field to `plugin.json` pointing back at the standard path: that loads the file twice and fails with `Duplicate hooks file detected`. The `manifest.hooks` field is only for *additional* hook files at a non-standard path.
 
 ## Bundled MCP servers
 
@@ -111,7 +112,7 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 
 - **Commands** = markdown prompts that drive Claude in-session (not scripts).
 - **Agents** = 6 specialized subagents (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
-- **Hooks** = 3 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; the shared freshness heuristic lives in `hooks/lib/`.
+- **Hooks** = 4 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, context-usage) live in `hooks/lib/`.
 - **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:ccf-init` instantiates.
 
 See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.

@@ -21,9 +21,13 @@ plugins/ccf/
 ├─ hooks/
 │  ├─ hooks.json
 │  ├─ lib/io.mjs                # stdin/stdout JSON helpers
+│  ├─ lib/freshness.mjs         # shared spec-vs-code mtime heuristic
+│  ├─ lib/plan.mjs              # read the in-progress task from PLAN.md
+│  ├─ lib/context-usage.mjs     # transcript token usage + compact-nudge logic
 │  ├─ plan-mode-guard.mjs       # UserPromptSubmit: block /ccf-plan outside plan mode
 │  ├─ session-start.mjs         # SessionStart: reminder + re-load task after compact
-│  └─ updatespec-nudge.mjs      # Stop: nudge /ccf-updatespec
+│  ├─ updatespec-nudge.mjs      # Stop: nudge /ccf-updatespec
+│  └─ context-nudge.mjs         # PostToolUse: nudge /compact when context enters the dumb zone
 └─ templates/                   # read by /ccf-init to generate files (not auto-loaded)
    ├─ root/      backend/      frontend/
 ```
