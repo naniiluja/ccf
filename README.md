@@ -7,7 +7,7 @@ A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **c
 - **Context-first**: the spec lives in `CLAUDE.md` + `.claude/`, kept continuously fresh so every session starts with fresh context.
 - **Grounding**: every design decision references best practices from **Context7** and **Microsoft Learn** (two MCP servers bundled with the plugin).
 - **Strictly sequential**: one task at a time (waterfall), no parallel feature development — to maximize quality.
-- **Monorepo**: git init at the root; for fullstack, separate `be/` and `fe/` each with a nested spec.
+- **Adapts to your codebase**: bootstrap a fresh project as a monorepo (git init at the root; fullstack splits into `be/` + `fe/` with nested specs) — *or* onboard an existing codebase, where `/ccf:ccf-init` analyzes the real structure (5 read-only agents) and writes a spec that mirrors it, with no layout forced on you.
 
 ## Install
 

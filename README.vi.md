@@ -7,7 +7,7 @@ Một plugin workflow cho [Claude Code](https://code.claude.com) áp đặt các
 - **Context-first**: spec sống trong `CLAUDE.md` + `.claude/`, được cập nhật liên tục để mỗi session luôn có context tươi.
 - **Grounding**: mọi quyết định thiết kế tham chiếu best practice từ **Context7** và **Microsoft Learn** (2 MCP server đi kèm plugin).
 - **Strictly sequential**: làm một task một lần (waterfall), không phát triển song song nhiều feature — để đảm bảo chất lượng.
-- **Monorepo**: git init ở thư mục gốc; nếu fullstack thì có `be/` và `fe/` riêng, mỗi cái có spec lồng.
+- **Thích ứng với codebase của bạn**: bootstrap dự án mới dạng monorepo (git init ở thư mục gốc; fullstack tách `be/` + `fe/`, mỗi cái có spec lồng) — *hoặc* onboard codebase có sẵn, lúc này `/ccf:ccf-init` phân tích cấu trúc thật (5 agent read-only) và sinh spec phản ánh đúng nó, không ép buộc layout nào.
 
 ## Cài đặt
 
