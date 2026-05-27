@@ -2,9 +2,10 @@
 // CCF updatespec nudge — Stop event, PURELY ADVISORY (never blocks).
 // If code changed more recently than the spec, nudge to run /ccf-check then /ccf-updatespec.
 
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { readStdinJson, emitContext } from "./lib/io.mjs";
+import { specsOlderThanCode } from "./lib/freshness.mjs";
 
 const input = await readStdinJson();
 
@@ -21,7 +22,7 @@ if (!existsSync(rulesDir)) {
   process.exit(0);
 }
 
-if (codeNewerThanSpec(cwd, rulesDir)) {
+if (specsOlderThanCode(cwd, rulesDir)) {
   emitContext(
     "Stop",
     "<ccf>Code changed this session but the spec wasn't updated. " +
@@ -30,49 +31,3 @@ if (codeNewerThanSpec(cwd, rulesDir)) {
 }
 
 process.exit(0);
-
-// ----------------------------------------------------------------------------
-
-/**
- * @param {string} root
- * @param {string} rules
- */
-function codeNewerThanSpec(root, rules) {
-  const specMtime = newestMtime(rules, 1);
-  if (specMtime === 0) return false;
-  const srcDirs = ["src", "be", "fe", "app", "lib", "packages"].map((d) => join(root, d));
-  let codeMtime = 0;
-  for (const d of srcDirs) {
-    if (existsSync(d)) codeMtime = Math.max(codeMtime, newestMtime(d, 2));
-  }
-  return codeMtime > specMtime;
-}
-
-/**
- * @param {string} dir
- * @param {number} depth
- * @returns {number}
- */
-function newestMtime(dir, depth) {
-  let newest = 0;
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return 0;
-  }
-  for (const e of entries) {
-    if (e.name === "node_modules" || e.name === ".git") continue;
-    const full = join(dir, e.name);
-    try {
-      if (e.isDirectory()) {
-        if (depth > 0) newest = Math.max(newest, newestMtime(full, depth - 1));
-      } else {
-        newest = Math.max(newest, statSync(full).mtimeMs);
-      }
-    } catch {
-      // skip
-    }
-  }
-  return newest;
-}

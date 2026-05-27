@@ -2,12 +2,23 @@
 
 **English** · [Tiếng Việt](./README.vi.md) · [简体中文](./README.zh-CN.md)
 
-A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **context-first, spec-driven, strictly sequential** way of working:
+A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **context-first, spec-driven, strictly sequential** way of working. CCF turns the loose "vibe coding" loop into a disciplined pipeline where the spec is always fresh, every decision is grounded in real docs, and work happens one verifiable slice at a time.
 
-- **Context-first**: the spec lives in `CLAUDE.md` + `.claude/`, kept continuously fresh so every session starts with fresh context.
-- **Grounding**: every design decision references best practices from **Context7** and **Microsoft Learn** (two MCP servers bundled with the plugin).
-- **Strictly sequential**: one task at a time (waterfall), no parallel feature development — to maximize quality.
-- **Adapts to your codebase**: bootstrap a fresh project as a monorepo (git init at the root; fullstack splits into `be/` + `fe/` with nested specs) — *or* onboard an existing codebase, where `/ccf:ccf-init` analyzes the real structure (5 read-only agents) and writes a spec that mirrors it, with no layout forced on you.
+- **Context-first** — the spec lives in `CLAUDE.md` + `.claude/`, kept continuously fresh so every session starts already knowing the project.
+- **Grounding** — every design decision references best practices from **Context7** and **Microsoft Learn** (two MCP servers bundled with the plugin), not from memory.
+- **Strictly sequential** — one task at a time (waterfall of vertical slices), no parallel feature development, to maximize quality.
+- **Adapts to your codebase** — bootstrap a fresh project as a monorepo (git init at the root; fullstack splits into `be/` + `fe/` with nested specs) *or* onboard an existing one, where `/ccf:ccf-init` analyzes the real structure (5 read-only agents) and writes a spec that mirrors it — no layout forced on you.
+
+## Why CCF — the problems it solves
+
+| Pain in plain Claude Code | What CCF does about it |
+|---|---|
+| Context "rots" over a long session; the model drifts from the rules | A **`SessionStart` hook** re-injects the context-first reminder every start/clear/compact, and re-loads your in-progress task after a compact. |
+| The spec silently falls behind the code | Two **freshness hooks** compare spec vs code mtime and *nudge* `/ccf:ccf-updatespec` — at session start and when you stop. |
+| Planning slips straight into editing files | A **`UserPromptSubmit` hook** hard-blocks `/ccf:ccf-plan` unless you're in plan mode — planning stays read-only and reviewable. |
+| Design decisions made from stale memory | Bundled **Context7 + Microsoft Learn** MCP servers; CCF prompts cite official docs before writing. |
+| Mistakes repeat across sessions | `/ccf:ccf-updatespec` writes **two tiers** — project rules to the spec, anti-mistake feedback to system **memory** (loaded at higher weight). |
+| Big-bang features that are hard to review | Plans are a **sequential waterfall of vertical slices**, each a thin tracer-bullet (DB→service→UI) with its own test gate. |
 
 ## Install
 
@@ -35,13 +46,40 @@ After installing, open Claude Code in your project folder and run `/ccf:ccf-init
 
 | Command | What it does |
 |---------|--------------|
-| `/ccf:ccf-init` | Bootstrap a new project (interview → generate CLAUDE.md + .claude + plan) or onboard an existing one (5 analyzer agents). |
-| `/ccf:ccf-plan` | Create a sequential plan for one feature. **Requires plan mode** (Shift+Tab). After planning, execute each task with an agent. |
-| `/ccf:ccf-check` | Verify the implementation against the spec (conformance, conventions, SOLID/OOP, BE↔FE cross-check). |
-| `/ccf:ccf-fix` | Disciplined debugging: reproduce → trace logs/DB step by step → root cause → failing test → fix. |
+| `/ccf:ccf-init` | Bootstrap a new project (interview → generate CLAUDE.md + .claude + plan) or onboard an existing one (5 read-only analyzer agents map the real structure). |
+| `/ccf:ccf-plan` | Create a sequential plan for one feature, grounded in best practices. **Requires plan mode** (Shift+Tab) — enforced by a hook. After planning, execute each task with an agent. |
+| `/ccf:ccf-check` | Verify the implementation against the spec (conformance, conventions, SOLID/OOP, BE↔FE cross-check). Read-only. |
+| `/ccf:ccf-fix` | Disciplined debugging: reproduce → trace logs/DB step by step → root cause → failing test → minimal fix. No guessing. |
 | `/ccf:ccf-updatespec` | Update the spec **and system memory** with this session's lessons (incl. new tools with "when to use"). |
 
 Typical flow: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → `/code-review` → `ccf-updatespec`.
+
+## The 6 agents
+
+Specialized subagents, each with least-privilege tools. Parallelism is **read-only research only** — file-writing agents never run in parallel on the same feature.
+
+| Agent | Role | Mode |
+|---|---|---|
+| `ccf-codebase-analyzer` | Analyzes one slice of an existing codebase; `/ccf-init` fans out 5 in parallel. | read-only |
+| `ccf-best-practice-researcher` | Fetches cited best practices from Context7 / MS Learn in an isolated context. | read-only |
+| `ccf-implementer` | Implements **exactly one** plan task: failing test first, then code to meet acceptance criteria. | writes |
+| `ccf-spec-writer` | Drafts CLAUDE.md / rules content from a decisions summary. | drafts |
+| `ccf-spec-checker` | Fresh-context reviewer — checks an implementation or critiques a plan. | read-only |
+| `ccf-debugger` | Investigates one root-cause hypothesis, follows the correlation ID, verifies against the DB. | read-only |
+
+## Hooks — the deterministic layer
+
+Commands and agents are *prompts* (a model can choose to ignore a prompt). **Hooks are the only deterministic part of CCF** — `.mjs` scripts run by `node` at lifecycle events, so they fire every time regardless of what the model decides. They are **no-build, no-dependency, Windows-clean** (Node ≥ 18, built-ins only).
+
+| Hook | Event | What it guarantees |
+|---|---|---|
+| **plan-mode-guard** | `UserPromptSubmit` | If a prompt contains `/ccf:ccf-plan` but the session is **not in plan mode**, it **blocks** (exit 2) and tells you to enter plan mode. Every other prompt passes through untouched. This is the *enforced* half of "planning is read-only and reviewed before execution". |
+| **session-start** | `SessionStart` (`startup\|clear\|compact`) | Injects the context-first reminder so the model wakes up already in CCF mode. If **CCF-managed**, it adds a *freshness signal* when the code looks newer than the spec, and after a `compact`/`clear` it **re-loads the in-progress task** from `.claude/plan/PLAN.md` so you resume exactly where you left off. |
+| **updatespec-nudge** | `Stop` | Purely **advisory**, never blocks. When you stop and the code changed but the spec didn't, it nudges `/ccf:ccf-check` then `/ccf:ccf-updatespec`. Guards against re-trigger loops via `stop_hook_active`. |
+
+**Freshness heuristic (shared, single source of truth in `hooks/lib/freshness.mjs`):** both freshness-aware hooks compare the newest `mtime` of *code* files against the newest `mtime` of *spec* files (`.md` under `.claude/rules`). It **walks the project tree depth-limited** — so it works for *any* layout (`src/`, `server/`, `packages/x/src`, plugin-style `plugins/x/hooks`, or code at the root), not a fixed list of folder names. It is a lightweight nudge, never a hard conclusion — a content-level "is the spec still accurate?" judgment is left to `/ccf:ccf-updatespec`.
+
+**Why hooks are declared, not auto-discovered:** unlike commands/agents/MCP, hooks load **only** because `plugin.json` declares `"hooks": "./hooks/hooks.json"`. Without that line, everything else still works but the hooks are silently ignored.
 
 ## Bundled MCP servers
 
@@ -63,13 +101,18 @@ Principle: **no duplication**. A rule in CLAUDE.md that keeps getting forgotten 
 
 ## Compact-aware mechanism
 
-A proactive `/compact <hint>` beats letting auto-compact fire (when context has "rotted" the model is at its least sharp). After you compact, CCF's `SessionStart` hook (matcher `compact`) auto re-loads the in-progress task from `.claude/plan/PLAN.md`, restoring the right work context so you don't have to paste it back.
+A proactive `/compact <hint>` beats letting auto-compact fire (when context has "rotted" the model is at its least sharp). After you compact, CCF's `session-start` hook (matcher `compact`) auto re-loads the in-progress task from `.claude/plan/PLAN.md`, restoring the right work context so you don't have to paste it back.
+
+## Plan = sequential waterfall of vertical slices
+
+`/ccf:ccf-init` and `/ccf:ccf-plan` produce one plan in `.claude/plan/` (a `PLAN.md` index + `task-NNN-*.md` files). Each task is a **thin vertical slice** — a tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, each as *spec → failing test → implement*. Every task has exactly **one predecessor** and names the **test gate** that must be green before the next slice starts. This is what makes "strictly sequential" concrete and reviewable.
 
 ## Architecture
 
 - **Commands** = markdown prompts that drive Claude in-session (not scripts).
-- **Hooks** = `.mjs` run directly with `node` — no build step, no dependency, Windows-clean.
 - **Agents** = 6 specialized subagents (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
+- **Hooks** = 3 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; the shared freshness heuristic lives in `hooks/lib/`.
+- **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:ccf-init` instantiates.
 
 See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.
 
