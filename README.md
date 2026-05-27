@@ -76,3 +76,7 @@ See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.
 ## License
 
 MIT
+
+## Acknowledgements
+
+This project was first released in the [LINUX DO](https://linux.do/) community — thanks to the community members for their support and feedback.

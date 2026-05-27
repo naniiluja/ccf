@@ -76,3 +76,7 @@ Xem `plugins/ccf/` cho chi tiết. Yêu cầu Node ≥ 18 cho hook.
 ## License
 
 MIT
+
+## Lời cảm ơn
+
+Dự án này được công bố lần đầu tại cộng đồng [LINUX DO](https://linux.do/) — cảm ơn các thành viên cộng đồng đã ủng hộ và góp ý.

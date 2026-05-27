@@ -76,3 +76,7 @@ claude plugin install ccf@ccf
 ## 许可证
 
 MIT
+
+## 致谢
+
+本项目首发于 [LINUX DO](https://linux.do/) 社区，感谢社区佬友的支持与反馈。
