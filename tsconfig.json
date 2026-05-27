@@ -10,5 +10,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["plugins/ccf/hooks/**/*.mjs", "bin/**/*.mjs"]
+  "include": ["plugins/ccf/hooks/**/*.mjs", "bin/**/*.mjs"],
+  "exclude": ["**/*.test.mjs"]
 }

@@ -76,10 +76,11 @@ claude plugin install ccf@ccf
 | **plan-mode-guard** | `UserPromptSubmit` | 若提示词含 `/ccf:ccf-plan` 但会话**不在 plan mode**，它会**阻止**（exit 2）并让你进入 plan mode。其他提示词原样通过。这是「规划只读且执行前经审查」中*被强制执行*的那一半。 |
 | **session-start** | `SessionStart`（`startup\|clear\|compact`） | 注入上下文优先提醒，让模型醒来就已处于 CCF 模式。若**受 CCF 管理**，当代码看起来比规格新时它会加上*新鲜度信号*，并在 `compact`/`clear` 后从 `.claude/plan/PLAN.md` **重新加载进行中的任务**，让你精确地从中断处继续。 |
 | **updatespec-nudge** | `Stop` | 纯**建议性**，从不阻止。当你停止时若代码变了但规格没变，它会提示 `/ccf:ccf-check` 然后 `/ccf:ccf-updatespec`。通过 `stop_hook_active` 防止重复触发循环。 |
+| **context-nudge** | `PostToolUse` | 纯**建议性**，从不阻止。读取会话 transcript 估算上下文用量；一旦超过模型上下文窗口的约 40%（即「变笨区」），它会提示你执行**主动 `/compact`**——并附上一条从进行中任务预填好的 hint——而不是等到自动 compact（那发生在模型最不敏锐的时刻）。尽力而为：读不到 transcript 时保持沉默。 |
 
 **新鲜度启发式（共享，单一事实来源位于 `hooks/lib/freshness.mjs`）：** 两个具备新鲜度感知的钩子都比较*代码*文件的最新 `mtime` 与*规格*文件（`.claude/rules` 下的 `.md`）的最新 `mtime`。它**有限深度地遍历项目目录树**——因此适用于*任何*布局（`src/`、`server/`、`packages/x/src`、插件式的 `plugins/x/hooks`，或位于根目录的代码），而非一份固定的文件夹名单。这是轻量提示，绝非硬性结论——内容层面「规格是否仍然准确？」的判断留给 `/ccf:ccf-updatespec`。
 
-**为什么钩子要声明、而非自动发现：** 与命令/agent/MCP 不同，钩子之所以加载**仅仅因为** `plugin.json` 声明了 `"hooks": "./hooks/hooks.json"`。缺了这一行，其他一切照常工作，但钩子会被默默忽略。
+**为什么钩子是自动加载、而非声明：** 与命令/agent/MCP 一样，钩子从标准位置 `hooks/hooks.json` 自动加载——当前 Claude Code（v2.1.x）会自动发现它。**不要**在 `plugin.json` 里加 `"hooks"` 字段指回这个标准路径：那会把文件加载两次并报错 `Duplicate hooks file detected`。`manifest.hooks` 字段仅用于位于非标准路径的*额外*钩子文件。
 
 ## 自带的 MCP 服务器
 
@@ -111,7 +112,7 @@ claude plugin install ccf@ccf
 
 - **命令** = 在会话中驱动 Claude 的 markdown 提示（不是脚本）。
 - **Agent** = 6 个专用子 agent（分析器、研究员、实现者、规格撰写者、规格检查者、调试器）。
-- **钩子** = 3 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的新鲜度启发式位于 `hooks/lib/`。
+- **钩子** = 4 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、context-usage）位于 `hooks/lib/`。
 - **模板** = 带 `{{...}}` 占位符的文件（`root/` 始终使用，`backend/` + `frontend/` 在全栈时使用），由 `/ccf:ccf-init` 实例化。
 
 详见 `plugins/ccf/`。钩子需要 Node ≥ 18。

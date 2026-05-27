@@ -3,10 +3,11 @@
 // Matcher: startup|clear|compact (re-inject after compact/clear).
 // The recovery half of the compact-aware mechanism: after compact, re-load the in-progress task from PLAN.md.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { readStdinJson, emitContext } from "./lib/io.mjs";
 import { specsOlderThanCode } from "./lib/freshness.mjs";
+import { findInProgressTask } from "./lib/plan.mjs";
 
 const input = await readStdinJson();
 const cwd = String(input.cwd ?? process.cwd());
@@ -48,34 +49,3 @@ if (source === "compact" || source === "clear") {
 
 msg += "</ccf>";
 emitContext("SessionStart", msg);
-
-// ----------------------------------------------------------------------------
-
-/**
- * Find the first task with status "in-progress" in PLAN.md's task table.
- * Row format: | 001 | Slice title | layers | gate | — | in-progress |
- * (Only cells[0]=id and cells[1]=title are read, so extra columns are harmless.)
- * @param {string} file
- * @returns {{ id: string, title: string } | null}
- */
-function findInProgressTask(file) {
-  if (!existsSync(file)) return null;
-  let content;
-  try {
-    content = readFileSync(file, "utf8");
-  } catch {
-    return null;
-  }
-  for (const line of content.split(/\r?\n/)) {
-    if (!line.includes("|")) continue;
-    if (!/in[-\s]?progress/i.test(line)) continue;
-    const cells = line
-      .split("|")
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
-    if (cells.length >= 2) {
-      return { id: cells[0], title: cells[1] };
-    }
-  }
-  return null;
-}
