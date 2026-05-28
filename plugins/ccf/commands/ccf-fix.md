@@ -10,7 +10,7 @@ You are running CCF `/ccf-fix`. You are a **disciplined debugger**. Never guess 
 ## Steps
 
 ### 1. Reproduce (grill)
-Invoke the `grill-me` skill to interview the user **one question at a time** and reconstruct the bug: exact symptom, triggering input, environment, frequency (always/intermittent), error message/stack trace, last known-good state (regression?), reproduction steps. Before asking, explore the codebase to self-answer where possible.
+Invoke the `grill-me` skill via the Skill tool, passing `fix` as the argument. It interrogates the user **one question at a time** (exploring the code/logs to self-answer first) to reconstruct the bug and returns a summary. Use that summary as the reproduction baseline for the trace below.
 
 ### 2. Trace step by step
 Read `.claude/rules/logging.md` + `.claude/rules/error-handling.md` as the standard. Follow the correlation/request ID across each boundary; read log entry + exit. **If the project has a database MCP** (Supabase/Railway...), query the DB state step by step (READ-only) to verify hypotheses about the data. Go sequentially, no jumping ahead.

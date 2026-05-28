@@ -112,6 +112,7 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 
 - **Commands** = markdown prompts that drive Claude in-session (not scripts).
 - **Agents** = 6 specialized subagents (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
+- **Skills** = 1 internal skill (`grill-me`) — the shared requirements-interview engine the commands invoke via the Skill tool; hidden from the `/` menu (`user-invocable: false`).
 - **Hooks** = 4 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, context-usage) live in `hooks/lib/`.
 - **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:ccf-init` instantiates.
 

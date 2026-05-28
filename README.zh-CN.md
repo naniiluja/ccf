@@ -112,6 +112,7 @@ claude plugin install ccf@ccf
 
 - **命令** = 在会话中驱动 Claude 的 markdown 提示（不是脚本）。
 - **Agent** = 6 个专用子 agent（分析器、研究员、实现者、规格撰写者、规格检查者、调试器）。
+- **Skill** = 1 个内部 skill（`grill-me`）——各命令通过 Skill 工具调用的共享需求访谈引擎；从 `/` 菜单隐藏（`user-invocable: false`）。
 - **钩子** = 4 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、context-usage）位于 `hooks/lib/`。
 - **模板** = 带 `{{...}}` 占位符的文件（`root/` 始终使用，`backend/` + `frontend/` 在全栈时使用），由 `/ccf:ccf-init` 实例化。
 

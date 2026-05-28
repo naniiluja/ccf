@@ -17,21 +17,9 @@ Scan `cwd` read-only (Glob `**/*` excluding `node_modules`/`.git`; check for `pa
 ## Branch A — EMPTY project
 
 ### A1. Interview (grill-me)
-Invoke the `grill-me` skill to interview the user **one question at a time**. Before each question, if it can be answered by exploring the codebase, explore first; only ask what code cannot tell you. Walk this decision tree (give your recommendation with each question):
-- (a) What system + the core problem?
-- (b) Acceptable budget/cost?
-- (c) App type: REST API / frontend / backend / fullstack?
-- (d) Expected user scale? → **based on scale, propose hosting** (e.g. Supabase or Railway) and tell the user to install the corresponding MCP (`/plugin install ...`).
-- (e) Design patterns for FE & BE?
-- (f) AI-traceable logging system (structured logs, correlation ID, consistent prefixes)?
-- (g) Database?
-- (h) Coding conventions?
-- (i) Testing strategy?
-- (j) **Tech stack — must be the most stable, best-supported, least-buggy** (mainstream); for each library pick the most popular/well-maintained option.
-- (k) **Monorepo rule:** work in the root folder; if fullstack create `be/` + `fe/`; **git init at the root, NOT in sub-folders**; the root holds CLAUDE.md, `.claude/`, docker, CI/CD.
-- (l) **Git conventions:** first check whether the repo already has commits (read-only `git log`/`git branch -a`) — an "empty" project may still carry a few commits. If a pattern exists, infer the commit/branch convention from it (don't invent). If history is empty/too thin, ask the user (or default to conventional commits: `feat:`/`fix:`/`refactor:`…). This fills `git-workflow.md`'s `{{COMMIT_CONVENTION}}` / `{{BRANCH_NAMING}}` / `{{PR_RULES}}`.
+Invoke the `grill-me` skill via the Skill tool, passing `init` as the argument. It walks the project decision tree **one question at a time** (exploring the repo + git history to self-answer first, recommending an answer for each) and returns the collected decisions.
 
-Synthesize into a **"decisions summary"** and present it for the user to confirm.
+Synthesize the result into a **"decisions summary"** and present it for the user to confirm.
 
 ### A2. Best-practice grounding
 For each chosen design pattern / DB design / framework, **consult the docs before writing the spec**. Delegate to `ccf-best-practice-researcher` (via Task) — or directly call Context7 (`resolve-library-id` → `query-docs`) and the Microsoft Learn docs tool. Cite what you learned in the spec.

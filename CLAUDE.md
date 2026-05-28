@@ -13,6 +13,7 @@ CCF is a **Claude Code plugin** that imposes a context-first, spec-driven, stric
 - `plugins/ccf/` — the plugin itself. `.claude-plugin/plugin.json` is the manifest (ONLY the manifest goes in `.claude-plugin/`); the component directories live at the **plugin root**:
   - `commands/*.md` — 5 slash commands (`ccf-init`, `ccf-plan`, `ccf-check`, `ccf-fix`, `ccf-updatespec`).
   - `agents/*.md` — 6 subagents (`ccf-codebase-analyzer`, `ccf-best-practice-researcher`, `ccf-implementer`, `ccf-spec-writer`, `ccf-spec-checker`, `ccf-debugger`).
+  - `skills/grill-me/SKILL.md` — 1 internal skill: the shared requirements-interview engine invoked by `ccf-plan`/`ccf-fix`/`ccf-init` (`user-invocable: false`; hidden from the `/` menu).
   - `hooks/*.mjs` + `hooks/hooks.json` + `hooks/lib/` — 4 hooks (plan-mode-guard, session-start, updatespec-nudge, context-nudge) sharing `lib/io.mjs` (+ `lib/freshness.mjs`, `lib/plan.mjs`, `lib/context-usage.mjs`).
   - `templates/{root,backend,frontend}/**` — `*.tmpl` files with `{{...}}` placeholders for `/ccf-init` to instantiate.
   - `.mcp.json` — bundles 2 remote MCP servers (microsoft-learn, context7).

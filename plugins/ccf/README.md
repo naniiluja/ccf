@@ -18,6 +18,8 @@ plugins/ccf/
 │  ├─ ccf-spec-writer.md             # draft the spec
 │  ├─ ccf-spec-checker.md            # fresh-context reviewer
 │  └─ ccf-debugger.md                # investigate 1 root-cause branch
+├─ skills/                      # 1 internal skill (invoked by commands; hidden from / menu)
+│  └─ grill-me/SKILL.md         # shared requirements-interview engine (plan/fix/init modes)
 ├─ hooks/
 │  ├─ hooks.json
 │  ├─ lib/io.mjs                # stdin/stdout JSON helpers

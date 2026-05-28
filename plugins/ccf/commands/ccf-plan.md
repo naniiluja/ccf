@@ -14,7 +14,7 @@ You are running CCF `/ccf-plan`.
 Read `CLAUDE.md` (root + nested) + `.claude/rules/*` + `.claude/plan/PLAN.md`. The new plan must be consistent with the spec and slot into the existing sequential backlog.
 
 ## 2. Interview
-Invoke the `grill-me` skill to interview the user **one question at a time** about this specific feature: acceptance criteria, edge cases, data shape, failure modes, test cases. Explore the codebase to self-answer before asking.
+Invoke the `grill-me` skill via the Skill tool, passing `plan` as the argument. It interrogates the user **one question at a time** (exploring the code to self-answer first) and returns a summary of the answers. Fold that summary into the plan.
 
 ## 3. Best-practice grounding
 Before finalizing, raise the plan to best-practice quality: call Context7 (`resolve-library-id` → `query-docs`) for the libraries involved and Microsoft Learn for platform guidance — or delegate to `ccf-best-practice-researcher` via Task. Fold the findings into the plan.

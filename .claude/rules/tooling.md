@@ -14,6 +14,9 @@ Two remote HTTP servers, auto started/stopped by Claude Code at plugin scope:
 ## Grounding subagent
 - `ccf-best-practice-researcher` — **use when**: you want to fan out best-practice lookups into a separate context so they don't flood the main conversation. It calls Context7/MS Learn and returns a cited recommendation.
 
+## Internal skill
+- `grill-me` (`plugins/ccf/skills/grill-me/SKILL.md`) — **use when**: a command (`ccf-plan`/`ccf-fix`/`ccf-init`) needs to interview the user before acting. **How to call**: invoke via the Skill tool, passing the mode (`plan`/`fix`/`init`) as the argument; it runs the one-question-at-a-time interview and returns a summary. Internal (`user-invocable: false`) — not for direct user invocation; model-invocation stays enabled so commands can call it.
+
 ## Plugin development tools
 - **Node ≥ 18** — runs the hooks and `bin/ccf-bootstrap.mjs`.
 - **`tsc`** — type-checks JS via `tsconfig.json`. **Use when**: you just edited any `.mjs`. Run `npm install` (once) then `npx tsc --noEmit`. Needs `@types/node` (already in `devDependencies`) because `tsconfig` sets `"types": ["node"]` — this is a type-check devDependency, not a runtime dep.
