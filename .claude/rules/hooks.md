@@ -12,7 +12,8 @@ paths: plugins/ccf/hooks/**
 
 ## I/O contract (packaged in `hooks/lib/io.mjs` — reuse it, don't rewrite)
 - **Read stdin**: `readStdinJson()` — always returns `{}` on empty/TTY/parse error so the hook NEVER crashes.
-- **Inject context (non-blocking)**: `emitContext(eventName, text)` — prints `{ hookSpecificOutput: { hookEventName, additionalContext } }` then `exit 0`. For SessionStart, Stop, PreToolUse, PostToolUse.
+- **Inject context (non-blocking)**: `emitContext(eventName, text)` — prints `{ hookSpecificOutput: { hookEventName, additionalContext } }` then `exit 0`. ONLY for events whose schema accepts `additionalContext`: SessionStart, UserPromptSubmit, PostToolUse. **NOT PreToolUse** (its `hookSpecificOutput` is `permissionDecision`/`permissionDecisionReason` only) and **NOT Stop** (no `hookSpecificOutput`/`additionalContext` at all — validator rejects it as "Invalid input").
+- **Advise at Stop (non-blocking)**: `emitSystemMessage(text)` — prints `{ systemMessage }` then `exit 0`. The only non-blocking channel for a `Stop` hook (omitting `decision` lets the stop proceed; a `decision: "block"` would force Claude to keep working).
 - **Block a prompt**: `blockUserPrompt(reason)` — writes `reason` to stderr then `exit 2`. UserPromptSubmit only.
 
 ## Exit code semantics (per Claude Code docs)
@@ -23,7 +24,7 @@ paths: plugins/ccf/hooks/**
 ## Events CCF currently uses (`hooks.json`)
 - `UserPromptSubmit` → `plan-mode-guard.mjs`: only intervenes on prompts containing `/ccf-plan` (namespaced + bare regex); blocks if `permission_mode !== "plan"`. Every other prompt `exit 0` immediately.
 - `SessionStart` (matcher `startup|clear|compact`) → `session-start.mjs`: injects the context-first reminder; if CCF-managed, adds a freshness signal + re-loads the in-progress task after `compact`/`clear`.
-- `Stop` → `updatespec-nudge.mjs`: PURELY ADVISORY, never blocks. Must check `input.stop_hook_active` to avoid loops.
+- `Stop` → `updatespec-nudge.mjs`: PURELY ADVISORY, never blocks. Surfaces the nudge via `emitSystemMessage` (`{ systemMessage }`), NOT `additionalContext` (which `Stop` does not support). Must check `input.stop_hook_active` to avoid loops.
 - `PostToolUse` → `context-nudge.mjs`: PURELY ADVISORY, never blocks. Reads `transcript_path` (.jsonl) to compute current context tokens (`message.usage` of the last assistant line: input + cache_creation + cache_read); if ≥ ~40% of the model window (the "dumb zone") it injects `additionalContext` nudging a proactive `/compact <hint>` (hint pre-filled with the in-progress task via `lib/plan.mjs`). The transcript `.jsonl` shape is **undocumented/internal** → read it **best-effort only**: any error returns null and the hook stays silent (never breaks a session). Anti-spam dedup state lives in the OS temp dir keyed by `session_id` (NOT in git-tracked `.claude/`). The dedup mark MUST be persisted on EVERY run **before** the threshold gate (the `decideNudge` decision is pure + unit-tested), so the mark can fall through the sub-threshold band where a `/compact` lands — otherwise the next climb back into the degrade zone is silently suppressed.
 
 ## Hook-writing conventions

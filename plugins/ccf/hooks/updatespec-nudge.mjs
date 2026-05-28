@@ -4,7 +4,7 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { readStdinJson, emitContext } from "./lib/io.mjs";
+import { readStdinJson, emitSystemMessage } from "./lib/io.mjs";
 import { specsOlderThanCode } from "./lib/freshness.mjs";
 
 const input = await readStdinJson();
@@ -23,8 +23,7 @@ if (!existsSync(rulesDir)) {
 }
 
 if (specsOlderThanCode(cwd, rulesDir)) {
-  emitContext(
-    "Stop",
+  emitSystemMessage(
     "<ccf>Code changed this session but the spec wasn't updated. " +
       "Consider running /ccf:ccf-check then /ccf:ccf-updatespec to keep context fresh for future sessions.</ccf>",
   );

@@ -34,9 +34,12 @@ export async function readStdinJson() {
 }
 
 /**
- * Inject context for Claude via additionalContext (supported at SessionStart, PreToolUse,
- * PostToolUse, Stop...). Print JSON to stdout then exit 0.
- * @param {string} eventName the hook event name (e.g. "SessionStart", "Stop")
+ * Inject context for Claude via additionalContext. Valid ONLY for events whose schema
+ * accepts hookSpecificOutput.additionalContext (SessionStart, UserPromptSubmit, PostToolUse).
+ * PreToolUse (permissionDecision only) and Stop do NOT — for a non-blocking Stop advisory
+ * use emitSystemMessage instead.
+ * Print JSON to stdout then exit 0.
+ * @param {string} eventName the hook event name (e.g. "SessionStart", "PostToolUse")
  * @param {string} text the context to inject
  */
 export function emitContext(eventName, text) {
@@ -48,6 +51,17 @@ export function emitContext(eventName, text) {
       },
     }),
   );
+  process.exit(0);
+}
+
+/**
+ * Surface an advisory message from a Stop hook WITHOUT blocking the stop. A Stop hook's
+ * only output fields are decision/reason/systemMessage; it has NO additionalContext.
+ * Omitting `decision` lets the stop proceed normally while `systemMessage` shows the nudge.
+ * @param {string} text the advisory message to surface
+ */
+export function emitSystemMessage(text) {
+  process.stdout.write(JSON.stringify({ systemMessage: text }));
   process.exit(0);
 }
 

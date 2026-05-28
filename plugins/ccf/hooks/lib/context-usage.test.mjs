@@ -46,7 +46,7 @@ test("readContextUsage: sums input + cache_creation + cache_read of the LAST ass
     const u = readContextUsage(file);
     assert.equal(u.tokens, 2 + 20 + 200); // last line only; output ignored
     assert.equal(u.model, "claude-opus-4-7");
-    assert.equal(u.windowSize, 200_000);
+    assert.equal(u.windowSize, 1_000_000); // opus-4.x is treated as a 1M window
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -116,23 +116,27 @@ test("readContextUsage: a malformed token field counts as 0, not NaN (whole read
 
 // --- modelWindowSize ---------------------------------------------------------
 
-test("modelWindowSize: standard model → 200k", () => {
-  assert.equal(modelWindowSize("claude-opus-4-7"), 200_000);
+test("modelWindowSize: current-gen Opus/Sonnet 4.x → 1M (id can't reveal the beta, so assume larger)", () => {
+  assert.equal(modelWindowSize("claude-opus-4-7"), 1_000_000);
+  assert.equal(modelWindowSize("claude-opus-4-1"), 1_000_000);
+  assert.equal(modelWindowSize("claude-sonnet-4-6"), 1_000_000);
 });
 
-test("modelWindowSize: 1m suffix → 1M (both bracket and dash forms)", () => {
-  assert.equal(modelWindowSize("claude-opus-4-7[1m]"), 1_000_000);
-  assert.equal(modelWindowSize("claude-opus-4-7-1m"), 1_000_000);
+test("modelWindowSize: explicit 1m suffix → 1M even for a 200k family (both bracket and dash forms)", () => {
+  assert.equal(modelWindowSize("claude-haiku-4-5-1m"), 1_000_000);
+  assert.equal(modelWindowSize("claude-haiku-4-5[1m]"), 1_000_000);
 });
 
-test("modelWindowSize: '1m' mid-id must NOT be treated as 1M window", () => {
+test("modelWindowSize: Haiku / legacy 3.x / empty → 200k", () => {
+  assert.equal(modelWindowSize("claude-haiku-4-5"), 200_000);
+  assert.equal(modelWindowSize("claude-3-7-sonnet-20250219"), 200_000); // legacy sonnet, not 4.x
+  assert.equal(modelWindowSize(""), 200_000);
+});
+
+test("modelWindowSize: a stray '1m' inside an id is NOT a 1M marker", () => {
   assert.equal(modelWindowSize("claude-haiku-4-1-mini"), 200_000);
   assert.equal(modelWindowSize("model1m"), 200_000); // no separator before 1m → not a window marker
   assert.equal(modelWindowSize("model-21m"), 200_000); // '21m' is not a '1m' marker
-});
-
-test("modelWindowSize: empty / unknown → 200k default", () => {
-  assert.equal(modelWindowSize(""), 200_000);
 });
 
 // --- shouldNudgeCompact ------------------------------------------------------

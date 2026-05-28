@@ -68,17 +68,21 @@ function finiteOrZero(v) {
 }
 
 /**
- * Infer the context window size (tokens) from a model id. Heuristic, used only for the nudge
- * threshold — if it guesses wrong it under-warns (safe direction), never breaks a session.
- * Matches a `1m` window only as an anchored suffix (e.g. "...-1m" or "...[1m]"), so a "1m"
- * substring lodged inside an id (e.g. "claude-haiku-4-1-mini") is NOT mistaken for a 1M window.
+ * Infer the context window size (tokens) from a model id. The id alone CANNOT reveal whether a
+ * 1M-context beta is active (e.g. "claude-opus-4-7" runs at 1M here yet carries no marker), so
+ * when in doubt this guesses the LARGER window: a wrong guess then UNDER-warns (relies on
+ * auto-compact) instead of spamming a /compact nudge at low real usage — the failure mode this
+ * fixes. Rules, in order:
+ *   - explicit `-1m`/`[1m]` anchored suffix → 1M (a stray "1m" inside an id does NOT count);
+ *   - current-generation Opus/Sonnet (Claude 4.x, e.g. claude-opus-4-7) → 1M;
+ *   - Haiku, legacy Claude 3.x/2.x and unrecognised ids → the classic 200k window.
  * @param {string} model model id from the transcript
  * @returns {number} window size in tokens
  */
 export function modelWindowSize(model) {
-  // Match a `1m` window marker preceded by a `-` or `[` separator, optionally closed by `]`:
-  // e.g. "...-1m" or "...[1m]". The separator stops a bare "...1m" inside an id from matching.
-  if (/(?:-|\[)1m\]?$/i.test(String(model ?? ""))) return 1_000_000;
+  const id = String(model ?? "").toLowerCase();
+  if (/(?:-|\[)1m\]?$/.test(id)) return 1_000_000;
+  if (/(?:opus|sonnet)-4/.test(id)) return 1_000_000;
   return 200_000;
 }
 
