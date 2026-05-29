@@ -7,7 +7,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { readStdinJson, emitContext } from "./lib/io.mjs";
 import { specsOlderThanCode } from "./lib/freshness.mjs";
-import { findInProgressTask } from "./lib/plan.mjs";
+import { findActiveTask } from "./lib/plan.mjs";
 
 const input = await readStdinJson();
 const cwd = String(input.cwd ?? process.cwd());
@@ -37,12 +37,12 @@ if (specsOlderThanCode(cwd, rulesDir)) {
     " The spec looks older than the code — consider running /ccf:ccf-updatespec to refresh context.";
 }
 
-// Re-load the in-progress task after compact/clear.
+// Re-load the active task (in-progress OR in-review) after compact/clear.
 if (source === "compact" || source === "clear") {
-  const task = findInProgressTask(planFile);
+  const task = findActiveTask(planFile);
   if (task) {
     msg +=
-      ` You were mid-way through task ${task.id}: ${task.title}.` +
+      ` You have task ${task.id} in progress/in-review: ${task.title}.` +
       ` Read .claude/plan/ (task ${task.id}) to resume exactly where you left off instead of re-reading everything.`;
   }
 }

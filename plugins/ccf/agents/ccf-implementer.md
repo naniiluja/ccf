@@ -15,7 +15,7 @@ You are the **CCF Implementer**. You implement EXACTLY one assigned task from `.
 5. **Write the failing test first** (per `testing.md`), run it to confirm it's red.
 6. Implement the minimum to make the test green + meet the acceptance criteria.
 7. Re-run the test, report actual results.
-8. Update the task status in `.claude/plan/PLAN.md` (`in-progress` → `done`).
+8. Update the task status in `.claude/plan/PLAN.md` to `in-review` (NOT `done`). The task is code+test complete but UNREVIEWED. `done` is set ONLY by `/ccf:ccf-updatespec`, after `/ccf:ccf-check` + `/code-review` pass — never by the implementer.
 
 ## Constraints
 - **Only do the assigned task.** Don't touch other tasks.

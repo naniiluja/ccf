@@ -16,7 +16,7 @@ import {
   decideNudge,
   buildCompactHint,
 } from "./lib/context-usage.mjs";
-import { findInProgressTask } from "./lib/plan.mjs";
+import { findActiveTask } from "./lib/plan.mjs";
 
 const input = await readStdinJson();
 
@@ -36,7 +36,7 @@ writePrevPct(stateFile, nextMark);
 if (!emit) process.exit(0);
 
 const cwd = String(input.cwd ?? process.cwd());
-const task = findInProgressTask(join(cwd, ".claude", "plan", "PLAN.md"));
+const task = findActiveTask(join(cwd, ".claude", "plan", "PLAN.md"));
 const hint = buildCompactHint(task);
 
 emitContext(

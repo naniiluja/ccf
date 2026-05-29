@@ -29,4 +29,4 @@ You are running CCF `/ccf-check`. You are a **fresh-context reviewer** (Anthropi
 ## Closing (mandatory)
 1. If the project opted into the test discipline and a function/slice still lacks its contract-level matrix, recommend **`/ccf:ccf-test [function/slice]`** to design + run it.
 2. Recommend the user run Claude's **`/code-review`** on this change to surface additional quality/correctness issues.
-3. Then recommend **`/ccf:ccf-updatespec`** to capture any drift/lessons discovered into the spec, keeping context fresh for future sessions.
+3. Then recommend **`/ccf:ccf-updatespec`** to capture any drift/lessons discovered into the spec, keeping context fresh for future sessions. **If this review (and `/code-review`) came back clean,** recommend that `/ccf:ccf-updatespec` then mark the `in-review` task `done` — this command is read-only and does NOT write task status itself; it only RECOMMENDS the transition.
