@@ -8,7 +8,7 @@ The Claude Context First plugin. See the [root README](../../README.md) for inst
 plugins/ccf/
 ├─ .claude-plugin/plugin.json   # manifest
 ├─ .mcp.json                    # microsoft-learn + context7 (HTTP, key-less)
-├─ commands/                    # 5 slash commands (markdown prompts)
+├─ commands/                    # 6 slash commands (markdown prompts)
 │  ├─ ccf-init.md  ccf-plan.md  ccf-check.md
 │  ├─ ccf-fix.md   ccf-updatespec.md
 ├─ agents/                      # 6 subagents

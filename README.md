@@ -19,6 +19,7 @@ A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **c
 | Design decisions made from stale memory | Bundled **Context7 + Microsoft Learn** MCP servers; CCF prompts cite official docs before writing. |
 | Mistakes repeat across sessions | `/ccf:ccf-updatespec` writes **two tiers** — project rules to the spec, anti-mistake feedback to system **memory** (loaded at higher weight). |
 | Big-bang features that are hard to review | Plans are a **sequential waterfall of vertical slices**, each a thin tracer-bullet (DB→service→UI) with its own test gate. |
+| Tests written loosely (or skipped) under time pressure | An **opt-in test discipline** — `/ccf:ccf-test` designs a contract-level matrix (Equivalence Partitioning + Boundary Value Analysis + decision table), and once you opt in, a generated **Stop-hook gate blocks stopping** until the tests actually pass. Ship-fast flows simply don't opt in. |
 
 ## Install
 
@@ -42,17 +43,18 @@ claude plugin install ccf@ccf
 
 After installing, open Claude Code in your project folder and run `/ccf:ccf-init`.
 
-## The 5 commands
+## The 6 commands
 
 | Command | What it does |
 |---------|--------------|
 | `/ccf:ccf-init` | Bootstrap a new project (interview → generate CLAUDE.md + .claude + plan) or onboard an existing one (5 read-only analyzer agents map the real structure). |
 | `/ccf:ccf-plan` | Create a sequential plan for one feature, grounded in best practices. **Requires plan mode** (Shift+Tab) — enforced by a hook. After planning, execute each task with an agent. |
 | `/ccf:ccf-check` | Verify the implementation against the spec (conformance, conventions, SOLID/OOP, BE↔FE cross-check). Read-only. |
+| `/ccf:ccf-test` | Design a contract-level test matrix (EP + BVA + decision table) for a function/slice, write the tests failing-first, run them, and report actual results vs the coverage gate. Only under a project that opted into the test discipline. |
 | `/ccf:ccf-fix` | Disciplined debugging: reproduce → trace logs/DB step by step → root cause → failing test → minimal fix. No guessing. |
 | `/ccf:ccf-updatespec` | Update the spec **and system memory** with this session's lessons (incl. new tools with "when to use"). |
 
-Typical flow: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → `/code-review` → `ccf-updatespec`.
+Typical flow: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → (`ccf-test` when the test discipline is ON) → `/code-review` → `ccf-updatespec`.
 
 ## The 6 agents
 

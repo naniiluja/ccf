@@ -1,0 +1,205 @@
+#!/usr/bin/env node
+// {{PROJECT_NAME}} — Stop test-gate hook (BLOCKING). Event: Stop.
+//
+// ┌─ DELIBERATELY DIFFERENT ARTIFACT — DO NOT "FIX" THIS TO ADVISORY ─────────────────────────┐
+// │ This hook BLOCKS the stop with `exit 2` when the session edited code but the work was NOT  │
+// │ verified (tests FAILED, or no test command ran). That is INTENTIONAL.                       │
+// │                                                                                             │
+// │ The CCF *plugin* repo ships a different Stop hook (updatespec-nudge.mjs) that is PURELY     │
+// │ ADVISORY (emitSystemMessage, never blocks) — because a plugin must never wedge an arbitrary │
+// │ user's session. THIS file is a TARGET-PROJECT, OPT-IN gate: you (the project owner) chose to │
+// │ enforce "don't stop on unverified code", so blocking is correct here. Do not downgrade it to │
+// │ advisory to match the plugin's hook — they are different artifacts with different mandates.  │
+// └─────────────────────────────────────────────────────────────────────────────────────────────┘
+//
+// SAFETY VALVES (per code.claude.com/docs/en/hooks):
+//   • stop_hook_active loop-guard: when Claude is already continuing BECAUSE of a previous Stop-hook
+//     block, the Stop input carries `stop_hook_active: true`. We exit 0 immediately so we never block
+//     an already-continuing turn into an infinite Stop→block→Stop loop.
+//   • 8-consecutive-block override: Claude Code itself overrides a Stop hook after ~8 consecutive
+//     blocks, so the user is never permanently stuck even if the gate keeps failing.
+//
+// TOGGLE: this gate is ON purely because its entry exists in `.claude/hooks/hooks.json`. Remove that
+// entry (or this file) to turn it off — there is no separate enable flag in settings.json.
+//
+// SELF-CONTAINED: a target project must not import from the CCF plugin, so the stdin-reading and
+// transcript-scanning patterns (from the plugin's io.mjs / verify-trace.mjs) are COPIED in below.
+// The only shared piece is the pure decider in ./lib/test-gate-core.mjs (single source of truth).
+
+import { existsSync, readFileSync } from "node:fs";
+import { shouldBlockStop, isFailureText } from "./lib/test-gate-core.mjs";
+
+// --- copied I/O pattern (io.mjs): read+parse stdin JSON, never crash on empty/TTY/parse error ---
+/**
+ * @returns {Promise<Record<string, any>>}
+ */
+function readStdinJson() {
+  return new Promise((resolve) => {
+    let raw = "";
+    // No stdin (run manually without a pipe) → resolve {} so the hook never hangs.
+    if (process.stdin.isTTY) {
+      resolve({});
+      return;
+    }
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => {
+      raw += chunk;
+    });
+    process.stdin.on("end", () => {
+      const text = raw.trim();
+      if (!text) {
+        resolve({});
+        return;
+      }
+      try {
+        resolve(JSON.parse(text));
+      } catch {
+        resolve({});
+      }
+    });
+    process.stdin.on("error", () => resolve({}));
+  });
+}
+
+// --- copied transcript-scan pattern (verify-trace.mjs), extended with test-FAILED detection ---
+
+// Extensions that count as "code" — a Write/Edit on one means real code changed.
+const CODE_EXT = /\.(ts|tsx|js|mjs|cjs|jsx|py|go|rs|java|rb|php)$/i;
+// Substrings that mark a shell command as a test / verification run. Broad but anchored to runners.
+const TEST_CMD =
+  /(?:\bnpm\s+(?:run\s+)?test\b|\byarn\s+test\b|\bpnpm\s+(?:run\s+)?test\b|node\s+--test\b|\bvitest\b|\bjest\b|\bmocha\b|\bpytest\b|\bgo\s+test\b|\bcargo\s+test\b|\bphpunit\b|\brspec\b|\btsc\b)/i;
+// Tool names that edit/create a file (lower-cased; a future alias is a one-line add).
+const WRITE_TOOL_NAMES = new Set(["write", "edit", "multiedit"]);
+// Tool names that run a shell command. HARNESS/OS-DEPENDENT — Bash on POSIX, PowerShell/pwsh on
+// Windows — so accept all of them, else a Windows session that ran tests looks like "no test ran".
+const SHELL_TOOL_NAMES = new Set(["bash", "shell", "powershell", "pwsh"]);
+// The test-FAILED text heuristic lives in ./lib/test-gate-core.mjs (`isFailureText`) so it is
+// unit-tested with `node --test` — it is the highest-risk branch (must not fire on "0 failed").
+
+/**
+ * True when a path looks like a source-code file.
+ * @param {string} path file path from a Write/Edit tool input
+ * @returns {boolean}
+ */
+function isCodeFile(path) {
+  return CODE_EXT.test(String(path ?? ""));
+}
+
+/**
+ * True when a Write/Edit/MultiEdit tool input touches at least one code file, across the plausible
+ * (undocumented, harness-dependent) shapes: top-level `file_path`, an `edits[]` of `{file_path}`,
+ * or a `file_paths[]`. Pure + defensive — any unexpected shape → false.
+ * @param {any} input the tool_use `input` object
+ * @returns {boolean}
+ */
+function editedAnyCodeFile(input) {
+  if (!input || typeof input !== "object") return false;
+  if (isCodeFile(input.file_path)) return true;
+  if (Array.isArray(input.edits) && input.edits.some((/** @type {any} */ e) => isCodeFile(e?.file_path)))
+    return true;
+  if (Array.isArray(input.file_paths) && input.file_paths.some((/** @type {any} */ p) => isCodeFile(p)))
+    return true;
+  return false;
+}
+
+/**
+ * Flatten a tool_result content field (string | array of blocks) to one searchable string.
+ * @param {any} content the tool_result `content` (shape is harness-dependent)
+ * @returns {string}
+ */
+function resultText(content) {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((/** @type {any} */ b) => (typeof b === "string" ? b : String(b?.text ?? "")))
+      .join("\n");
+  }
+  return "";
+}
+
+/**
+ * @typedef {{ editedCode: boolean, ranTests: boolean, testFailed: boolean }} GateSignals
+ */
+
+/**
+ * Read SESSION signals from a transcript .jsonl (best-effort, never throws): scan assistant
+ * `tool_use` blocks for (1) a Write/Edit on a code file and (2) a test command, and scan user-line
+ * `tool_result` blocks (harness-generated tool output — NOT a user's typed prose) for a FAILED
+ * signal. The transcript shape is UNDOCUMENTED/internal — any read/parse/shape error decays to the
+ * safe all-false signal.
+ * @param {string} transcriptPath path to the session .jsonl transcript
+ * @returns {GateSignals}
+ */
+function readGateSignals(transcriptPath) {
+  const safe = { editedCode: false, ranTests: false, testFailed: false };
+  if (!transcriptPath || !existsSync(transcriptPath)) return safe;
+  let raw;
+  try {
+    raw = readFileSync(transcriptPath, "utf8");
+  } catch {
+    return safe;
+  }
+  let editedCode = false;
+  let ranTests = false;
+  let testFailed = false;
+  for (const line of raw.split(/\r?\n/)) {
+    const text = line.trim();
+    if (!text) continue;
+    let obj;
+    try {
+      obj = JSON.parse(text);
+    } catch {
+      continue; // skip a corrupt line, keep scanning
+    }
+    // Gate on the transcript-line ROLE. `tool_use` blocks live on assistant lines; `tool_result`
+    // blocks (the harness-generated output of a tool call) live on user lines. We must NOT scan a
+    // user's own typed message for FAIL_SIGNAL — a developer pasting "the deploy FAILED" into chat
+    // must never flip testFailed. So: read tool_use only from assistant lines, and read tool_result
+    // ONLY from a user line that actually carries a tool_result block (i.e. harness output, not prose).
+    const role = obj?.type;
+    if (role !== "assistant" && role !== "user") continue;
+    const content = obj?.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content) {
+      const type = block?.type;
+      if (role === "assistant" && type === "tool_use") {
+        const name = String(block?.name ?? "").toLowerCase();
+        const input = block?.input ?? {};
+        if (WRITE_TOOL_NAMES.has(name)) {
+          if (editedAnyCodeFile(input)) editedCode = true;
+        } else if (SHELL_TOOL_NAMES.has(name)) {
+          if (TEST_CMD.test(String(input?.command ?? ""))) ranTests = true;
+        }
+      } else if (role === "user" && type === "tool_result") {
+        // A failed test/type-check surfaces in a harness-generated tool_result (not user prose).
+        // Still conservative: only matters when paired with editedCode in the pure decider.
+        if (isFailureText(resultText(block?.content))) testFailed = true;
+      }
+    }
+    // editedCode + a recorded failure is already the worst case the decider can block on; stop early.
+    if (editedCode && testFailed) break;
+  }
+  return { editedCode, ranTests, testFailed };
+}
+
+// --- hook body ---
+const input = await readStdinJson();
+
+// Loop-guard: never block a turn that is already continuing because of a previous Stop-hook block.
+if (input.stop_hook_active) {
+  process.exit(0);
+}
+
+const signals = readGateSignals(String(input.transcript_path ?? ""));
+
+if (shouldBlockStop(signals)) {
+  // exit 2 = BLOCK; stderr is fed back to Claude as the reason it must keep working.
+  const reason = signals.testFailed
+    ? "Test gate: you edited code this session and the tests/type-check FAILED. Fix the failures and re-run them before stopping."
+    : "Test gate: you edited code this session but ran no test/type-check command. Run the tests (and type-check) before stopping.";
+  process.stderr.write(reason);
+  process.exit(2);
+}
+
+// Verified (or no code touched) → allow the stop. No output needed.
+process.exit(0);

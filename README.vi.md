@@ -19,6 +19,7 @@ Một plugin workflow cho [Claude Code](https://code.claude.com) áp đặt các
 | Quyết định thiết kế dựa trên trí nhớ cũ | **Context7 + Microsoft Learn** MCP đi kèm; prompt CCF trích dẫn tài liệu chính thức trước khi viết. |
 | Sai lầm lặp lại qua các session | `/ccf:ccf-updatespec` ghi **hai tầng** — rule dự án vào spec, feedback chống lỗi vào **memory** hệ thống (nạp ở trọng số cao hơn). |
 | Feature big-bang khó review | Plan là **waterfall các vertical slice**, mỗi slice là một tracer-bullet mỏng (DB→service→UI) với test gate riêng. |
+| Test viết qua loa (hoặc bỏ) khi gấp deadline | Một **test discipline opt-in** — `/ccf:ccf-test` thiết kế ma trận ở mức contract (Equivalence Partitioning + Boundary Value Analysis + decision table), và khi đã opt-in, một **Stop-hook gate chặn việc dừng** cho tới khi test thực sự pass. Luồng ship-nhanh thì đơn giản là không opt-in. |
 
 ## Cài đặt
 
@@ -42,17 +43,18 @@ claude plugin install ccf@ccf
 
 Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:ccf-init`.
 
-## 5 lệnh
+## 6 lệnh
 
 | Lệnh | Tác dụng |
 |------|----------|
 | `/ccf:ccf-init` | Bootstrap dự án mới (phỏng vấn → sinh CLAUDE.md + .claude + plan) hoặc onboard dự án có sẵn (5 agent phân tích read-only map cấu trúc thật). |
 | `/ccf:ccf-plan` | Tạo plan tuần tự cho một feature, grounded trong best practice. **Yêu cầu plan mode** (Shift+Tab) — được hook bắt buộc. Sau plan, execute từng task bằng agent. |
 | `/ccf:ccf-check` | Verify implementation so với spec (conformance, convention, SOLID/OOP, cross-check BE↔FE). Read-only. |
+| `/ccf:ccf-test` | Thiết kế ma trận test ở mức contract (EP + BVA + decision table) cho một hàm/slice, viết test failing-first, chạy, rồi báo cáo kết quả thực tế so với coverage gate. Chỉ chạy khi dự án đã opt-in test discipline. |
 | `/ccf:ccf-fix` | Debug có kỷ luật: tái hiện → trace log/DB từng bước → root cause → failing test → fix tối thiểu. Không đoán mò. |
 | `/ccf:ccf-updatespec` | Cập nhật spec **và memory hệ thống** với bài học trong session (gồm công cụ mới kèm "dùng khi nào"). |
 
-Luồng điển hình: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → `/code-review` → `ccf-updatespec`.
+Luồng điển hình: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → (`ccf-test` khi test discipline bật) → `/code-review` → `ccf-updatespec`.
 
 ## 6 agent
 
@@ -76,7 +78,7 @@ Command và agent là *prompt* (model có thể chọn lờ một prompt đi). *
 | **plan-mode-guard** | `UserPromptSubmit` | Nếu prompt chứa `/ccf:ccf-plan` nhưng session **không ở plan mode**, nó **chặn** (exit 2) và bảo bạn vào plan mode. Mọi prompt khác đi qua nguyên vẹn. Đây là nửa *được cưỡng chế* của "planning là read-only và review trước khi execute". |
 | **plan-review-gate** | `PreToolUse` (`ExitPlanMode`) | Trong session `/ccf-plan`, **chặn** `ExitPlanMode` (không cho trình plan để duyệt) cho tới khi transcript cho thấy đã có một lượt review của `ccf-spec-checker`. Best-effort trên định dạng transcript không có tài liệu: bất kỳ lỗi đọc nào hay session không phải CCF đều đi qua, nên không bao giờ chặn nhầm — cưỡng chế mạnh, có backup là bước 6 trong prompt `ccf-plan`. |
 | **session-start** | `SessionStart` (`startup\|clear\|compact`) | Inject lời nhắc context-first để model tỉnh dậy đã ở chế độ CCF. Nếu **CCF-managed**, nó thêm *freshness signal* khi code có vẻ mới hơn spec, và sau `compact`/`clear` nó **re-load task in-progress** từ `.claude/plan/PLAN.md` để bạn resume đúng chỗ. |
-| **updatespec-nudge** | `Stop` | Thuần **advisory**, không bao giờ chặn. Khi bạn dừng và code đã đổi nhưng spec thì chưa, nó nudge `/ccf:ccf-check` rồi `/ccf:ccf-updatespec`. Chống loop re-trigger qua `stop_hook_active`. |
+| **updatespec-nudge** | `Stop` | Thuần **advisory**, không bao giờ chặn. Hai nudge độc lập: **(A)** nếu bạn sửa code trong session mà chưa chạy test, nhắc *verify your work* (chạy test / type-check); **(B)** nếu code đã đổi nhưng spec thì chưa, nudge `/ccf:ccf-check` rồi `/ccf:ccf-updatespec`. Chống loop re-trigger qua `stop_hook_active`. |
 | **context-nudge** | `PostToolUse` | Thuần **advisory**, không bao giờ chặn. Đọc transcript của session để ước lượng mức dùng context; khi vượt ~40% cửa sổ context của model (vùng "dumb zone"), nó nudge bạn chạy **`/compact` chủ động** — kèm sẵn một hint pre-fill từ task đang dở — thay vì đợi auto-compact (vốn kích hoạt lúc model kém sắc bén nhất). Best-effort: không đọc được transcript thì im lặng. |
 
 **Freshness heuristic (dùng chung, single source of truth ở `hooks/lib/freshness.mjs`):** cả hai hook freshness so **thời điểm commit git** cuối (`git log -1 --format=%ct`) của file *code* với của file *spec* (`.md` trong `.claude/rules` + `CLAUDE.md`) — committer time, nên phản ánh thay đổi nội dung thật và **miễn nhiễm với `mtime` bị xáo trộn** bởi `checkout`/`pull`/`clone`. Khi git không trả lời được (không phải git repo, hay path chưa có commit — vd dự án vừa `/ccf-init`) nó **fallback về duyệt `mtime` giới hạn độ sâu**, hoạt động với *mọi* layout (`src/`, `server/`, `packages/x/src`, kiểu plugin `plugins/x/hooks`, hay code ở root). Đây là nudge nhẹ, không bao giờ là kết luận chắc chắn — phán xét ở mức nội dung "spec còn chính xác không?" được để cho `/ccf:ccf-updatespec`.

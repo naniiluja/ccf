@@ -26,6 +26,7 @@ Two remote HTTP servers, auto started/stopped by Claude Code at plugin scope:
 
 ## CCF self-checks (internal commands)
 - `/ccf:ccf-check` — verify the implementation against this spec (conformance, conventions, SOLID, cross-check).
+- `/ccf:ccf-test` — **use when**: a project opted into the test discipline and you want a rigorous, contract-level test suite for a function/slice. Designs the EP+BVA+decision-table matrix at the public signature, writes the tests failing-first, runs the project's test command, and reports actual results + coverage vs the gate. **How to call**: `/ccf:ccf-test [function/slice]`; stops with a notice if the project did not opt into the discipline.
 - `/ccf:ccf-updatespec` — refresh the spec after a session; **also records new tools with "when to use"** into this very file.
 
 ## Convention for adding a new tool
