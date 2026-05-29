@@ -29,6 +29,16 @@ description: Conventions for writing CCF plugin commands, agents, and templates 
 - A `CLAUDE.md.tmpl` must itself obey the < 200-line + `@import` rule, since it is the mold for another project's spec.
 - Three template branches: `root/` (always used), `backend/` + `frontend/` (only when the target project is fullstack).
 
+## Path-scoped rules (`paths:` frontmatter)
+A rule file WITHOUT `paths:` loads every session (unconditional); WITH `paths:` (a list of glob patterns) it lazy-loads only when Claude touches a matching file. Scope rules that are TRULY local (e.g. backend-only); leave cross-cutting rules global. Glob reference (grounded, `code.claude.com/docs/en/memory`):
+
+| Pattern | Matches |
+| --- | --- |
+| `**/*.ts` | all `.ts` files anywhere |
+| `src/**/*` | everything under `src/` |
+| `*.md` | `.md` files in the project root only |
+| `src/**/*.{ts,tsx}` | brace expansion — `.ts` + `.tsx` under `src/` |
+
 ## Common conventions
 - Content language: **English** (matching the whole current codebase), keep technical identifiers in their original form.
 - When adding/changing/removing a command, agent or skill: update the README command/agent/skill tables and counts, every cross-reference in other prompts, and (if relevant) `plugin.json`.

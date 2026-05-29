@@ -15,7 +15,7 @@ Invoke the `grill-me` skill via the Skill tool, passing `fix` as the argument. I
 ### 2. Trace step by step
 Read `.claude/rules/logging.md` + `.claude/rules/error-handling.md` as the standard. Follow the correlation/request ID across each boundary; read log entry + exit. **If the project has a database MCP** (Supabase/Railway...), query the DB state step by step (READ-only) to verify hypotheses about the data. Go sequentially, no jumping ahead.
 
-> If you need to isolate several hypothesis branches in parallel without flooding context, you may hand each branch to a `ccf-debugger` subagent (read-only) via Task.
+> If the bug has ≥2 independent hypothesis branches, you MUST hand each branch to a `ccf-debugger` subagent (read-only) via Task to isolate them in parallel without flooding context. This is the read-only-research EXCEPTION to the sequential law (parallel read-only research is allowed per `architecture.md`), so it does NOT violate "no parallel work".
 
 ### 3. Isolate & hypothesize
 Narrow the suspect area **with evidence** (not gut feeling). State the root-cause hypothesis with concrete evidence (`file:line`, log line, DB row). Consult Context7/Microsoft Learn if the bug relates to library/platform behavior.

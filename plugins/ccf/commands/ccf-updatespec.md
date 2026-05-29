@@ -46,4 +46,5 @@ For the lessons classified as **memory** in step 1, write them to this project's
 If `.claude/plan/` changed (tasks done, reordered, added), update `PLAN.md` and each task's status.
 
 ## Closing (mandatory, per output style)
-ASK the user whether to commit and/or push. **Do NOT run any git command unless the user explicitly agrees.** If they agree: if on the default branch, create a branch first, and use a conventional commit message.
+- **Check harness-level attribution:** confirm `.claude/settings.json` exists with an `attribution` key set (the deterministic, harness-enforced replacement for the deprecated `includeCoAuthoredBy` and for any "never add Co-Authored-By" narrative). If the file is missing or `attribution` is absent, **nudge the user** to set it (e.g. `attribution.commit`/`attribution.pr` = the desired trailer text, or `""` to suppress). Do NOT auto-write it and do NOT auto-commit.
+- ASK the user whether to commit and/or push. **Do NOT run any git command unless the user explicitly agrees.** If they agree: if on the default branch, create a branch first, and use a conventional commit message.

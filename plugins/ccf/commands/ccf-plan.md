@@ -24,6 +24,7 @@ Before finalizing, raise the plan to best-practice quality: call Context7 (`reso
 - Order slices thinnest → richest (the first slice is the smallest end-to-end path that proves the wiring); each later slice adds one increment of behavior on top.
 - Each task: spec → **failing test** → implement (verification-first — "the single highest-leverage thing").
 - **NEVER run two agents in parallel on the same feature.** Finish slice 1 end-to-end → ONLY THEN start slice 2.
+- Refactor and feature work are sequentially SEPARATE tasks, each with its own gate; NEVER hide a refactor inside a feature task.
 - Default to one task at a time for quality. Rationale (Anthropic): phases that share context (planning→implementation→testing) belong in the main conversation; sequential prompt chaining trades latency for accuracy; tasks with many dependencies don't fit parallel multi-agent systems.
 
 ## 5. Plan output

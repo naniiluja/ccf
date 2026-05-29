@@ -9,6 +9,10 @@ description: Git and distribution/versioning conventions for the CCF plugin.
 - git init at the **repo root**, not in sub-folders. `.gitignore` already excludes `node_modules/`, `dist/`, `*.log`, `.env*`.
 - When asked to commit: the message describes the change by artifact type (e.g. `feat: add hook X`, `docs: sync README`).
 
+## Commit attribution (harness-enforced)
+- Attribution is enforced by `.claude/settings.json` `attribution` (`{ "commit": "...", "pr": "..." }`), per `code.claude.com/docs/en/settings`. Harness-level settings are deterministic and **supersede** any narrative rule here — settings win over prose. (`attribution` replaces the deprecated `includeCoAuthoredBy`.)
+- This narrative is only the **backup**: keep the trailer behavior consistent with `settings.json`. Do NOT add a Co-Authored-By trailer by hand if `attribution.commit` is `""`.
+
 ## Versioning (synced in 3 places — easy to drift)
 The version number appears in **three** files and must match on every bump:
 1. `package.json` → `version`
