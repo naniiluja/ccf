@@ -8,7 +8,7 @@ description: JS/Node and markdown conventions for the CCF plugin project.
 - **Pure ESM**: `import ... from "node:..."`. Always prefix `node:` for built-in modules.
 - **JSDoc required** for every exported function and every function with parameters: `@param`/`@returns` with types — because `tsconfig.json` enables `checkJs` + `strict`, wrong types fail `tsc` (see how to run `tsc` with the `@types/node` prerequisite in `testing.md`).
 - Small pure functions, one responsibility. Shared helpers (e.g. hook I/O) live in `hooks/lib/` and are imported — DRY, don't copy-paste the stdin/stdout contract.
-- Use meaningful names (`findInProgressTask`, `specsOlderThanCode`); no cryptic abbreviations.
+- Use meaningful names (`findActiveTask`, `specsOlderThanCode`); no cryptic abbreviations.
 - Comments explain **why** (e.g. "avoid hanging when there is no stdin"), not what the code already says.
 - Coerce untrusted input: `String(input.x ?? "")`, `Number(...)` — don't trust stdin data.
 

@@ -22,8 +22,8 @@
 ## Steps (thin end-to-end slice)
 1. Write the failing test (cover the slice's user-visible behavior, not just one layer)
 2. Implement minimally across the layers the slice touches
-3. Run the test / verify actual output — the gate above must be GREEN
-4. `/ccf:ccf-check` → `/code-review` → `/ccf:ccf-updatespec`
+3. Run the test / verify actual output — the gate above must be GREEN, then mark the task `in-review` (NOT `done`)
+4. `/ccf:ccf-check` → `/code-review` → `/ccf:ccf-updatespec` — `done` is set ONLY here, after the review passes
 
 ## Notes / best-practice sources
 {{CITATIONS}}   <!-- Context7 / MS Learn citations gathered during /ccf-plan -->

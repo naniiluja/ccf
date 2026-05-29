@@ -43,7 +43,7 @@ For the lessons classified as **memory** in step 1, write them to this project's
 - Memories that mention a specific file/function/flag: prefer line-independent descriptions (e.g. "auth via middleware in main.go" rather than "line 42").
 
 ### 6. Sync the plan
-If `.claude/plan/` changed (tasks done, reordered, added), update `PLAN.md` and each task's status.
+If `.claude/plan/` changed (tasks done, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:ccf-check` + `/code-review` cleanly → mark it `done` here. `ccf-implementer` only ever reaches `in-review`; `ccf-check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` (or move back to `in-progress`) — do NOT mark `done`.
 
 ## Closing (mandatory, per output style)
 - **Check harness-level attribution:** confirm `.claude/settings.json` exists with an `attribution` key set (the deterministic, harness-enforced replacement for the deprecated `includeCoAuthoredBy` and for any "never add Co-Authored-By" narrative). If the file is missing or `attribution` is absent, **nudge the user** to set it (e.g. `attribution.commit`/`attribution.pr` = the desired trailer text, or `""` to suppress). Do NOT auto-write it and do NOT auto-commit.

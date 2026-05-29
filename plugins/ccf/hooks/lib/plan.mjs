@@ -1,17 +1,18 @@
 // CCF plan helpers — shared by session-start.mjs and context-nudge.mjs.
-// Reads the in-progress task from PLAN.md so both hooks can resume / hint the same task. DRY.
+// Reads the active task (in-progress OR in-review) from PLAN.md so both hooks can resume / hint the same task. DRY.
 
 import { existsSync, readFileSync } from "node:fs";
 
 /**
- * Find the first task whose STATUS cell is "in-progress" in PLAN.md's task table.
+ * Find the first ACTIVE task (status cell "in-progress" OR "in-review") in PLAN.md's task table.
  * Row format: | 001 | Slice title | layers | gate | — | in-progress |
  * Reads id = first cell, title = second cell, status = LAST cell. Positional, so the match is on
- * the status cell only (not anywhere the words "in progress" appear in prose or a title).
+ * the status cell only (not anywhere the words "in progress"/"in review" appear in prose or a title).
+ * Both are reloadable: an `in-review` task is still the task you are on (awaiting /ccf-check + review).
  * @param {string} file path to PLAN.md
  * @returns {{ id: string, title: string } | null}
  */
-export function findInProgressTask(file) {
+export function findActiveTask(file) {
   if (!existsSync(file)) return null;
   let content;
   try {
@@ -23,10 +24,40 @@ export function findInProgressTask(file) {
     const cells = parseTableRow(line);
     if (!cells || cells.length < 3) continue; // need at least id | title | status
     const status = cells[cells.length - 1];
-    if (!/^in[-\s]?progress$/i.test(status)) continue; // STATUS cell only, whole-cell match
+    if (!/^in[-\s]?(progress|review)$/i.test(status)) continue; // STATUS cell only, whole-cell match
     return { id: cells[0], title: cells[1] };
   }
   return null;
+}
+
+/**
+ * Find every task row whose status cell is NOT "done" (todo / in-progress / in-review / blocked).
+ * Positional like findActiveTask: id = first cell, title = second cell, status = LAST cell — so the
+ * match is on the status cell only, never on the words appearing in a title or prose. Skips the
+ * header + separator rows via parseTableRow. Best-effort: missing/unreadable file → `[]`, never throws.
+ * @param {string} file path to PLAN.md
+ * @returns {{ id: string, title: string, status: string }[]}
+ */
+export function findNonDoneTasks(file) {
+  if (!existsSync(file)) return [];
+  let content;
+  try {
+    content = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+  /** @type {{ id: string, title: string, status: string }[]} */
+  const out = [];
+  for (const line of content.split(/\r?\n/)) {
+    const cells = parseTableRow(line);
+    if (!cells || cells.length < 3) continue; // need at least id | title | status
+    const status = cells[cells.length - 1];
+    // Skip the header row (its status cell is the literal column label "Status", never a task).
+    if (/^status$/i.test(status)) continue;
+    if (/^done$/i.test(status)) continue; // only collect rows NOT yet done
+    out.push({ id: cells[0], title: cells[1], status });
+  }
+  return out;
 }
 
 /**
