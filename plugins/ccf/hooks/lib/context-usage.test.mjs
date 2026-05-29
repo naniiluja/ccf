@@ -14,6 +14,7 @@ import {
   decideNudge,
   buildCompactHint,
   NUDGE_RATIO,
+  NUDGE_ABS_CAP,
 } from "./context-usage.mjs";
 
 /** Write `lines` (array of objects) as a .jsonl transcript, return its path. */
@@ -157,6 +158,24 @@ test("shouldNudgeCompact: windowSize 0 → false (never divide-by-zero nudge)", 
 test("NUDGE_RATIO is pinned to the documented 40% (doc.md L222)", () => {
   // Pin the constant directly so a silent drift (e.g. 0.45) fails loudly, not only by fixture luck.
   assert.equal(NUDGE_RATIO, 0.4);
+});
+
+test("NUDGE_ABS_CAP is pinned to 300k (the proactive-compact ceiling for huge windows)", () => {
+  assert.equal(NUDGE_ABS_CAP, 300_000);
+});
+
+test("shouldNudgeCompact: absolute cap makes a 1M window nudge before the unreachable 40% (400k)", () => {
+  // 40% of 1M = 400k is never reached in practice (auto-compact / session end first), so without a
+  // cap the nudge would stay silent forever. The cap fires it at a reachable absolute token count.
+  assert.equal(shouldNudgeCompact(300_000, 1_000_000), true); // at the cap
+  assert.equal(shouldNudgeCompact(299_000, 1_000_000), false); // just below the cap
+  assert.equal(shouldNudgeCompact(400_000, 1_000_000), true); // well above the cap
+});
+
+test("shouldNudgeCompact: the cap is a ceiling, never raising a small window above its 40%", () => {
+  // 200k window: 40% = 80k is below the 300k cap, so the ratio still governs (behaviour unchanged).
+  assert.equal(shouldNudgeCompact(80_000, 200_000), true);
+  assert.equal(shouldNudgeCompact(79_000, 200_000), false);
 });
 
 // --- decideNudge (dedup + threshold ordering) --------------------------------

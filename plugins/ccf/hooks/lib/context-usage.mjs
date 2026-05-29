@@ -12,6 +12,12 @@ import { existsSync, readFileSync } from "node:fs";
 // before the degrade zone, rather than waiting for auto-compact (when the model is least sharp).
 export const NUDGE_RATIO = 0.4;
 
+// Absolute token ceiling for the nudge. Claude Code runs Opus/Sonnet 4.x at a native 1M window,
+// where 40% = 400k is effectively unreachable before auto-compact or session end — so the nudge
+// would never fire. Cap the trigger at a reachable size. Ceiling only: on a 200k window 40% (80k)
+// is lower and still governs, so small windows are unaffected.
+export const NUDGE_ABS_CAP = 300_000;
+
 /** @typedef {{ tokens: number, model: string, windowSize: number }} ContextUsage */
 
 /**
@@ -87,14 +93,19 @@ export function modelWindowSize(model) {
 }
 
 /**
- * True when context has reached the nudge threshold (a fraction of the window).
+ * True when context has reached the nudge threshold: a fraction of the window, but never beyond an
+ * absolute token ceiling. On a 1M window the bare 40% (400k) is effectively unreachable, so the cap
+ * fires the nudge at a reachable absolute size; on a 200k window 40% (80k) is below the cap, so the
+ * ratio still governs — the cap only bites on large windows.
  * @param {number} tokens current context tokens
  * @param {number} windowSize model window size in tokens
  * @param {number} [ratio] threshold fraction (default NUDGE_RATIO)
+ * @param {number} [cap] absolute token ceiling (default NUDGE_ABS_CAP)
  * @returns {boolean}
  */
-export function shouldNudgeCompact(tokens, windowSize, ratio = NUDGE_RATIO) {
-  return windowSize > 0 && tokens / windowSize >= ratio;
+export function shouldNudgeCompact(tokens, windowSize, ratio = NUDGE_RATIO, cap = NUDGE_ABS_CAP) {
+  if (windowSize <= 0) return false;
+  return tokens >= Math.min(windowSize * ratio, cap);
 }
 
 /**
