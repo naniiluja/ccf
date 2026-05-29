@@ -14,7 +14,7 @@
 | 纯 Claude Code 的痛点 | CCF 的应对 |
 |---|---|
 | 长会话中上下文「腐化」，模型偏离规则 | 一个 **`SessionStart` 钩子**在每次 start/clear/compact 时重新注入上下文优先提醒，并在 compact 后重新加载进行中的任务。 |
-| 规格悄悄落后于代码 | 两个**新鲜度钩子**比较规格与代码的 mtime 并*提示*运行 `/ccf:ccf-updatespec`——在会话开始时和你停止时。 |
+| 规格悄悄落后于代码 | 两个**新鲜度钩子**比较规格与代码的最后一次 **git 提交时间**并*提示*运行 `/ccf:ccf-updatespec`——在会话开始时和你停止时。 |
 | 规划直接滑向改文件 | 一个 **`UserPromptSubmit` 钩子**硬性阻止 `/ccf:ccf-plan`，除非你处于 plan mode——规划保持只读且可审查。 |
 | 设计决策基于陈旧记忆 | 自带 **Context7 + Microsoft Learn** MCP；CCF 提示词在动笔前引用官方文档。 |
 | 错误跨会话重复出现 | `/ccf:ccf-updatespec` 写入**两层**——项目规则写进规格，防错 feedback 写进系统 **memory**（以更高权重加载）。 |
@@ -74,11 +74,12 @@ claude plugin install ccf@ccf
 | 钩子 | 事件 | 它保证什么 |
 |---|---|---|
 | **plan-mode-guard** | `UserPromptSubmit` | 若提示词含 `/ccf:ccf-plan` 但会话**不在 plan mode**，它会**阻止**（exit 2）并让你进入 plan mode。其他提示词原样通过。这是「规划只读且执行前经审查」中*被强制执行*的那一半。 |
+| **plan-review-gate** | `PreToolUse`（`ExitPlanMode`） | 在 `/ccf-plan` 会话中，**拒绝** `ExitPlanMode`（使计划无法被提交审批），直到 transcript 显示已运行过一次 `ccf-spec-checker` 计划审查。对未公开的 transcript 结构尽力而为：任何读取失败或非 CCF 会话都会放行，因此绝不会误阻——强力强制，并由 `ccf-plan` 第 6 步提示词作为后备。 |
 | **session-start** | `SessionStart`（`startup\|clear\|compact`） | 注入上下文优先提醒，让模型醒来就已处于 CCF 模式。若**受 CCF 管理**，当代码看起来比规格新时它会加上*新鲜度信号*，并在 `compact`/`clear` 后从 `.claude/plan/PLAN.md` **重新加载进行中的任务**，让你精确地从中断处继续。 |
 | **updatespec-nudge** | `Stop` | 纯**建议性**，从不阻止。当你停止时若代码变了但规格没变，它会提示 `/ccf:ccf-check` 然后 `/ccf:ccf-updatespec`。通过 `stop_hook_active` 防止重复触发循环。 |
 | **context-nudge** | `PostToolUse` | 纯**建议性**，从不阻止。读取会话 transcript 估算上下文用量；一旦超过模型上下文窗口的约 40%（即「变笨区」），它会提示你执行**主动 `/compact`**——并附上一条从进行中任务预填好的 hint——而不是等到自动 compact（那发生在模型最不敏锐的时刻）。尽力而为：读不到 transcript 时保持沉默。 |
 
-**新鲜度启发式（共享，单一事实来源位于 `hooks/lib/freshness.mjs`）：** 两个具备新鲜度感知的钩子都比较*代码*文件的最新 `mtime` 与*规格*文件（`.claude/rules` 下的 `.md`）的最新 `mtime`。它**有限深度地遍历项目目录树**——因此适用于*任何*布局（`src/`、`server/`、`packages/x/src`、插件式的 `plugins/x/hooks`，或位于根目录的代码），而非一份固定的文件夹名单。这是轻量提示，绝非硬性结论——内容层面「规格是否仍然准确？」的判断留给 `/ccf:ccf-updatespec`。
+**新鲜度启发式（共享，单一事实来源位于 `hooks/lib/freshness.mjs`）：** 两个具备新鲜度感知的钩子都比较*代码*文件与*规格*文件（`.claude/rules` 下的 `.md` 加 `CLAUDE.md`）的最后一次 **git 提交时间**（`git log -1 --format=%ct`）——采用 committer time，因此反映真实的内容变更，并**不受 `checkout`/`pull`/`clone` 造成的 `mtime` 扰动影响**。当 git 无法回答时（不是 git 仓库，或某路径尚无提交——例如刚 `/ccf-init` 的项目），它会**回退到有限深度的 `mtime` 遍历**，适用于*任何*布局（`src/`、`server/`、`packages/x/src`、插件式的 `plugins/x/hooks`，或位于根目录的代码）。这是轻量提示，绝非硬性结论——内容层面「规格是否仍然准确？」的判断留给 `/ccf:ccf-updatespec`。
 
 **为什么钩子是自动加载、而非声明：** 与命令/agent/MCP 一样，钩子从标准位置 `hooks/hooks.json` 自动加载——当前 Claude Code（v2.1.x）会自动发现它。**不要**在 `plugin.json` 里加 `"hooks"` 字段指回这个标准路径：那会把文件加载两次并报错 `Duplicate hooks file detected`。`manifest.hooks` 字段仅用于位于非标准路径的*额外*钩子文件。
 
@@ -113,7 +114,7 @@ claude plugin install ccf@ccf
 - **命令** = 在会话中驱动 Claude 的 markdown 提示（不是脚本）。
 - **Agent** = 6 个专用子 agent（分析器、研究员、实现者、规格撰写者、规格检查者、调试器）。
 - **Skill** = 1 个内部 skill（`grill-me`）——各命令通过 Skill 工具调用的共享需求访谈引擎；从 `/` 菜单隐藏（`user-invocable: false`）。
-- **钩子** = 4 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、context-usage）位于 `hooks/lib/`。
+- **钩子** = 5 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、context-usage、review-trace）位于 `hooks/lib/`。
 - **模板** = 带 `{{...}}` 占位符的文件（`root/` 始终使用，`backend/` + `frontend/` 在全栈时使用），由 `/ccf:ccf-init` 实例化。
 
 详见 `plugins/ccf/`。钩子需要 Node ≥ 18。

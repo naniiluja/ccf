@@ -23,7 +23,7 @@ plugins/ccf/
 ├─ hooks/
 │  ├─ hooks.json
 │  ├─ lib/io.mjs                # stdin/stdout JSON helpers
-│  ├─ lib/freshness.mjs         # shared spec-vs-code mtime heuristic
+│  ├─ lib/freshness.mjs         # shared spec-vs-code git-commit-time heuristic (mtime fallback)
 │  ├─ lib/plan.mjs              # read the in-progress task from PLAN.md
 │  ├─ lib/context-usage.mjs     # transcript token usage + compact-nudge logic
 │  ├─ lib/review-trace.mjs      # detect /ccf-plan session + ccf-spec-checker review in transcript

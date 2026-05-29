@@ -16,6 +16,24 @@ const otherTask = JSON.stringify({
   type: "assistant",
   message: { content: [{ type: "tool_use", name: "Task", input: { subagent_type: "Explore" } }] },
 });
+// This harness spawns subagents via a tool named "Agent" (not "Task") and the
+// subagent_type carries the plugin namespace ("ccf:ccf-spec-checker").
+const specCheckerAgent = JSON.stringify({
+  type: "assistant",
+  message: { content: [{ type: "tool_use", name: "Agent", input: { subagent_type: "ccf:ccf-spec-checker", prompt: "review" } }] },
+});
+const specCheckerAgentLower = JSON.stringify({
+  type: "assistant",
+  message: { content: [{ type: "tool_use", name: "agent", input: { subagent_type: "ccf-spec-checker" } }] },
+});
+const implementerAgent = JSON.stringify({
+  type: "assistant",
+  message: { content: [{ type: "tool_use", name: "Agent", input: { subagent_type: "ccf-implementer" } }] },
+});
+const namelessBlock = JSON.stringify({
+  type: "assistant",
+  message: { content: [{ type: "tool_use", input: { subagent_type: "ccf-spec-checker" } }] },
+});
 
 test("parseJsonl: parses lines and skips blank/corrupt ones", () => {
   const raw = [userPlan, "", "{ not json", specCheckerTask].join("\n");
@@ -42,8 +60,26 @@ test("hasSpecCheckerReview: true when a Task delegates to ccf-spec-checker", () 
   assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, specCheckerTask].join("\n"))), true);
 });
 
+test("hasSpecCheckerReview: true when an Agent-named tool delegates to ccf-spec-checker (the deadlock bug)", () => {
+  // Failing-first: before the fix this returns false because name !== "Task",
+  // deadlocking the plan-review-gate in harnesses that spawn via "Agent".
+  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, specCheckerAgent].join("\n"))), true);
+});
+
+test("hasSpecCheckerReview: case-insensitive on the spawn tool name (lowercase 'agent')", () => {
+  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, specCheckerAgentLower].join("\n"))), true);
+});
+
 test("hasSpecCheckerReview: false for a different subagent", () => {
   assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, otherTask].join("\n"))), false);
+});
+
+test("hasSpecCheckerReview: false for an Agent spawning a non-spec-checker subagent", () => {
+  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, implementerAgent].join("\n"))), false);
+});
+
+test("hasSpecCheckerReview: false (no throw) when a tool_use block has no name", () => {
+  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, namelessBlock].join("\n"))), false);
 });
 
 test("hasSpecCheckerReview: false when there is no Task tool_use at all", () => {

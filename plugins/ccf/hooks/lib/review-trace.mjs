@@ -42,9 +42,18 @@ export function hasCcfPlanCommand(records) {
   return false;
 }
 
+// Tool names that spawn a subagent. The name is HARNESS-DEPENDENT: documented as
+// `Task` in Claude Code docs, but surfaced as `Agent` (with a `subagent_type` param)
+// in some runtimes. Keying the gate on the tool name alone deadlocks `Agent`-only
+// runtimes; we accept either and let `subagent_type` be the real gate. Set so a
+// future alias is a one-line add.
+const SPAWN_TOOL_NAMES = new Set(["task", "agent"]);
+
 /**
- * True when the transcript contains a Task tool call delegating to the ccf-spec-checker subagent —
- * the evidence that the plan was put through a fresh-context review.
+ * True when the transcript contains a subagent-spawn tool call delegating to the
+ * ccf-spec-checker subagent — the evidence that the plan was put through a
+ * fresh-context review. Matches whether the spawn tool is named `Task` or `Agent`
+ * (the name is harness-dependent); the `subagent_type` is the real gate.
  * @param {Array<Record<string, any>>} records parsed transcript records
  * @returns {boolean}
  */
@@ -54,10 +63,12 @@ export function hasSpecCheckerReview(records) {
     const content = r.message?.content;
     if (!Array.isArray(content)) continue;
     for (const block of content) {
-      if (block?.type === "tool_use" && block?.name === "Task") {
-        const sub = String(block?.input?.subagent_type ?? "");
-        if (sub.includes("ccf-spec-checker")) return true;
-      }
+      if (block?.type !== "tool_use") continue;
+      // Coerce untrusted input so a missing `name` never throws (.toLowerCase).
+      const name = String(block?.name ?? "").toLowerCase();
+      if (!SPAWN_TOOL_NAMES.has(name)) continue;
+      const sub = String(block?.input?.subagent_type ?? "");
+      if (sub.includes("ccf-spec-checker")) return true;
     }
   }
   return false;

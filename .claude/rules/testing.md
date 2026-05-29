@@ -5,7 +5,7 @@ description: How to verify changes in the CCF plugin — current state and expec
 # Testing & verification
 
 ## Current state (honest)
-- No `test` script in `package.json`, but the deterministic **`.mjs` hook libs DO have unit tests** run via the built-in `node --test` (no dependency): `hooks/lib/*.test.mjs` (e.g. `plan.test.mjs`, `context-usage.test.mjs`, `review-trace.test.mjs`). Run `node --test plugins/ccf/hooks/lib/*.test.mjs`.
+- No `test` script in `package.json`, but the deterministic **`.mjs` hook libs DO have unit tests** run via the built-in `node --test` (no dependency): `hooks/lib/*.test.mjs` (e.g. `plan.test.mjs`, `context-usage.test.mjs`, `review-trace.test.mjs`, `freshness.test.mjs`). Run `node --test plugins/ccf/hooks/lib/*.test.mjs`.
 - Components (command/agent/template) are prompts; "correctness" is verified by reading + trying them in Claude Code, not by unit tests.
 
 ## Verification methods in use
