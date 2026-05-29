@@ -15,6 +15,7 @@ paths: plugins/ccf/hooks/**
 - **Inject context (non-blocking)**: `emitContext(eventName, text)` — prints `{ hookSpecificOutput: { hookEventName, additionalContext } }` then `exit 0`. ONLY for events whose schema accepts `additionalContext`: SessionStart, UserPromptSubmit, PostToolUse. **NOT PreToolUse** (its `hookSpecificOutput` is `permissionDecision`/`permissionDecisionReason` only) and **NOT Stop** (no `hookSpecificOutput`/`additionalContext` at all — validator rejects it as "Invalid input").
 - **Advise at Stop (non-blocking)**: `emitSystemMessage(text)` — prints `{ systemMessage }` then `exit 0`. The only non-blocking channel for a `Stop` hook (omitting `decision` lets the stop proceed; a `decision: "block"` would force Claude to keep working).
 - **Block a prompt**: `blockUserPrompt(reason)` — writes `reason` to stderr then `exit 2`. UserPromptSubmit only.
+- **Deny a tool (PreToolUse)**: `denyTool(reason)` — prints `{ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason } }` then `exit 0`. PreToolUse blocks via this JSON, NOT exit 2; to ALLOW, simply `exit 0` with no output.
 
 ## Exit code semantics (per Claude Code docs)
 - `exit 0` — no decision, the flow continues normally (even after emitting additionalContext).
@@ -22,6 +23,7 @@ paths: plugins/ccf/hooks/**
 - `exit 1` — non-blocking error, does NOT block. CCF avoids it (it adds noise without blocking).
 
 ## Events CCF currently uses (`hooks.json`)
+- `PreToolUse` (matcher `ExitPlanMode`) → `plan-review-gate.mjs`: enforces that a `/ccf-plan` session reviews its plan before presenting it. Reads `transcript_path` (.jsonl) **best-effort** via `lib/review-trace.mjs` (`hasCcfPlanCommand`/`hasSpecCheckerReview`, pure + unit-tested). If it IS a `/ccf-plan` session (a user line contains `/ccf:ccf-plan` or `/ccf-plan`) AND no `Task` to `ccf-spec-checker` is found yet → `denyTool(...)`. Any read/parse failure, or a non-CCF session → `exit 0` (ALLOW): the undocumented transcript shape means we NEVER block wrongly, so this is strong enforcement, not 100% hard — `ccf-plan.md` step 6 is the prompt backup.
 - `UserPromptSubmit` → `plan-mode-guard.mjs`: only intervenes on prompts containing `/ccf-plan` (namespaced + bare regex); blocks if `permission_mode !== "plan"`. Every other prompt `exit 0` immediately.
 - `SessionStart` (matcher `startup|clear|compact`) → `session-start.mjs`: injects the context-first reminder; if CCF-managed, adds a freshness signal + re-loads the in-progress task after `compact`/`clear`.
 - `Stop` → `updatespec-nudge.mjs`: PURELY ADVISORY, never blocks. Surfaces the nudge via `emitSystemMessage` (`{ systemMessage }`), NOT `additionalContext` (which `Stop` does not support). Must check `input.stop_hook_active` to avoid loops.

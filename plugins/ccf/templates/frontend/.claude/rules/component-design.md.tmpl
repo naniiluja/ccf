@@ -13,3 +13,9 @@ paths: ["fe/**"]
 ## Structure
 - Component folder organization: {{COMPONENT_FOLDER}}.
 - Styling: {{STYLING_APPROACH}}.
+- Component library: {{COMPONENT_LIBRARY}}.
+<!-- COMPONENT_LIBRARY: e.g. "shadcn/ui (Radix primitives + Tailwind)". When set, prefer existing library components; do NOT hand-build primitives the library already provides. With shadcn, install/inspect components via the shadcn MCP (see ../.claude/rules/tooling.md). Drop this line if the project has no component library. -->
+
+## Adding a shadcn component
+<!-- Drop this whole section if the project does not use shadcn/ui. -->
+- Use the shadcn MCP (or `npx shadcn@latest add <name>`) to add a component, then adapt it — do NOT copy-paste an ad-hoc reimplementation.

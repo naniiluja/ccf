@@ -29,12 +29,16 @@ Read the templates in `${CLAUDE_PLUGIN_ROOT}/templates/root/`, instantiate them,
 - Every `CLAUDE.md` < 200 lines; push detail into `.claude/rules/*` via `@import` (max depth 5).
 - Specific & verifiable rules. Omit anything Claude can infer.
 - Path-scoped rules use `paths:` frontmatter (e.g. `be/**`, `fe/**`).
+- **If the frontend is React + shadcn/ui** (the recommended default): fill `{{STYLING_APPROACH}}` = "Tailwind CSS + shadcn/ui", `{{COMPONENT_LIBRARY}}` = "shadcn/ui (Radix primitives + Tailwind)", and `{{DESIGN_SOURCE}}` = the Claude Design handoff URL if the user gave one (else the "no design handoff yet…" line). Then **add the shadcn MCP to the project's own `.mcp.json`** (create it, or merge into an existing one): `mcpServers.shadcn = { "command": "npx", "args": ["shadcn@latest", "mcp"] }`. Do NOT touch the CCF plugin's `.mcp.json` — this server is project-scoped.
 
 ### A4. Generate the initial plan
 Generate one large plan in `.claude/plan/` using the templates (`PLAN.md` index + `task-NNN-*.md` files), structured as a **sequential waterfall of VERTICAL SLICES** — each task a thin tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, spec → failing test → implement. Each task has exactly one predecessor and names the test gate that must be green before the next slice.
 
+**MANDATORY review gate:** after generating the plan, **STOP — do NOT proceed to A5 until** a fresh-context `ccf-spec-checker` subagent (plan-review mode, read-only, via Task) has critiqued it: vertical slicing, real/verifiable gates, exactly one predecessor per task, no task hiding multiple concerns, no drift from the spec. Fold the critique back in (loop until clean) before closing. (`ccf-init` does not run in plan mode, so there is no ExitPlanMode hook here — this prompt gate is the enforcement.)
+
 ### A5. Closing
 Do NOT run git. Tell the user to start a fresh session and run `/ccf:ccf-plan` (in plan mode) when ready to detail the first feature. Remind them: if Context7 hits a rate limit, set a free `CONTEXT7_API_KEY` env var and restart Claude Code.
+- **If shadcn was wired in:** tell the user to run `shadcn init` (creates `components.json`) and restart Claude Code, then `/mcp` to confirm the shadcn server shows `Connected`. If a Claude Design handoff was provided, point them to use it when planning the UI slices.
 
 ---
 
@@ -56,6 +60,7 @@ Synthesize the 5 reports. Validate the observed patterns against best practices 
 ### B3. Generate spec reflecting the ACTUAL codebase
 Generate `CLAUDE.md` + `.claude/` describing the existing codebase (not an idealized one), using the same templates + the same < 200-line / `@import` rules. For a monorepo with several sub-packages, generate nested CLAUDE.md per package.
 - **Git conventions from history (do NOT invent):** fill `git-workflow.md`'s `{{COMMIT_CONVENTION}}` / `{{BRANCH_NAMING}}` / `{{PR_RULES}}` from the **git patterns slice-5 inferred from `git log`/`git branch`** — match the repo's real commit subject style, body/trailer usage, and branch naming. If history is thin (≤2 commits) or inconsistent, do NOT silently pick one: state the patterns you observed, propose a standard convention, and have the user confirm before writing it into the spec.
+- **If React is present but shadcn/ui is not:** you MAY suggest adopting shadcn/ui (+ the project-scoped shadcn MCP) for a more polished UI — suggest only, do not impose it on an existing codebase.
 
 ### B4. Closing
 Recommend `/ccf:ccf-plan` for new work. Do NOT commit.

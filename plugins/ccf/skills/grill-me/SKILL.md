@@ -49,7 +49,8 @@ Walk this decision tree to elicit project decisions; recommend an answer for eac
 - (b) Acceptable budget/cost?
 - (c) App type: REST API / frontend / backend / fullstack?
 - (d) Expected user scale? → based on scale, propose hosting (e.g. Supabase or Railway) and tell the user to install the corresponding MCP (`/plugin install ...`).
-- (e) Design patterns for FE & BE?
+- (e) Design patterns for FE & BE? **If there is a frontend, recommend React + Tailwind CSS + shadcn/ui by default** (stable, mainstream, well-supported, and has an MCP that lets Claude browse/install components) — one-line rationale, user free to choose otherwise. When chosen, tell the user that `/ccf-init` will add the shadcn MCP to THIS project's `.mcp.json` (`{"command":"npx","args":["shadcn@latest","mcp"]}`); after `shadcn init` (which creates `components.json`) they restart Claude Code and run `/mcp` to confirm it shows `Connected`.
+- (e2) **Design source (only if there is a frontend):** ask whether the user has a Claude Design handoff bundle (a URL like `https://api.anthropic.com/v1/design/h/...`). If yes → record the URL so the FE spec can follow it as the visual source of truth. If no → suggest creating one in Claude Design for a more polished UI (it exports HTML/React + a design spec to hand to Claude Code); default to none if they decline. Do NOT try to fetch the URL (it is authenticated).
 - (f) AI-traceable logging system (structured logs, correlation ID, consistent prefixes)?
 - (g) Database?
 - (h) Coding conventions?

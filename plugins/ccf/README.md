@@ -26,7 +26,9 @@ plugins/ccf/
 │  ├─ lib/freshness.mjs         # shared spec-vs-code mtime heuristic
 │  ├─ lib/plan.mjs              # read the in-progress task from PLAN.md
 │  ├─ lib/context-usage.mjs     # transcript token usage + compact-nudge logic
+│  ├─ lib/review-trace.mjs      # detect /ccf-plan session + ccf-spec-checker review in transcript
 │  ├─ plan-mode-guard.mjs       # UserPromptSubmit: block /ccf-plan outside plan mode
+│  ├─ plan-review-gate.mjs      # PreToolUse(ExitPlanMode): deny until plan is spec-checker reviewed
 │  ├─ session-start.mjs         # SessionStart: reminder + re-load task after compact
 │  ├─ updatespec-nudge.mjs      # Stop: nudge /ccf-updatespec
 │  └─ context-nudge.mjs         # PostToolUse: nudge /compact when context enters the dumb zone

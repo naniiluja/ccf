@@ -1,6 +1,18 @@
 {
-  "description": "CCF: enforce plan mode for /ccf-plan, inject the context-first reminder + re-load the task after compact, nudge spec updates, and nudge a proactive compact when context enters the degrade zone.",
+  "description": "CCF: enforce plan mode for /ccf-plan, gate ExitPlanMode on a ccf-spec-checker plan review, inject the context-first reminder + re-load the task after compact, nudge spec updates, and nudge a proactive compact when context enters the degrade zone.",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plan-review-gate.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [

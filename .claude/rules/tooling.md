@@ -11,6 +11,8 @@ Two remote HTTP servers, auto started/stopped by Claude Code at plugin scope:
 
 > Grounding is a CCF law: before writing a spec/decision about Claude Code's schema or a library, consult the official docs and CITE them, don't rely on memory.
 
+> **shadcn MCP is intentionally NOT bundled here.** The official shadcn server (`npx shadcn@latest mcp`) is **stdio + project-scoped** (it reads the target project's `components.json`), so bundling it at CCF's plugin scope would make it run — and error — in every non-React project. Instead `/ccf-init` writes it into the **target React project's own `.mcp.json`** when the user picks shadcn (same pattern as the Supabase/Railway hosting MCP). Keep this file's count at **2 bundled servers**.
+
 ## Grounding subagent
 - `ccf-best-practice-researcher` — **use when**: you want to fan out best-practice lookups into a separate context so they don't flood the main conversation. It calls Context7/MS Learn and returns a cited recommendation.
 
@@ -19,7 +21,7 @@ Two remote HTTP servers, auto started/stopped by Claude Code at plugin scope:
 
 ## Plugin development tools
 - **Node ≥ 18** — runs the hooks and `bin/ccf-bootstrap.mjs`.
-- **`tsc`** — type-checks JS via `tsconfig.json`. **Use when**: you just edited any `.mjs`. Run `npm install` (once) then `npx tsc --noEmit`. Needs `@types/node` (already in `devDependencies`) because `tsconfig` sets `"types": ["node"]` — this is a type-check devDependency, not a runtime dep.
+- **`tsc`** — type-checks JS via `tsconfig.json`. **Use when**: you just edited any `.mjs`. Run `npm install` (once) then **`npx -p typescript tsc --noEmit`** (bare `npx tsc` grabs an unrelated squat package since `typescript` isn't a devDependency). Needs `@types/node` (already in `devDependencies`) because `tsconfig` sets `"types": ["node"]` — this is a type-check devDependency, not a runtime dep.
 - **`claude plugin` CLI** — `marketplace add` / `install`. **Use when**: installing locally or in `bin/ccf-bootstrap.mjs`.
 
 ## CCF self-checks (internal commands)

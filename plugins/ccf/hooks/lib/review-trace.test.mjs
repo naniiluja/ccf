@@ -1,0 +1,61 @@
+// Tests for lib/review-trace.mjs — node --test, no dependency.
+// Guards the plan-review-gate decision: detect a /ccf-plan session and a ccf-spec-checker review.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { parseJsonl, hasCcfPlanCommand, hasSpecCheckerReview } from "./review-trace.mjs";
+
+const userPlan = JSON.stringify({ type: "user", message: { content: "please run /ccf:ccf-plan now" } });
+const userBarePlan = JSON.stringify({ type: "user", message: { content: [{ type: "text", text: "/ccf-plan add auth" }] } });
+const userOther = JSON.stringify({ type: "user", message: { content: "just chatting" } });
+const specCheckerTask = JSON.stringify({
+  type: "assistant",
+  message: { content: [{ type: "tool_use", name: "Task", input: { subagent_type: "ccf-spec-checker", prompt: "review" } }] },
+});
+const otherTask = JSON.stringify({
+  type: "assistant",
+  message: { content: [{ type: "tool_use", name: "Task", input: { subagent_type: "Explore" } }] },
+});
+
+test("parseJsonl: parses lines and skips blank/corrupt ones", () => {
+  const raw = [userPlan, "", "{ not json", specCheckerTask].join("\n");
+  const records = parseJsonl(raw);
+  assert.equal(records.length, 2);
+});
+
+test("parseJsonl: empty/garbage input → empty array, never throws", () => {
+  assert.deepEqual(parseJsonl(""), []);
+  // @ts-expect-error testing untrusted input
+  assert.deepEqual(parseJsonl(null), []);
+});
+
+test("hasCcfPlanCommand: true for namespaced and bare forms", () => {
+  assert.equal(hasCcfPlanCommand(parseJsonl(userPlan)), true);
+  assert.equal(hasCcfPlanCommand(parseJsonl(userBarePlan)), true);
+});
+
+test("hasCcfPlanCommand: false when no /ccf-plan in any user line", () => {
+  assert.equal(hasCcfPlanCommand(parseJsonl([userOther, specCheckerTask].join("\n"))), false);
+});
+
+test("hasSpecCheckerReview: true when a Task delegates to ccf-spec-checker", () => {
+  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, specCheckerTask].join("\n"))), true);
+});
+
+test("hasSpecCheckerReview: false for a different subagent", () => {
+  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, otherTask].join("\n"))), false);
+});
+
+test("hasSpecCheckerReview: false when there is no Task tool_use at all", () => {
+  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, userOther].join("\n"))), false);
+});
+
+test("gate logic: ccf-plan session without review → should deny (command true, review false)", () => {
+  const records = parseJsonl([userPlan, userOther].join("\n"));
+  assert.equal(hasCcfPlanCommand(records) && !hasSpecCheckerReview(records), true);
+});
+
+test("gate logic: ccf-plan session with review → should allow", () => {
+  const records = parseJsonl([userPlan, specCheckerTask].join("\n"));
+  assert.equal(hasCcfPlanCommand(records) && !hasSpecCheckerReview(records), false);
+});

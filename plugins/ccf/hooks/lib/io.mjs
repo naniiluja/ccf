@@ -74,3 +74,21 @@ export function blockUserPrompt(reason) {
   process.stderr.write(reason);
   process.exit(2);
 }
+
+/**
+ * Deny a tool call at PreToolUse. Unlike UserPromptSubmit (exit 2), PreToolUse blocks via a JSON
+ * permissionDecision — exit 0 with `permissionDecision: "deny"`; the reason is shown to Claude.
+ * @param {string} reason why the tool call is denied (guidance for Claude)
+ */
+export function denyTool(reason) {
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: reason,
+      },
+    }),
+  );
+  process.exit(0);
+}

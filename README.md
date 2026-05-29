@@ -74,6 +74,7 @@ Commands and agents are *prompts* (a model can choose to ignore a prompt). **Hoo
 | Hook | Event | What it guarantees |
 |---|---|---|
 | **plan-mode-guard** | `UserPromptSubmit` | If a prompt contains `/ccf:ccf-plan` but the session is **not in plan mode**, it **blocks** (exit 2) and tells you to enter plan mode. Every other prompt passes through untouched. This is the *enforced* half of "planning is read-only and reviewed before execution". |
+| **plan-review-gate** | `PreToolUse` (`ExitPlanMode`) | In a `/ccf-plan` session, **denies** `ExitPlanMode` (so the plan can't be presented for approval) until the transcript shows a `ccf-spec-checker` plan review ran. Best-effort on the undocumented transcript shape: any read failure or a non-CCF session passes through, so it never blocks wrongly — strong enforcement backed by `ccf-plan`'s step-6 prompt. |
 | **session-start** | `SessionStart` (`startup\|clear\|compact`) | Injects the context-first reminder so the model wakes up already in CCF mode. If **CCF-managed**, it adds a *freshness signal* when the code looks newer than the spec, and after a `compact`/`clear` it **re-loads the in-progress task** from `.claude/plan/PLAN.md` so you resume exactly where you left off. |
 | **updatespec-nudge** | `Stop` | Purely **advisory**, never blocks. When you stop and the code changed but the spec didn't, it nudges `/ccf:ccf-check` then `/ccf:ccf-updatespec`. Guards against re-trigger loops via `stop_hook_active`. |
 | **context-nudge** | `PostToolUse` | Purely **advisory**, never blocks. Reads the session transcript to estimate context usage; once it crosses ~40% of the model window — capped at an absolute ~300k tokens, since 40% of a 1M-native window (Opus/Sonnet 4.x) would be unreachable before auto-compact — i.e. the "dumb zone", it nudges you to run a **proactive `/compact`** — with a ready-made hint pre-filled from your in-progress task — instead of waiting for auto-compact (which fires when the model is least sharp). Best-effort: if it can't read the transcript it stays silent. |
@@ -113,7 +114,7 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 - **Commands** = markdown prompts that drive Claude in-session (not scripts).
 - **Agents** = 6 specialized subagents (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
 - **Skills** = 1 internal skill (`grill-me`) — the shared requirements-interview engine the commands invoke via the Skill tool; hidden from the `/` menu (`user-invocable: false`).
-- **Hooks** = 4 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, context-usage) live in `hooks/lib/`.
+- **Hooks** = 5 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, context-usage, review-trace) live in `hooks/lib/`.
 - **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:ccf-init` instantiates.
 
 See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.
