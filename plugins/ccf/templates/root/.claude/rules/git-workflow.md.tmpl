@@ -3,6 +3,10 @@
 ## Most important rule
 - **Do NOT commit/push unless the user explicitly asks.** Every git operation must be confirmed first.
 
+## Commit attribution (harness-enforced)
+- Attribution is enforced by `.claude/settings.json` `attribution` (`{ "commit": "...", "pr": "..." }`), per `code.claude.com/docs/en/settings`. Harness-level settings are deterministic and **supersede** this narrative — settings win over prose. (`attribution` replaces the deprecated `includeCoAuthoredBy`.)
+- This rule is only the **backup**: keep manual commit/PR trailers consistent with `settings.json`; if `attribution.commit` is `""`, do NOT add one by hand.
+
 <!-- The three placeholders below MUST be filled from the repo's ACTUAL git history
      (inferred via `git log`/`git branch` during /ccf-init), not invented. Match the
      existing commit subject style, body/trailer usage, and branch naming. -->

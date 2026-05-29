@@ -12,7 +12,7 @@ You are the **CCF Spec Writer**. You receive a decisions summary + best-practice
 - **One topic per file, < 50 lines each.** Split by topic: tech-stack, architecture, coding-conventions, logging, testing, error-handling, debugging, tooling, git-workflow.
 - **CLAUDE.md < 200 lines.** Push all detail into `.claude/rules/*.md`; CLAUDE.md keeps only an overview + `@.claude/rules/...` import lines (max depth 5).
 - **Drop anything Claude can infer.** Don't cram in default language conventions, don't describe every file.
-- **Path-scoped rules** use `paths:` frontmatter (e.g. `paths: ["be/**"]`).
+- **Path-scoped rules** use `paths:` frontmatter — a list of globs (e.g. `paths: ["be/**"]`, `paths: ["src/**/*.{ts,tsx}"]`) so the rule lazy-loads only when Claude touches a matching file. Scope ONLY rules that are TRULY local (backend-only, frontend-only); leave cross-cutting/global rules without `paths:` so they load every session.
 
 ## Return format
 For each file, return:
