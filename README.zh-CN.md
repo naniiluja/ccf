@@ -19,6 +19,7 @@
 | 设计决策基于陈旧记忆 | 自带 **Context7 + Microsoft Learn** MCP；CCF 提示词在动笔前引用官方文档。 |
 | 错误跨会话重复出现 | `/ccf:ccf-updatespec` 写入**两层**——项目规则写进规格，防错 feedback 写进系统 **memory**（以更高权重加载）。 |
 | 难以审查的大爆炸式功能 | 计划是**垂直切片的瀑布式**，每个切片是一颗细的曳光弹（DB→service→UI），各自带有测试关卡。 |
+| 赶进度时测试写得草率（或被跳过） | 一个**可选启用的测试纪律**——`/ccf:ccf-test` 设计契约级矩阵（等价类划分 + 边界值分析 + 决策表），一旦启用，生成的 **Stop 钩子关卡会阻止停止**，直到测试真正通过。追求快速上线的流程则直接不启用。 |
 
 ## 安装
 
@@ -42,17 +43,18 @@ claude plugin install ccf@ccf
 
 安装后，在你的项目文件夹中打开 Claude Code 并运行 `/ccf:ccf-init`。
 
-## 5 个命令
+## 6 个命令
 
 | 命令 | 作用 |
 |------|------|
 | `/ccf:ccf-init` | 引导一个新项目（访谈 → 生成 CLAUDE.md + .claude + 计划）或接管一个已有项目（5 个只读分析 agent 映射真实结构）。 |
 | `/ccf:ccf-plan` | 为一个功能创建串行计划，基于最佳实践。**需要 plan mode**（Shift+Tab）——由钩子强制。计划后用 agent 执行每个任务。 |
 | `/ccf:ccf-check` | 对照规格验证实现（一致性、约定、SOLID/OOP、前后端交叉检查）。只读。 |
+| `/ccf:ccf-test` | 为一个函数/切片设计契约级测试矩阵（EP + BVA + 决策表），先写失败测试，运行，再报告实际结果与覆盖率关卡的对比。仅在项目已选择启用测试纪律时运行。 |
 | `/ccf:ccf-fix` | 有纪律的调试：复现 → 逐步追踪日志/数据库 → 根因 → 失败测试 → 最小修复。不靠猜。 |
 | `/ccf:ccf-updatespec` | 用本次会话的经验更新规格**和系统 memory**（包括新工具及其「何时使用」）。 |
 
-典型流程：`ccf-init` → （plan mode）`ccf-plan` → 实现 → `ccf-check` → `/code-review` → `ccf-updatespec`。
+典型流程：`ccf-init` → （plan mode）`ccf-plan` → 实现 → `ccf-check` → （启用测试纪律时 `ccf-test`）→ `/code-review` → `ccf-updatespec`。
 
 ## 6 个 agent
 
@@ -76,7 +78,7 @@ claude plugin install ccf@ccf
 | **plan-mode-guard** | `UserPromptSubmit` | 若提示词含 `/ccf:ccf-plan` 但会话**不在 plan mode**，它会**阻止**（exit 2）并让你进入 plan mode。其他提示词原样通过。这是「规划只读且执行前经审查」中*被强制执行*的那一半。 |
 | **plan-review-gate** | `PreToolUse`（`ExitPlanMode`） | 在 `/ccf-plan` 会话中，**拒绝** `ExitPlanMode`（使计划无法被提交审批），直到 transcript 显示已运行过一次 `ccf-spec-checker` 计划审查。对未公开的 transcript 结构尽力而为：任何读取失败或非 CCF 会话都会放行，因此绝不会误阻——强力强制，并由 `ccf-plan` 第 6 步提示词作为后备。 |
 | **session-start** | `SessionStart`（`startup\|clear\|compact`） | 注入上下文优先提醒，让模型醒来就已处于 CCF 模式。若**受 CCF 管理**，当代码看起来比规格新时它会加上*新鲜度信号*，并在 `compact`/`clear` 后从 `.claude/plan/PLAN.md` **重新加载进行中的任务**，让你精确地从中断处继续。 |
-| **updatespec-nudge** | `Stop` | 纯**建议性**，从不阻止。当你停止时若代码变了但规格没变，它会提示 `/ccf:ccf-check` 然后 `/ccf:ccf-updatespec`。通过 `stop_hook_active` 防止重复触发循环。 |
+| **updatespec-nudge** | `Stop` | 纯**建议性**，从不阻止。两个独立提示：**(A)** 若本次会话改了代码却没跑测试，提醒你*验证工作*（运行测试 / 类型检查）；**(B)** 若代码变了但规格没变，提示 `/ccf:ccf-check` 然后 `/ccf:ccf-updatespec`。通过 `stop_hook_active` 防止重复触发循环。 |
 | **context-nudge** | `PostToolUse` | 纯**建议性**，从不阻止。读取会话 transcript 估算上下文用量；一旦超过模型上下文窗口的约 40%（即「变笨区」），它会提示你执行**主动 `/compact`**——并附上一条从进行中任务预填好的 hint——而不是等到自动 compact（那发生在模型最不敏锐的时刻）。尽力而为：读不到 transcript 时保持沉默。 |
 
 **新鲜度启发式（共享，单一事实来源位于 `hooks/lib/freshness.mjs`）：** 两个具备新鲜度感知的钩子都比较*代码*文件与*规格*文件（`.claude/rules` 下的 `.md` 加 `CLAUDE.md`）的最后一次 **git 提交时间**（`git log -1 --format=%ct`）——采用 committer time，因此反映真实的内容变更，并**不受 `checkout`/`pull`/`clone` 造成的 `mtime` 扰动影响**。当 git 无法回答时（不是 git 仓库，或某路径尚无提交——例如刚 `/ccf-init` 的项目），它会**回退到有限深度的 `mtime` 遍历**，适用于*任何*布局（`src/`、`server/`、`packages/x/src`、插件式的 `plugins/x/hooks`，或位于根目录的代码）。这是轻量提示，绝非硬性结论——内容层面「规格是否仍然准确？」的判断留给 `/ccf:ccf-updatespec`。

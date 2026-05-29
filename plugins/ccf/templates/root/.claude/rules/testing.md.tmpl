@@ -15,3 +15,28 @@ Philosophy: **write a failing test FIRST** before implementing/fixing — this i
 ## Coverage
 - Coverage target: {{COVERAGE_TARGET}}.
 - Core business paths must have tests before marking a task `done`.
+
+<!-- ccf-init: KEEP the whole "Test design discipline" block below ONLY if the user opted into matrix discipline ({{TEST_MATRIX_REQUIRED}} = yes). If opt-in is OFF, DELETE this entire block (heading + body + this comment) — leave NO empty heading and NO unfilled {{...}} placeholder behind. -->
+## Test design discipline (when adopted)
+- Matrix required: {{TEST_MATRIX_REQUIRED}}.
+- Apply a **contract-level** design matrix to a function's PUBLIC signature (input → output / error), NOT to internal helpers. Test behavior, not implementation (kentcdodds.com/blog/write-tests).
+
+### Techniques (ISTQB glossary — istqb-glossary.page)
+- **Equivalence Partitioning (EP)**: split an input domain into classes that are treated alike; test one representative per class. Use to cut redundant cases.
+- **Boundary Value Analysis (BVA)**: test the edges of each partition (min, min−1, max, max+1). Use where bugs cluster at limits.
+- **Decision Table Testing**: enumerate combinations of input conditions → expected action; one row per rule. Use when output depends on several interacting conditions.
+
+### Suggested matrix layout
+One column per input condition, plus an `Expected (output / error)` column; one row per equivalence class or boundary:
+
+| Input cond. A | Input cond. B | … | Expected (output / error) |
+| --- | --- | --- | --- |
+| valid class | edge (max) | … | success: <result> |
+| invalid class | — | … | error: <error type> |
+
+### Test Pyramid & the tension
+- Shape the suite as a **pyramid** (martinfowler.com/bliki/TestPyramid.html): many fast unit tests → fewer integration → fewest e2e. Avoid the **"ice cream cone"** (mostly slow e2e, few units) — it is brittle and slow.
+- Tension: a full combinatorial matrix on EVERY internal function is brittle (couples tests to implementation, churns on refactor). So apply the matrix at the **contract level**; internally test **risk-based** (the paths most likely to break).
+- Integration test scope: {{INTEGRATION_TEST_SCOPE}}.
+- E2E test scope: {{E2E_TEST_SCOPE}}.
+- Gate enforcement for the matrix rule: {{TEST_GATE_ENFORCEMENT}}.

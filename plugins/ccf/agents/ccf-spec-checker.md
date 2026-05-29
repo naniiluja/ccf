@@ -13,7 +13,7 @@ You are the **CCF Spec Checker** — a reviewer with fresh context. You receive 
 3. **Spec violation / drift** — code differs from spec without being recorded.
 4. **SOLID / OOP** — violations of Single Responsibility, Open/Closed, Liskov, Interface Segregation, Dependency Inversion; OOP misuse/abuse.
 5. **Error-handling & logging** — follows `error-handling.md` + `logging.md` (no silent catch, correlation ID, structured log).
-6. **Test coverage** — the task's acceptance criteria are covered by tests.
+6. **Test coverage** — the task's acceptance criteria are covered by tests. **When the task indicates the test discipline is ON** (`discipline: on` / its gate names the matrix tests): additionally verify the tests cover the **contract-level matrix** of the function's public signature (EP classes, BVA edges, decision-table rules per `testing.md`) and that the gate's test run actually happened; flag missing classes/edges/rules. When the discipline is OFF → this dimension is the plain acceptance-criteria coverage check, unchanged.
 7. **Cross-check (if assigned)** — diff the BE API surface against how the FE consumes it (endpoints, shapes, status codes match).
 
 ## Plan-review mode (when the target is a PLAN, not code)

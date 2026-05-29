@@ -54,7 +54,7 @@ Walk this decision tree to elicit project decisions; recommend an answer for eac
 - (f) AI-traceable logging system (structured logs, correlation ID, consistent prefixes)?
 - (g) Database?
 - (h) Coding conventions?
-- (i) Testing strategy?
+- (i) Testing strategy? Probe one sub-question at a time (recommend a default + one-line rationale each): **test framework / run command / test location / coverage target** (as today), THEN **"Adopt the test-design discipline — a contract-level EP/BVA/decision-table matrix on each public signature (recommended: yes; catches edge/boundary bugs early, kept at the contract level so tests stay robust)?"**, THEN (only if yes) **"Enforcement — prompt-only (the spec asks for it) or a Stop-hook gate (recommended: prompt-only to start; a stop-hook can `exit 2`-block a session that edited code with no matrix test, stronger but noisier)?"**. ASK ONLY: report the answers in the summary; `ccf-init` does the template fill — grill-me has no write tool.
 - (j) Tech stack — must be the most stable, best-supported, least-buggy (mainstream); for each library pick the most popular/well-maintained option.
 - (k) Monorepo rule: work in the root folder; if fullstack create `be/` + `fe/`; git init at the root, NOT in sub-folders; the root holds CLAUDE.md, `.claude/`, docker, CI/CD.
 - (l) Git conventions: first check whether the repo already has commits (read-only `git log` / `git branch -a`). If a pattern exists, infer the commit/branch convention from it (don't invent). If history is empty or too thin, ask the user (or default to conventional commits: `feat:`/`fix:`/`refactor:`…). This fills `git-workflow.md`'s `{{COMMIT_CONVENTION}}` / `{{BRANCH_NAMING}}` / `{{PR_RULES}}`.

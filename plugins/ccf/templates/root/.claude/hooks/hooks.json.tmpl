@@ -1,0 +1,16 @@
+{
+  "description": "{{PROJECT_NAME}}: BLOCKING Stop test-gate — refuse to stop when the session edited code but tests FAILED or never ran. Opt-in: the presence of this Stop entry IS the toggle (delete it to disable). Project-local hook, so the command uses $CLAUDE_PROJECT_DIR (not ${CLAUDE_PLUGIN_ROOT}, which is plugin-scoped).",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/test-gate.mjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

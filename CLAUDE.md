@@ -11,7 +11,7 @@ CCF is a **Claude Code plugin** that imposes a context-first, spec-driven, stric
 ## Repo layout
 - **git init at the root** (`D:/projects/ccf`). The root holds `CLAUDE.md`, `.claude/`, `package.json`, `tsconfig.json`, `bin/`, `README.md`, `LICENSE`, `.claude-plugin/marketplace.json`.
 - `plugins/ccf/` — the plugin itself. `.claude-plugin/plugin.json` is the manifest (ONLY the manifest goes in `.claude-plugin/`); the component directories live at the **plugin root**:
-  - `commands/*.md` — 5 slash commands (`ccf-init`, `ccf-plan`, `ccf-check`, `ccf-fix`, `ccf-updatespec`).
+  - `commands/*.md` — 6 slash commands (`ccf-init`, `ccf-plan`, `ccf-check`, `ccf-fix`, `ccf-test`, `ccf-updatespec`).
   - `agents/*.md` — 6 subagents (`ccf-codebase-analyzer`, `ccf-best-practice-researcher`, `ccf-implementer`, `ccf-spec-writer`, `ccf-spec-checker`, `ccf-debugger`).
   - `skills/grill-me/SKILL.md` — 1 internal skill: the shared requirements-interview engine invoked by `ccf-plan`/`ccf-fix`/`ccf-init` (`user-invocable: false`; hidden from the `/` menu).
   - `hooks/*.mjs` + `hooks/hooks.json` + `hooks/lib/` — 5 hooks (plan-mode-guard, plan-review-gate, session-start, updatespec-nudge, context-nudge) sharing `lib/io.mjs` (+ `lib/freshness.mjs`, `lib/plan.mjs`, `lib/context-usage.mjs`, `lib/review-trace.mjs`).
@@ -35,4 +35,4 @@ CCF is a **Claude Code plugin** that imposes a context-first, spec-driven, stric
 @.claude/rules/git-workflow.md
 
 ## Current plan
-No `.claude/plan/` yet. When you need to detail a change (add a command, edit a hook, sync docs…), enter plan mode and run `/ccf:ccf-plan`. Execute **one task at a time**, in order.
+Active backlog in `.claude/plan/PLAN.md` — **test-discipline (Toyota-style) opt-in** (tasks 005–009: expand `testing.md.tmpl` → grill-me/ccf-init fold → new `/ccf-test` command → target-project Stop-hook test-gate template → wire opt-in into ccf-plan/implementer/spec-checker). Previous iteration (001–004, best-practice integration) is closed. Execute **one task at a time**, in order, each in a fresh session via `ccf-implementer`; do not start task N+1 until task N's gate is GREEN.
