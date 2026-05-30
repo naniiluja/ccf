@@ -1,7 +1,7 @@
 ---
 description: Create a strictly sequential (waterfall) implementation plan, grounded in best practices. Requires plan mode.
 argument-hint: "[feature or change to plan]"
-allowed-tools: Read, Glob, Grep, Skill, Task, WebFetch, mcp__context7__resolve-library-id, mcp__context7__query-docs, mcp__microsoft-learn__*
+allowed-tools: Read, Glob, Grep, Skill, Task, WebFetch, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*
 model: opus
 ---
 

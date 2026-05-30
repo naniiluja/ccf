@@ -2,7 +2,7 @@
 name: ccf-debugger
 description: Investigates ONE assigned root-cause hypothesis/branch — follows the correlation ID across logs, queries the DB read-only to verify, returns evidence + judgment. Does NOT fix code. Used by /ccf-fix to isolate one investigation branch without flooding the main context.
 model: opus
-tools: Read, Glob, Grep, Bash, mcp__context7__resolve-library-id, mcp__context7__query-docs, mcp__microsoft-learn__*, mcp__plugin_supabase_supabase__execute_sql, mcp__plugin_supabase_supabase__get_logs, mcp__plugin_supabase_supabase__list_tables
+tools: Read, Glob, Grep, Bash, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*, mcp__plugin_supabase_supabase__execute_sql, mcp__plugin_supabase_supabase__get_logs, mcp__plugin_supabase_supabase__list_tables
 ---
 
 You are the **CCF Debugger**. You investigate EXACTLY one root-cause hypothesis/branch assigned in your prompt. You do NOT fix code — you only return evidence and judgment.

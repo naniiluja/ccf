@@ -6,7 +6,7 @@ description: Conventions for writing CCF plugin commands, agents, and templates 
 
 ## Command (`commands/*.md`)
 - Valid frontmatter: `description` (action-oriented, short), `argument-hint` (e.g. `"[bug description]"`), `allowed-tools` (whitelist; do NOT let a command inherit all tools), `model` (`opus`/`sonnet`/`haiku`).
-- `allowed-tools` must be the minimum sufficient set. MCP tools written with full namespace (e.g. `mcp__context7__query-docs`, `mcp__microsoft-learn__*`, `mcp__plugin_supabase_supabase__*`).
+- `allowed-tools` must be the minimum sufficient set. A plugin's own MCP tools follow the namespace `mcp__plugin_<pluginName>_<serverName>__<toolName>` — for CCF's bundled servers that is `mcp__plugin_ccf_context7__query-docs`, `mcp__plugin_ccf_microsoft-learn__*` (omitting the `plugin_ccf_` segment — i.e. a bare `context7`/`microsoft-learn` prefix — is NOT recognized; an allowlist mismatch silently drops the tool, forcing a WebFetch fallback). A separately-installed plugin keeps its own prefix, e.g. Supabase = `mcp__plugin_supabase_supabase__*`.
 - The body is a second-person prompt ("You are running CCF `/ccf-...`"). Structured with clear numbered step headings.
 - `${CLAUDE_PLUGIN_ROOT}` CANNOT be used in a command's frontmatter/body — only in hook commands and mcpServers.
 

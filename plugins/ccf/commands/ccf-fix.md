@@ -1,7 +1,7 @@
 ---
 description: Systematic, step-by-step debugging — no rushing. Reproduce the bug, trace logs + DB step by step, judge the root cause, write a failing test, then fix minimally.
 argument-hint: "[bug / symptom description]"
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill, mcp__context7__resolve-library-id, mcp__context7__query-docs, mcp__microsoft-learn__*, mcp__plugin_supabase_supabase__execute_sql, mcp__plugin_supabase_supabase__get_logs, mcp__plugin_supabase_supabase__list_tables
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*, mcp__plugin_supabase_supabase__execute_sql, mcp__plugin_supabase_supabase__get_logs, mcp__plugin_supabase_supabase__list_tables
 model: opus
 ---
 
