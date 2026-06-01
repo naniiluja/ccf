@@ -14,7 +14,7 @@ CCF is a **Claude Code plugin** that imposes a context-first, spec-driven, stric
   - `commands/*.md` — 6 slash commands (`ccf-init`, `ccf-plan`, `ccf-check`, `ccf-fix`, `ccf-test`, `ccf-updatespec`).
   - `agents/*.md` — 6 subagents (`ccf-codebase-analyzer`, `ccf-best-practice-researcher`, `ccf-implementer`, `ccf-spec-writer`, `ccf-spec-checker`, `ccf-debugger`).
   - `skills/grill-me/SKILL.md` — 1 internal skill: the shared requirements-interview engine invoked by `ccf-plan`/`ccf-fix`/`ccf-init` (`user-invocable: false`; hidden from the `/` menu).
-  - `hooks/*.mjs` + `hooks/hooks.json` + `hooks/lib/` — 5 hooks (plan-mode-guard, plan-review-gate, session-start, updatespec-nudge, context-nudge) sharing `lib/io.mjs` (+ `lib/freshness.mjs`, `lib/plan.mjs`, `lib/context-usage.mjs`, `lib/review-trace.mjs`).
+  - `hooks/*.mjs` + `hooks/hooks.json` + `hooks/lib/` — 5 hooks (plan-mode-guard, plan-review-gate, session-start, updatespec-nudge, context-guard — the last warns/optionally hard-blocks on `UserPromptSubmit` when context enters the degrade zone) sharing `lib/io.mjs` (+ `lib/freshness.mjs`, `lib/plan.mjs`, `lib/context-usage.mjs`, `lib/review-trace.mjs`).
   - `templates/{root,backend,frontend}/**` — `*.tmpl` files with `{{...}}` placeholders for `/ccf-init` to instantiate.
   - `.mcp.json` — bundles 2 remote MCP servers (microsoft-learn, context7).
 - `bin/ccf-bootstrap.mjs` — the npx entry; only shells out to the `claude plugin` CLI, writes no files itself.

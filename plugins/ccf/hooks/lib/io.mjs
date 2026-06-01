@@ -66,6 +66,26 @@ export function emitSystemMessage(text) {
 }
 
 /**
+ * Surface a non-blocking warning at UserPromptSubmit through BOTH channels: `additionalContext`
+ * (model-facing, enters Claude's context) and `systemMessage` (the universal user-facing field).
+ * Lets the prompt proceed (exit 0) while the user actually SEES the message. Print JSON then exit 0.
+ * @param {string} context the model-facing context to inject
+ * @param {string} message the user-facing warning to display
+ */
+export function emitPromptWarning(context, message) {
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "UserPromptSubmit",
+        additionalContext: context,
+      },
+      systemMessage: message,
+    }),
+  );
+  process.exit(0);
+}
+
+/**
  * Block a prompt at UserPromptSubmit: write the reason to stderr (shown to Claude/the user) then exit 2.
  * Exit code 2 = blocking error per the hook contract.
  * @param {string} reason the reason for blocking

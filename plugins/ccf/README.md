@@ -31,7 +31,7 @@ plugins/ccf/
 │  ├─ plan-review-gate.mjs      # PreToolUse(ExitPlanMode): deny until plan is spec-checker reviewed
 │  ├─ session-start.mjs         # SessionStart: reminder + re-load task after compact
 │  ├─ updatespec-nudge.mjs      # Stop: nudge /ccf-updatespec
-│  └─ context-nudge.mjs         # PostToolUse: nudge /compact when context enters the dumb zone
+│  └─ context-guard.mjs         # UserPromptSubmit: warn (or opt-in --hard-block) for /compact in the dumb zone
 └─ templates/                   # read by /ccf-init to generate files (not auto-loaded)
    ├─ root/      backend/      frontend/
 ```
