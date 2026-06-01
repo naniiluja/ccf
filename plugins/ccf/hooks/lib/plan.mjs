@@ -1,4 +1,4 @@
-// CCF plan helpers — shared by session-start.mjs and context-nudge.mjs.
+// CCF plan helpers — shared by session-start.mjs and context-guard.mjs.
 // Reads the active task (in-progress OR in-review) from PLAN.md so both hooks can resume / hint the same task. DRY.
 
 import { existsSync, readFileSync } from "node:fs";

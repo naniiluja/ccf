@@ -1,6 +1,6 @@
 // Tests for lib/context-usage.mjs — node --test, no dependency.
-// Covers the pure helpers that drive the context-nudge hook: transcript parsing,
-// model window sizing, threshold check, anti-spam dedup, and the compact-hint copy.
+// Covers the pure helpers that drive the context-guard hook: transcript parsing,
+// model window sizing, threshold check, the guard-action decision, and the compact-hint copy.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +11,7 @@ import {
   readContextUsage,
   modelWindowSize,
   shouldNudgeCompact,
-  decideNudge,
+  decideGuardAction,
   buildCompactHint,
   NUDGE_RATIO,
   NUDGE_ABS_CAP,
@@ -178,43 +178,55 @@ test("shouldNudgeCompact: the cap is a ceiling, never raising a small window abo
   assert.equal(shouldNudgeCompact(79_000, 200_000), false);
 });
 
-// --- decideNudge (dedup + threshold ordering) --------------------------------
+// --- decideGuardAction (warn-mode slice) -------------------------------------
 
-test("decideNudge: no previous mark, above threshold → emit and record", () => {
-  assert.deepEqual(decideNudge(45, undefined, true), { emit: true, nextMark: 45 });
-  assert.deepEqual(decideNudge(45, NaN, true), { emit: true, nextMark: 45 });
+test("decideGuardAction: above threshold, soft (hardBlock false) → warn", () => {
+  assert.equal(decideGuardAction({ aboveThreshold: true, hardBlock: false }), "warn");
 });
 
-test("decideNudge: rise of >= step above threshold → emit and bump the mark", () => {
-  assert.deepEqual(decideNudge(55, 45, true), { emit: true, nextMark: 55 });
+test("decideGuardAction: below threshold, soft → silent", () => {
+  assert.equal(decideGuardAction({ aboveThreshold: false, hardBlock: false }), "silent");
 });
 
-test("decideNudge: at/above threshold but rise < step → silent, keep the mark", () => {
-  assert.deepEqual(decideNudge(50, 45, true), { emit: false, nextMark: 45 });
+// --- decideGuardAction (full decision-table: hardBlock × aboveThreshold × isEscape) -----------
+
+test("decideGuardAction: full 8-row decision-table over hardBlock × aboveThreshold × isEscape", () => {
+  const expected = [
+    // hardBlock, aboveThreshold, isEscape, action
+    [false, false, false, "silent"],
+    [false, false, true, "silent"],
+    [false, true, false, "warn"],
+    [false, true, true, "warn"],
+    [true, false, false, "silent"],
+    [true, false, true, "silent"],
+    [true, true, false, "block"],
+    [true, true, true, "warn"], // escape surfaces a warning but does NOT block the compact itself
+  ];
+  for (const [hardBlock, aboveThreshold, isEscape, action] of expected) {
+    assert.equal(
+      decideGuardAction({ aboveThreshold, hardBlock, isEscape }),
+      action,
+      `hardBlock=${hardBlock} aboveThreshold=${aboveThreshold} isEscape=${isEscape}`,
+    );
+  }
 });
 
-test("decideNudge: BELOW threshold → never emit, and the mark FOLLOWS the current pct down", () => {
-  // This is the core of the reset-after-compact fix: when pct is below threshold the hook used to
-  // early-exit before touching state, stranding the old mark. Now the mark must track downward
-  // even sub-threshold, so a later climb re-nudges.
-  assert.deepEqual(decideNudge(25, 85, false), { emit: false, nextMark: 25 });
-  assert.deepEqual(decideNudge(38, 25, false), { emit: false, nextMark: 38 });
+test("decideGuardAction: never 'block' when hardBlock is false", () => {
+  for (const aboveThreshold of [false, true]) {
+    for (const isEscape of [false, true]) {
+      assert.notEqual(decideGuardAction({ aboveThreshold, hardBlock: false, isEscape }), "block");
+    }
+  }
 });
 
-test("decideNudge: full compact→reset→re-nudge sequence (regression for bug #1)", () => {
-  // 85% (above) → compact → 25% (below) → climb 38% (below) → 45% (above) must EMIT.
-  let mark; // simulate the hook persisting nextMark on EVERY run, incl. sub-threshold
-  ({ nextMark: mark } = decideNudge(85, NaN, true)); //   85 above → emit, mark 85
-  ({ nextMark: mark } = decideNudge(25, mark, false)); // 25 below → no emit, mark 25 (reset!)
-  ({ nextMark: mark } = decideNudge(38, mark, false)); // 38 below → no emit, mark 38
-  const final = decideNudge(45, mark, true); //           45 above, 45 >= 38+? step=10 → 48? no...
-  // 45 < 38+10(=48): not a fresh step, so per the dedup rule it would NOT emit on this exact value.
-  // The point of the regression test: the mark is 38 (not the stale 85), so the FIRST step past
-  // 48 nudges. Assert the mark tracked down correctly rather than staying at 85.
-  assert.equal(mark, 38);
-  assert.equal(final.emit, false); // 45 is within step of the (correctly reset) 38 mark
-  const climb = decideNudge(48, 38, true); // a full step above the reset mark → nudge again
-  assert.equal(climb.emit, true);
+test("decideGuardAction: never 'block' below threshold even in hard-block mode", () => {
+  for (const isEscape of [false, true]) {
+    assert.notEqual(decideGuardAction({ aboveThreshold: false, hardBlock: true, isEscape }), "block");
+  }
+});
+
+test("decideGuardAction: escape + hardBlock + above → 'warn', not 'block'", () => {
+  assert.equal(decideGuardAction({ aboveThreshold: true, hardBlock: true, isEscape: true }), "warn");
 });
 
 // --- buildCompactHint --------------------------------------------------------

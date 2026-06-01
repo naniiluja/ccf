@@ -1,6 +1,6 @@
-// CCF context-usage helpers — pure logic for the context-nudge hook (PostToolUse).
+// CCF context-usage helpers — pure logic for the context-guard hook (UserPromptSubmit).
 // Reads the model's token usage from the session transcript (.jsonl) and decides when to
-// nudge a proactive /compact. Kept pure + defensive so it is unit-testable with `node --test`
+// warn about a proactive /compact. Kept pure + defensive so it is unit-testable with `node --test`
 // and never throws — a bad read just means "no nudge", never a broken session.
 //
 // NOTE: the transcript .jsonl format is an UNDOCUMENTED internal Claude Code shape. This module
@@ -109,30 +109,18 @@ export function shouldNudgeCompact(tokens, windowSize, ratio = NUDGE_RATIO, cap 
 }
 
 /**
- * Anti-spam dedup decision (pure). PostToolUse fires after every tool, so we only re-nudge
- * once context climbs another `step` points above the last mark.
- *
- * CRITICAL: `nextMark` is computed from the CURRENT pct regardless of `aboveThreshold`, and the
- * caller MUST persist `nextMark` on EVERY run (before any threshold early-exit). Otherwise the
- * mark cannot fall through the sub-threshold band where a /compact lands (e.g. 85% → 25%), and
- * the next climb back into the degrade zone would be silently suppressed — the bug this replaces.
- * The mark tracks the latest observed pct; `emit` gates only whether to nudge this run.
- *
- * @param {number} pct current context percentage (0-100)
- * @param {number} prevMark last recorded pct (NaN/undefined if none)
- * @param {boolean} aboveThreshold whether pct has reached the nudge threshold
- * @param {number} [step] minimum rise above the mark before re-nudging (default 10)
- * @returns {{ emit: boolean, nextMark: number }}
+ * Decide what the context-guard hook should do this turn (pure). UserPromptSubmit fires once per
+ * user turn — naturally rate-limited — so there is no dedup state: every over-threshold turn acts.
+ * Below threshold → always silent. In soft mode (`hardBlock` false) an over-threshold turn warns.
+ * In hard-block mode an over-threshold turn blocks, UNLESS the prompt is an escape (`/compact` or an
+ * explicit `ccf:override`) — an escape surfaces a warning but must NOT block the compact itself.
+ * @param {{ aboveThreshold: boolean, hardBlock?: boolean, isEscape?: boolean }} args
+ * @returns {"silent" | "warn" | "block"}
  */
-export function decideNudge(pct, prevMark, aboveThreshold, step = 10) {
-  const prev = Number(prevMark);
-  // The mark always follows the current reading so it can drop after a compact.
-  if (!aboveThreshold) return { emit: false, nextMark: pct };
-  if (!Number.isFinite(prev)) return { emit: true, nextMark: pct }; // first reading at/above threshold
-  if (pct >= prev + step) return { emit: true, nextMark: pct }; // climbed another step → re-nudge
-  // At/above threshold but not a fresh step: stay silent, but still let the mark track downward
-  // moves so a post-compact dip is recorded.
-  return { emit: false, nextMark: Math.min(prev, pct) };
+export function decideGuardAction({ aboveThreshold, hardBlock = false, isEscape = false }) {
+  if (!aboveThreshold) return "silent";
+  if (hardBlock && !isEscape) return "block";
+  return "warn";
 }
 
 /**
