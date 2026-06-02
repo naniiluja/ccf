@@ -1,0 +1,34 @@
+name: Release
+
+# Publishes a GitHub Release whenever a version tag (v*) is pushed.
+# A git tag alone only shows under /tags; a Release (under /releases) is a
+# separate published entity — this workflow creates it automatically so the
+# manual step that stalled after v0.3.1 is no longer needed.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish a Release for (e.g. v0.3.3)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event.inputs.tag || github.ref_name }}
+          generate_release_notes: true
