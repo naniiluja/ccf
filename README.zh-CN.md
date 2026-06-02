@@ -100,6 +100,7 @@ claude plugin install ccf@ccf
 
 - **规格**（`CLAUDE.md` + `.claude/rules/`）——作为 *user message* 加载，权重较低。存放**项目规则**：约定、架构、技术栈、工具。
 - **Memory**（`~/.claude/projects/<path>/memory/`）——加载进 *system prompt*，**不被降权**，因此 Claude 更严格地遵循。存放跨会话的**防错 feedback** + **用户偏好** → 帮助 Claude 少犯重复错误。
+- **`MEMORY.md` 是纯索引** —— 每个会话只加载**前 200 行或 25KB**，因此要保持精简；最强的一层是 **`feedback`**（始终附带 `Why`）。
 
 原则：**不重复**。CLAUDE.md 中总被遗忘的规则 → 写一条 `feedback` memory 来*强化*它（附上「为什么」），而不是复制其内容。
 

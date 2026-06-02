@@ -26,3 +26,4 @@ A catalog of this project's tools, with **when to use** each, so future-session 
 ## System memory vs Spec (WHEN TO write where)
 - **Spec** (this file + other rules): project rules that are derivable / belong to the repo. Lower weight (user message).
 - **Memory** (`~/.claude/projects/<path>/memory/`): `feedback` anti-mistakes + `user` preferences. Higher weight (system prompt) → Claude repeats fewer mistakes. Updated via `/ccf:ccf-updatespec`. **Do not duplicate** CLAUDE.md content.
+- **MEMORY.md is a pure index** — only its first **200 lines or 25KB** (whichever first) load per session, so keep it lean (curate when near). The strongest tier is `feedback` (record wins + losses, with a mandatory `Why`).

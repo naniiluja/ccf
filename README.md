@@ -100,6 +100,7 @@ The plugin bundles 2 MCP servers (plugin scope, auto started/stopped by Claude C
 
 - **Spec** (`CLAUDE.md` + `.claude/rules/`) — loaded as a *user message*, lower weight. Holds **project rules**: conventions, architecture, tech-stack, tooling.
 - **Memory** (`~/.claude/projects/<path>/memory/`) — loaded into the *system prompt*, **not down-weighted**, so Claude follows it more strongly. Holds **anti-mistake feedback** + **user preferences** across sessions → helps Claude repeat fewer mistakes.
+- **`MEMORY.md` is a pure index** — only its first **200 lines or 25KB** load each session, so keep it lean; the strongest tier is **`feedback`** (always with its `Why`).
 
 Principle: **no duplication**. A rule in CLAUDE.md that keeps getting forgotten → write a `feedback` memory that *reinforces* it (with the "why"), rather than copying its content.
 

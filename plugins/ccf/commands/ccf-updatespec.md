@@ -17,7 +17,7 @@ You are running CCF `/ccf-updatespec`. Goal: distill this session's lessons into
 ### 1. Reflect & classify
 Review this session for lessons, then classify each as **spec** or **memory**:
 - → **Spec**: project conventions/patterns, architecture, tech-stack, new tooling (rules derivable from code or belonging to the repo).
-- → **Memory (`feedback`)**: mistakes you (Claude) made + their fixes, *and also correct approaches the user confirmed* — so you don't drift away from validated approaches.
+- → **Memory (`feedback`)** — the STRONGEST, most-followed memory type: mistakes you (Claude) made + their fixes, AND correct approaches the user confirmed. ALWAYS record both — a losses-only memory makes future sessions timid/over-cautious, so logging wins keeps confidence calibrated.
 - → **Memory (`user`)**: preferences/habits/working style the user expressed (e.g. "always use X", "don't refactor unprompted").
 - → **Memory (`project`)**: project constraints not derivable from code/git (deadlines, freezes...). Convert relative dates to absolute.
 - Do NOT put in memory: anything derivable from code, git history, or already in CLAUDE.md; transient task progress (use the plan).
@@ -36,11 +36,12 @@ If this session added a new **skill / MCP server / subagent / tool** (e.g. the u
 
 ### 5. Update system memory (cross-session anti-mistake)
 For the lessons classified as **memory** in step 1, write them to this project's memory directory: `~/.claude/projects/<sanitized-project-path>/memory/`.
+> **Auto Memory interplay:** Claude Code's `autoMemoryEnabled` (on by default, v2.1.59+) may already have auto-saved notes from this session; `/ccf-updatespec` is the *deliberate curation* pass — review/dedupe what's there, then write the high-signal lessons explicitly rather than relying on the auto-extractor.
 - Each memory is **one file** holding **one fact**, with frontmatter `name` (kebab-case), `description` (one line — used for recall), `metadata.type` (`feedback` | `user` | `project` | `reference`).
-- For `feedback`/`project`: the body is followed by `**Why:**` and `**How to apply:**` lines (include the why so Claude can handle edge cases later).
+- For `feedback`/`project`: the body is followed by `**Why:**` and `**How to apply:**` lines. The `**Why:**` is MANDATORY, not decoration: without it Claude obeys rigidly and stalls on edge cases; with it Claude grasps the intent and handles ambiguous cases on its own.
 - Before creating a new file, **check for an existing file** covering the same fact → update it instead of duplicating; delete memories that turn out to be wrong.
-- After writing the file, add **one line** pointing to it in `MEMORY.md` (`- [Title](file.md) — hook`). MEMORY.md is only an index (one line per memory, < ~200 chars), do NOT put memory content there. Link related memories with `[[file-name]]`.
-- Memories that mention a specific file/function/flag: prefer line-independent descriptions (e.g. "auth via middleware in main.go" rather than "line 42").
+- After writing the file, add **one line** pointing to it in `MEMORY.md` (`- [Title](file.md) — hook`). **MEMORY.md is a PURE INDEX loaded every session — only its first 200 lines OR 25KB (whichever comes first) are read, so keep it lean (one line per memory, < ~200 chars, no memory content) and curate/prune it as it nears that limit.** Link related memories by their `name:` slug — `[[name]]`, not the filename.
+- **Memory is point-in-time:** describe a memory by intent/behavior, NOT a code location (e.g. "auth via middleware in main.go", not "the check at line 42") — a recalled memory reflects what was true when written, so a reader must verify the file/function/flag still exists before asserting it as fact.
 
 ### 6. Sync the plan
 If `.claude/plan/` changed (tasks done, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:ccf-check` + `/code-review` cleanly → mark it `done` here. `ccf-implementer` only ever reaches `in-review`; `ccf-check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` (or move back to `in-progress`) — do NOT mark `done`.

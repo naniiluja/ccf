@@ -100,6 +100,7 @@ Plugin tự bundle 2 MCP server (plugin scope, Claude Code tự start/stop):
 
 - **Spec** (`CLAUDE.md` + `.claude/rules/`) — nạp như *user message*, trọng số thấp hơn. Giữ **rule dự án**: convention, architecture, tech-stack, tooling.
 - **Memory** (`~/.claude/projects/<path>/memory/`) — nạp vào *system prompt*, **không bị giảm trọng số** nên Claude tuân mạnh hơn. Giữ **feedback chống lỗi** + **user preference** xuyên session → giúp Claude bớt lặp sai lầm.
+- **`MEMORY.md` là index thuần** — mỗi session chỉ nạp **200 dòng đầu hoặc 25KB**, nên phải giữ gọn; tầng mạnh nhất là **`feedback`** (luôn kèm `Why`).
 
 Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → viết một `feedback` memory để *gia cố* (kèm "vì sao"), thay vì chép lại nội dung.
 
