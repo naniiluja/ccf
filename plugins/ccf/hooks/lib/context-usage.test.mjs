@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   readContextUsage,
+  isCompactBoundary,
   modelWindowSize,
   shouldNudgeCompact,
   decideGuardAction,
@@ -28,6 +29,11 @@ function tmpTranscript(lines) {
 /** Build an assistant transcript line with a given usage block. */
 function assistantLine(usage, model = "claude-opus-4-7") {
   return { type: "assistant", message: { model, usage } };
+}
+
+/** Build a compact_boundary transcript line (the marker /compact inserts in-place). */
+function boundaryLine(trigger = "manual", preTokens = 350_000) {
+  return { type: "system", subtype: "compact_boundary", compact_metadata: { trigger, pre_tokens: preTokens } };
 }
 
 // --- readContextUsage --------------------------------------------------------
@@ -113,6 +119,107 @@ test("readContextUsage: a malformed token field counts as 0, not NaN (whole read
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// --- readContextUsage: compact_boundary (task 024) ---------------------------
+
+test("readContextUsage: null when a compact_boundary is the last line above an old assistant usage", () => {
+  // Group 1: just after /compact, no new assistant turn yet. Walking back hits the boundary
+  // BEFORE the (stale, pre-compact) assistant usage → return null → hook stays silent.
+  const { file, dir } = tmpTranscript([
+    assistantLine({ input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 350_000 }),
+    boundaryLine("manual", 350_000),
+  ]);
+  try {
+    assert.equal(readContextUsage(file), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("readContextUsage: reads the NEW assistant usage when it is newer than the boundary", () => {
+  // Group 2: the first post-compact assistant turn has landed (small, post-compact tokens).
+  // Walking back hits that assistant line BEFORE the boundary → measure the new (small) context.
+  const { file, dir } = tmpTranscript([
+    assistantLine({ input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 350_000 }),
+    boundaryLine("manual", 350_000),
+    assistantLine({ input_tokens: 2, cache_creation_input_tokens: 3, cache_read_input_tokens: 5_000 }),
+  ]);
+  try {
+    const u = readContextUsage(file);
+    assert.equal(u.tokens, 2 + 3 + 5_000); // the post-boundary assistant line, not the stale one
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("readContextUsage: composite ordering — assistant → boundary → summary stops at the boundary", () => {
+  // Group 3: invariant that the boundary branch wins over the assistant-skip branch.
+  // File order (oldest→newest): assistant(small) → boundary → summary(huge usage).
+  // Walking back: summary is skipped (Bug #4: type !== "assistant"), then the boundary is hit
+  // → null. If the boundary branch were REMOVED (or ordered after the assistant-skip), the walk
+  // would skip the summary and read the stale assistant(50) → tokens:50, not null. So this test
+  // distinguishes null (boundary recognized) from 50 (boundary missed) — it pins the branch.
+  const { file, dir } = tmpTranscript([
+    assistantLine({ input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 50 }),
+    boundaryLine("auto", 350_000),
+    { type: "summary", message: { model: "x", usage: { input_tokens: 9999, cache_read_input_tokens: 999_999 } } },
+  ]);
+  try {
+    assert.equal(readContextUsage(file), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("readContextUsage: boundary suppresses a stale assistant usage even with a user line between them", () => {
+  // Group 4: discriminating case — assistant(stale) → user → boundary (boundary is newest).
+  // WITH the boundary branch: walking back hits the boundary first → null.
+  // WITHOUT it (branch removed): boundary skipped (type !== "assistant"), user skipped, then the
+  // stale assistant(350k) is read → tokens:350000, NOT null. So this test FAILS if the branch is
+  // deleted — it genuinely pins the new behavior (unlike a no-assistant transcript, which is null
+  // either way). The interleaved user line proves the suppression isn't position-adjacency luck.
+  const { file, dir } = tmpTranscript([
+    assistantLine({ input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 350_000 }),
+    { type: "user", message: { content: "next prompt right after /compact" } },
+    boundaryLine("manual", 350_000),
+  ]);
+  try {
+    assert.equal(readContextUsage(file), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("readContextUsage: null with consecutive boundaries above an old assistant usage", () => {
+  // Group 5: assistant(stale) → boundary → boundary. Walking back hits the newest boundary first
+  // → null (a double compact still measures as "not yet measurable").
+  const { file, dir } = tmpTranscript([
+    assistantLine({ input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 350_000 }),
+    boundaryLine("manual", 350_000),
+    boundaryLine("auto", 120_000),
+  ]);
+  try {
+    assert.equal(readContextUsage(file), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// --- isCompactBoundary (task 024) --------------------------------------------
+
+test("isCompactBoundary: true only for the exact system+compact_boundary shape", () => {
+  // Group 6: NARROW predicate — exact doc shape, no compact_metadata fallback.
+  assert.equal(isCompactBoundary({ type: "system", subtype: "compact_boundary" }), true);
+  assert.equal(isCompactBoundary(boundaryLine()), true);
+  // FALSE for everything else:
+  assert.equal(isCompactBoundary({ compact_metadata: {} }), false); // metadata alone is NOT a boundary
+  assert.equal(isCompactBoundary({ type: "system", subtype: "info" }), false);
+  assert.equal(isCompactBoundary(assistantLine({ cache_read_input_tokens: 1 })), false);
+  assert.equal(isCompactBoundary({ type: "user", message: { content: "x" } }), false);
+  assert.equal(isCompactBoundary({ type: "summary", message: {} }), false);
+  assert.equal(isCompactBoundary(null), false);
+  assert.equal(isCompactBoundary({}), false);
 });
 
 // --- modelWindowSize ---------------------------------------------------------

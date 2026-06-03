@@ -21,11 +21,27 @@ export const NUDGE_ABS_CAP = 300_000;
 /** @typedef {{ tokens: number, model: string, windowSize: number }} ContextUsage */
 
 /**
+ * True only for the exact compact_boundary record `/compact` inserts in-place (`type:"system"`,
+ * `subtype:"compact_boundary"`). NARROW on purpose: it does NOT fall back to `compact_metadata`,
+ * so a stray metadata field can never silently suppress the warning; the trigger (manual|auto) is
+ * NOT inspected — both are boundaries.
+ * @param {any} obj a parsed transcript line
+ * @returns {boolean}
+ */
+export function isCompactBoundary(obj) {
+  return obj?.type === "system" && obj?.subtype === "compact_boundary";
+}
+
+/**
  * Read the current context size from a transcript .jsonl file (best-effort, never throws).
  * Uses the LAST assistant line's `message.usage`: cache_read already folds in the whole
  * history, so the latest line alone reflects the current context — no need to sum the file.
+ * Walking BACKWARDS stops at whichever marker is encountered first: if a `compact_boundary` is
+ * newer than the last assistant usage (i.e. we are right after /compact, before a new assistant
+ * turn), return null — the pre-compact tokens are stale and the post-compact context is not yet
+ * measurable, so the hook must stay silent rather than warn on old token counts.
  * @param {string} transcriptPath path to the session .jsonl transcript
- * @returns {ContextUsage | null} null if unreadable / no usage found
+ * @returns {ContextUsage | null} null if unreadable / no usage found / a boundary is newer than the last assistant usage
  */
 export function readContextUsage(transcriptPath) {
   if (!transcriptPath || !existsSync(transcriptPath)) return null;
@@ -48,6 +64,9 @@ export function readContextUsage(transcriptPath) {
     } catch {
       continue; // skip a corrupt line, keep looking
     }
+    // Checked BEFORE the assistant branch so the order cannot be swapped: a boundary newer than
+    // the last assistant usage means "just compacted, no new turn yet" → not measurable → null.
+    if (isCompactBoundary(obj)) return null;
     if (obj?.type !== "assistant") continue;
     const usage = obj?.message?.usage;
     if (!usage) continue;
