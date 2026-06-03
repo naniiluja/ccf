@@ -2,7 +2,7 @@
 
 - **Vertical slice:** live verification (không phải task code) — xác nhận hành vi thật sau khi cài lại plugin
 - **Depends on:** 024
-- **Status:** todo (hanging — cần user reload plugin + một session thật). Mẫu theo 022a / 017's held live-check.
+- **Status:** done — đóng theo **EXPLICIT user acceptance**, KHÔNG phải bởi live-verify đã chạy. User đã reload plugin (v0.4.1 active, 7 hooks) nhưng chọn đóng iteration mà không tự chạy check over-threshold→`/compact`→no-banner. Hành vi live do đó vẫn CHƯA quan sát thực tế; tính đúng dựa trên bằng chứng unit/smoke/grounding của task 024. Worst case nếu shape harness khác doc = no-op an toàn (cảnh báo như cũ, không crash).
 - **Spec refs:** memory [[subagent-spawn-tool-named-agent]] (shape transcript tùy harness/OS), [[ccf-plugin-runs-from-cache-not-repo]] (active plugin chạy từ cache → cần reload mới có hiệu lực)
 - **Gate:** live check pass — `/ccf:ccf-updatespec` KHÔNG được ghi iteration `done` cho tới khi row này pass (lịch sử 012–014/017 từng để live-check treo rồi coi như xong)
 
