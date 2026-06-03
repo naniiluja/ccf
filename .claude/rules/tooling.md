@@ -30,4 +30,4 @@ Two remote HTTP servers, auto started/stopped by Claude Code at plugin scope:
 - `/ccf:ccf-updatespec` — refresh the spec after a session; **also records new tools with "when to use"** into this very file.
 
 ## Convention for adding a new tool
-When integrating a new tool/MCP, add an entry here in the format "**name** — when to use — how to call", and update the `allowed-tools`/`tools` of the related commands/agents.
+When integrating a new tool/MCP, add an entry here in the format "**name** — when to use — how to call", and update the `allowed-tools` of the related COMMANDS (main-loop scope, least-privilege). Do NOT add it to an agent `tools` list: subagents have NO `tools` allowlist — they reach project-arbitrary MCP by INHERITANCE (writer omits `tools` → inherit-all; the 5 read-only agents use `disallowedTools: Write, Edit, NotebookEdit`), so a newly added project MCP is automatically available to them with no per-agent edit. An inherited MCP tool may be lazily loaded — load its schema with `ToolSearch` before calling it (a blind call fails with InputValidationError).

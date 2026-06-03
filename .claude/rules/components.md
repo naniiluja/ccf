@@ -11,10 +11,14 @@ description: Conventions for writing CCF plugin commands, agents, and templates 
 - `${CLAUDE_PLUGIN_ROOT}` CANNOT be used in a command's frontmatter/body — only in hook commands and mcpServers.
 
 ## Agent (`agents/*.md`)
-- Frontmatter: `name` (kebab-case, matches the filename), `description`, `model`, `tools` (comma-separated, least-privilege).
+- Frontmatter: `name` (kebab-case, matches the filename), `description`, `model`. Tool policy is **inheritance, NOT a `tools` allowlist** (grounded, `code.claude.com/docs/en/sub-agents` + `/en/tools-reference`):
+  - The **writer** (`ccf-implementer`) OMITS `tools` → inherit-all: it gets every tool the main loop has, including ALL project MCP servers (Supabase, Oracle, chrome-devtools, …) and the Skill tool, so it can use whatever the host project provides.
+  - The **5 read-only agents** declare `disallowedTools: Write, Edit, NotebookEdit` → inherit-all-minus-file-writes: they keep the full project MCP/Skill set but cannot write files (preserves their non-writing mandate + the analyzer 5-parallel safety).
+  - A `tools` ALLOWLIST is WRONG for a CCF subagent: it BLOCKS every unlisted MCP tool AND the Skill tool, and a plugin subagent cannot list unknown-at-authoring-time project MCP — the `mcpServers`/`permissionMode`/`hooks` fields are "Ignored for plugin subagents", so inheritance is the only mechanism that reaches arbitrary project MCP. Keep COMMAND `allowed-tools` least-privilege — that is a different scope (the main loop), where the tool set IS known.
+  - **Safety is not the allowlist**: it is the file-write denial (`disallowedTools`), the runtime permission prompts (each MCP call still prompts the user), and the fact that session-state/spawn tools never reach a subagent (no nested spawn). Each read-only agent ALSO states in its body that it is READ-ONLY (no file writes, SELECT/read-only on any external system).
+  - **Inherited-baseline assumption**: a subagent only reliably has what the MAIN loop has. An inherited project MCP tool may be **lazily loaded** — load its schema with `ToolSearch` before calling, or a blind call fails with InputValidationError (022 dogfood finding).
 - `description` is the field that DECIDES when Claude invokes the agent — it must state the trigger + scope + limits (e.g. "Read-only", "Does NOT fix code"). Avoid vague descriptions.
 - Pick `model` by cost/difficulty: `haiku` for cheap read-only scans (`ccf-codebase-analyzer`), `opus` for implement/review that needs reasoning.
-- A read-only agent MUST declare only read-only tools (Read/Glob/Grep/read-style Bash) and state in the body that it does not write.
 
 ## Skill (`skills/<name>/SKILL.md`)
 - A reusable prompt building-block — one folder per skill (`skills/<name>/SKILL.md` + optional supporting files), **auto-discovered**; do NOT declare it in `plugin.json`.

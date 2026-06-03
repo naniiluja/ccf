@@ -11,12 +11,12 @@ plugins/ccf/
 ├─ commands/                    # 6 slash commands (markdown prompts)
 │  ├─ ccf-init.md  ccf-plan.md  ccf-check.md
 │  ├─ ccf-fix.md   ccf-updatespec.md
-├─ agents/                      # 6 subagents
+├─ agents/                      # 6 subagents — inherit the project's tools/MCP/skills (see below)
 │  ├─ ccf-codebase-analyzer.md       # x5 in parallel to onboard an existing project
 │  ├─ ccf-best-practice-researcher.md# fetch best practices from Context7/MS Learn
-│  ├─ ccf-implementer.md             # implement 1 task (has MCP)
+│  ├─ ccf-implementer.md             # implement 1 task (writer: omits tools → inherit-all)
 │  ├─ ccf-spec-writer.md             # draft the spec
-│  ├─ ccf-spec-checker.md            # fresh-context reviewer
+│  ├─ ccf-spec-checker.md            # fresh-context reviewer (+ premortem plan-review)
 │  └─ ccf-debugger.md                # investigate 1 root-cause branch
 ├─ skills/                      # 1 internal skill (invoked by commands; hidden from / menu)
 │  └─ grill-me/SKILL.md         # shared requirements-interview engine (plan/fix/init modes)
@@ -27,14 +27,22 @@ plugins/ccf/
 │  ├─ lib/plan.mjs              # read the in-progress task from PLAN.md
 │  ├─ lib/context-usage.mjs     # transcript token usage + compact-nudge logic
 │  ├─ lib/review-trace.mjs      # detect /ccf-plan session + ccf-spec-checker review in transcript
+│  ├─ lib/verify-trace.mjs      # detect "edited code but ran no test" in the session transcript
+│  ├─ lib/git-trace.mjs         # detect a `git commit` ran this session (for the plan-status nudge)
+│  ├─ lib/output-style.mjs      # resolve active output style + build the SubagentStart rules directive
 │  ├─ plan-mode-guard.mjs       # UserPromptSubmit: block /ccf-plan outside plan mode
 │  ├─ plan-review-gate.mjs      # PreToolUse(ExitPlanMode): deny until plan is spec-checker reviewed
 │  ├─ session-start.mjs         # SessionStart: reminder + re-load task after compact
 │  ├─ updatespec-nudge.mjs      # Stop: nudge /ccf-updatespec
-│  └─ context-guard.mjs         # UserPromptSubmit: warn (or opt-in --hard-block) for /compact in the dumb zone
+│  ├─ context-guard.mjs         # UserPromptSubmit: warn (or opt-in --hard-block) for /compact in the dumb zone
+│  └─ agent-rules-inject.mjs    # SubagentStart: inject coding rules + active style into spawned ccf-implementer
 └─ templates/                   # read by /ccf-init to generate files (not auto-loaded)
    ├─ root/      backend/      frontend/
 ```
+
+## Agents — tool/MCP/skill inheritance
+
+The 6 subagents have **no `tools` allowlist**; they inherit the host project's full tool/MCP/skill set. `ccf-implementer` (the writer) OMITS `tools` → inherit-all (every project MCP + the Skill tool). The 5 read-only agents carry `disallowedTools: Write, Edit, NotebookEdit` → inherit-all-minus-file-writes. An allowlist would block unlisted project MCP + Skill (a plugin subagent can't list unknown-at-authoring-time MCP), so inheritance is the only mechanism; safety is the file-write denial + per-call permission prompts. An inherited MCP tool may be lazily loaded — use `ToolSearch` to load its schema before calling.
 
 ## Hooks
 

@@ -58,7 +58,7 @@ Typical flow: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check
 
 ## The 6 agents
 
-Specialized subagents, each with least-privilege tools. Parallelism is **read-only research only** — file-writing agents never run in parallel on the same feature.
+Specialized subagents that **inherit the host project's tools, MCP servers and skills** — so they can use whatever MCP your project provides (Supabase, Oracle, chrome-devtools, …) and call its skills, with no per-agent allowlist to maintain. The read-only agents (everyone except `ccf-implementer`) carry `disallowedTools: Write, Edit, NotebookEdit`, so they get the same MCP/skill reach but **cannot write files**. Parallelism is **read-only research only** — file-writing agents never run in parallel on the same feature.
 
 | Agent | Role | Mode |
 |---|---|---|
@@ -66,7 +66,7 @@ Specialized subagents, each with least-privilege tools. Parallelism is **read-on
 | `ccf-best-practice-researcher` | Fetches cited best practices from Context7 / MS Learn in an isolated context. | read-only |
 | `ccf-implementer` | Implements **exactly one** plan task: failing test first, then code to meet acceptance criteria. | writes |
 | `ccf-spec-writer` | Drafts CLAUDE.md / rules content from a decisions summary. | drafts |
-| `ccf-spec-checker` | Fresh-context reviewer — checks an implementation or critiques a plan. | read-only |
+| `ccf-spec-checker` | Fresh-context reviewer — checks an implementation or critiques a plan, including a premortem / prospective-failure lens. | read-only |
 | `ccf-debugger` | Investigates one root-cause hypothesis, follows the correlation ID, verifies against the DB. | read-only |
 
 ## Hooks — the deterministic layer
@@ -76,10 +76,11 @@ Commands and agents are *prompts* (a model can choose to ignore a prompt). **Hoo
 | Hook | Event | What it guarantees |
 |---|---|---|
 | **plan-mode-guard** | `UserPromptSubmit` | If a prompt contains `/ccf:ccf-plan` but the session is **not in plan mode**, it **blocks** (exit 2) and tells you to enter plan mode. Every other prompt passes through untouched. This is the *enforced* half of "planning is read-only and reviewed before execution". |
-| **plan-review-gate** | `PreToolUse` (`ExitPlanMode`) | In a `/ccf-plan` session, **denies** `ExitPlanMode` (so the plan can't be presented for approval) until the transcript shows a `ccf-spec-checker` plan review ran. Best-effort on the undocumented transcript shape: any read failure or a non-CCF session passes through, so it never blocks wrongly — strong enforcement backed by `ccf-plan`'s step-6 prompt. |
+| **plan-review-gate** | `PreToolUse` (`ExitPlanMode`) | In a `/ccf-plan` session, **denies** `ExitPlanMode` (so the plan can't be presented for approval) until the transcript shows a `ccf-spec-checker` plan review ran. Best-effort on the undocumented transcript shape: any read failure or a non-CCF session passes through, so it never blocks wrongly — strong enforcement backed by `ccf-plan`'s step-6 prompt. (The review now includes a premortem lens; the gate mechanism is unchanged.) |
 | **session-start** | `SessionStart` (`startup\|clear\|compact`) | Injects the context-first reminder so the model wakes up already in CCF mode. If **CCF-managed**, it adds a *freshness signal* when the code looks newer than the spec, and after a `compact`/`clear` it **re-loads the in-progress task** from `.claude/plan/PLAN.md` so you resume exactly where you left off. |
 | **updatespec-nudge** | `Stop` | Purely **advisory**, never blocks. Three independent nudges: **(A)** if you edited code this session but ran no tests, it reminds you to *verify your work* (run the tests / type-check); **(B)** if the code changed but the spec didn't, it nudges `/ccf:ccf-check` then `/ccf:ccf-updatespec`; **(C)** if you ran `git commit` this session but `PLAN.md` still has tasks not `done`, it nudges you to mark each `done` (only after its `/ccf-check` + `/code-review`) or fix its status. Guards against re-trigger loops via `stop_hook_active`. |
 | **context-guard** | `UserPromptSubmit` | When the session transcript shows context has crossed ~40% of the model window — capped at an absolute ~300k tokens, since 40% of a 1M-native window (Opus/Sonnet 4.x) would be unreachable before auto-compact — i.e. the "dumb zone", it surfaces a **proactive `/compact`** warning (with a ready-made hint pre-filled from your active task). **Default = warn**, non-blocking: the advice reaches both you (`systemMessage`) and the model (`additionalContext`) every turn. **Opt into hard-block** by adding `--hard-block` to the `context-guard.mjs` command in `hooks.json` — it then **blocks** (exit 2) any over-threshold prompt until you compact, with an escape hatch (prefix the prompt with `/compact`, or include `ccf:override`). Best-effort: if it can't read the transcript it stays silent. |
+| **agent-rules-inject** | `SubagentStart` | Output styles modify only the **main** loop and aren't inherited by subagents, so a spawned file-writing `ccf-implementer` could violate the coding rules. At spawn this hook **injects** (via `additionalContext`) a directive to read & obey the project rules (`.claude/rules/*` + CLAUDE.md) plus the active output style's **coding** rules (persona/tone/emoji excluded), then self-check. Only the writer agent gets it (read-only agents are a no-op); best-effort, never blocks the spawn. |
 
 **Freshness heuristic (shared, single source of truth in `hooks/lib/freshness.mjs`):** both freshness-aware hooks compare the last **git commit time** (`git log -1 --format=%ct`) of *code* files against that of *spec* files (`.md` under `.claude/rules` + `CLAUDE.md`) — committer time, so it reflects real content change and is **immune to `mtime` churn** from `checkout`/`pull`/`clone`. When git can't answer (not a git repo, or a path with no commits yet — e.g. a freshly `/ccf-init`-ed project) it **falls back to a depth-limited `mtime` walk** that works for *any* layout (`src/`, `server/`, `packages/x/src`, plugin-style `plugins/x/hooks`, or code at the root). It is a lightweight nudge, never a hard conclusion — a content-level "is the spec still accurate?" judgment is left to `/ccf:ccf-updatespec`.
 
@@ -117,7 +118,7 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 - **Commands** = markdown prompts that drive Claude in-session (not scripts).
 - **Agents** = 6 specialized subagents (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
 - **Skills** = 1 internal skill (`grill-me`) — the shared requirements-interview engine the commands invoke via the Skill tool; hidden from the `/` menu (`user-invocable: false`).
-- **Hooks** = 5 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, context-usage, review-trace) live in `hooks/lib/`.
+- **Hooks** = 6 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, context-usage, review-trace, git-trace, verify-trace, output-style) live in `hooks/lib/`.
 - **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:ccf-init` instantiates.
 
 See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.

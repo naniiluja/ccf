@@ -35,9 +35,10 @@ export async function readStdinJson() {
 
 /**
  * Inject context for Claude via additionalContext. Valid ONLY for events whose schema
- * accepts hookSpecificOutput.additionalContext (SessionStart, UserPromptSubmit, PostToolUse).
+ * accepts hookSpecificOutput.additionalContext (SessionStart, UserPromptSubmit, PostToolUse,
+ * SubagentStart — the latter adds the string to the subagent's context before its first prompt).
  * PreToolUse (permissionDecision only) and Stop do NOT — for a non-blocking Stop advisory
- * use emitSystemMessage instead.
+ * use emitSystemMessage instead. The body is event-agnostic; pass the matching event name.
  * Print JSON to stdout then exit 0.
  * @param {string} eventName the hook event name (e.g. "SessionStart", "PostToolUse")
  * @param {string} text the context to inject

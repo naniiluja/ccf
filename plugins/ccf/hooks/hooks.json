@@ -1,5 +1,5 @@
 {
-  "description": "CCF: enforce plan mode for /ccf-plan, gate ExitPlanMode on a ccf-spec-checker plan review, inject the context-first reminder + re-load the task after compact, nudge spec updates, and warn about a proactive compact (systemMessage + additionalContext) when context enters the degrade zone.",
+  "description": "CCF: enforce plan mode for /ccf-plan, gate ExitPlanMode on a ccf-spec-checker plan review, inject the context-first reminder + re-load the task after compact, nudge spec updates, warn about a proactive compact (systemMessage + additionalContext) when context enters the degrade zone, and inject the project coding rules (+ active output style's coding rules, persona excluded) into spawned ccf-implementer subagents.",
   "hooks": {
     "PreToolUse": [
       {
@@ -51,6 +51,17 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/updatespec-nudge.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-rules-inject.mjs\"",
             "timeout": 10
           }
         ]
