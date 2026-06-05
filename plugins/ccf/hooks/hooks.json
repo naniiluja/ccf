@@ -1,5 +1,5 @@
 {
-  "description": "CCF: enforce plan mode for /ccf-plan, gate ExitPlanMode on a ccf-spec-checker plan review, inject the context-first reminder + re-load the task after compact, nudge spec updates, warn about a proactive compact (systemMessage + additionalContext) when context enters the degrade zone, inject the project coding rules (+ active output style's coding rules, persona excluded) into spawned ccf-implementer subagents, and inject a language-agnostic LSP/ripgrep/Glob exploration directive into the built-in Explore subagent.",
+  "description": "CCF: enforce plan mode for /ccf-plan, gate ExitPlanMode on a ccf-spec-checker plan review, inject the context-first reminder + re-load the task after compact, nudge spec updates, optionally (opt-in via --auto-verify) block a Stop to drive the verify chain when a task is in-review and code changed this session, warn about a proactive compact (systemMessage + additionalContext) when context enters the degrade zone, inject the project coding rules (+ active output style's coding rules, persona excluded) into spawned ccf-implementer subagents, and inject a language-agnostic LSP/ripgrep/Glob exploration directive into the built-in Explore subagent.",
   "hooks": {
     "PreToolUse": [
       {
@@ -51,6 +51,15 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/updatespec-nudge.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/auto-verify.mjs\"",
             "timeout": 10
           }
         ]

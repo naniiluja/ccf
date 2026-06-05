@@ -59,10 +59,25 @@ export function emitContext(eventName, text) {
  * Surface an advisory message from a Stop hook WITHOUT blocking the stop. A Stop hook's
  * only output fields are decision/reason/systemMessage; it has NO additionalContext.
  * Omitting `decision` lets the stop proceed normally while `systemMessage` shows the nudge.
+ * This is ADVISORY only — to BLOCK a stop and drive the main loop, use `blockStop` instead.
  * @param {string} text the advisory message to surface
  */
 export function emitSystemMessage(text) {
   process.stdout.write(JSON.stringify({ systemMessage: text }));
+  process.exit(0);
+}
+
+/**
+ * BLOCK a Stop and drive the main loop (the "ralph loop"): `decision: "block"` forces Claude to keep
+ * working, and `reason` is fed back as the next instruction. `systemMessage` shows the user a short
+ * note about why the stop was blocked. Then exit 0 (the block is carried by the JSON, NOT an exit code
+ * — Stop is the inverse of UserPromptSubmit, where exit 2 blocks). The opposite of `emitSystemMessage`,
+ * which is advisory and lets the stop proceed.
+ * @param {string} reason the instruction fed back to the main loop (drives the next turn)
+ * @param {string} systemMessage a short user-facing note about the block
+ */
+export function blockStop(reason, systemMessage) {
+  process.stdout.write(JSON.stringify({ decision: "block", reason, systemMessage }));
   process.exit(0);
 }
 
