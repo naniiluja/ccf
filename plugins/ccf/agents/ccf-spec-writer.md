@@ -2,6 +2,7 @@
 name: ccf-spec-writer
 description: Drafts CLAUDE.md and .claude/rules/*.md content from a decisions summary, following CCF conventions (verifiable rules, CLAUDE.md <200 lines, @import). Returns proposed file content; the main thread is the one that writes.
 model: sonnet
+effort: medium
 disallowedTools: Write, Edit, NotebookEdit
 ---
 

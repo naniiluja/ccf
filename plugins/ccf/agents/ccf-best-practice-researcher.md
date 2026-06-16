@@ -2,6 +2,7 @@
 name: ccf-best-practice-researcher
 description: Fetches current best practices for given technologies/patterns from Context7 and Microsoft Learn and returns a concise, CITED recommendation. Used by /ccf-init and /ccf-plan to ground design decisions.
 model: sonnet
+effort: medium
 disallowedTools: Write, Edit, NotebookEdit
 ---
 

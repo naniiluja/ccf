@@ -2,6 +2,7 @@
 name: ccf-codebase-analyzer
 description: Read-only explorer that analyzes ONE slice of an existing codebase and returns a structured report. Used by /ccf-init (5 in parallel) to onboard existing projects into CCF.
 model: haiku
+effort: low
 disallowedTools: Write, Edit, NotebookEdit
 ---
 

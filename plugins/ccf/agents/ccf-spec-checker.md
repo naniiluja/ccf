@@ -2,6 +2,7 @@
 name: ccf-spec-checker
 description: Fresh-context reviewer that checks an implementation against the CCF spec — conformance, conventions, SOLID/OOP, spec drift, BE↔FE consistency — OR critiques a PLAN as a staff engineer (vertical slicing, gates, predecessors), including a **premortem / prospective-failure** lens anchored to past iterations. Read-only, returns findings with file:line, does NOT fix code or rewrite the plan.
 model: opus
+effort: high
 disallowedTools: Write, Edit, NotebookEdit
 ---
 

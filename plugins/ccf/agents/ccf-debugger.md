@@ -2,6 +2,7 @@
 name: ccf-debugger
 description: Investigates ONE assigned root-cause hypothesis/branch — follows the correlation ID across logs, queries the DB read-only to verify, returns evidence + judgment. Does NOT fix code. Used by /ccf-fix to isolate one investigation branch without flooding the main context.
 model: opus
+effort: high
 disallowedTools: Write, Edit, NotebookEdit
 ---
 
