@@ -99,7 +99,10 @@ function finiteOrZero(v) {
  * auto-compact) instead of spamming a /compact nudge at low real usage — the failure mode this
  * fixes. Rules, in order:
  *   - explicit `-1m`/`[1m]` anchored suffix → 1M (a stray "1m" inside an id does NOT count);
- *   - current-generation Opus/Sonnet (Claude 4.x, e.g. claude-opus-4-7) → 1M;
+ *   - current-generation Opus/Sonnet, generation number >= 4 (e.g. claude-opus-4-7,
+ *     claude-sonnet-5) → 1M. The generation digit(s) must be immediately followed by "-" or the
+ *     end of the id, so a legacy dated-snapshot id (e.g. "claude-3-7-sonnet-20250219", where the
+ *     trailing digits are a date, not a generation number) does NOT false-match;
  *   - Haiku, legacy Claude 3.x/2.x and unrecognised ids → the classic 200k window.
  * @param {string} model model id from the transcript
  * @returns {number} window size in tokens
@@ -107,7 +110,8 @@ function finiteOrZero(v) {
 export function modelWindowSize(model) {
   const id = String(model ?? "").toLowerCase();
   if (/(?:-|\[)1m\]?$/.test(id)) return 1_000_000;
-  if (/(?:opus|sonnet)-4/.test(id)) return 1_000_000;
+  const generationMatch = id.match(/(?:opus|sonnet)-(\d{1,2})(?:-|$)/);
+  if (generationMatch && Number(generationMatch[1]) >= 4) return 1_000_000;
   return 200_000;
 }
 

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { findActiveTask, findNonDoneTasks } from "./plan.mjs";
+import { findActiveTask, findNonDoneTasks, findHintTask } from "./plan.mjs";
 
 /** Write `content` to a fresh temp file and return its path. */
 function tmpFile(content) {
@@ -201,6 +201,63 @@ test("findNonDoneTasks: returns [] when the file does not exist", () => {
   assert.deepEqual(findNonDoneTasks(join(tmpdir(), "no-such-plan-xyz.md")), []);
 });
 
+test("findNonDoneTasks: resolves the Status column dynamically when it is NOT the last column (real-world bug: `| # | Task | Status | Predecessor |`)", () => {
+  // Reproduces the reported bug: hardcoding "status = last cell" would read the Predecessor
+  // value ("—" / a task id) as the status, making every row look "not done" even when the real
+  // Status column says "done".
+  const { file, dir } = tmpFile(
+    [
+      "| # | Task | Status | Predecessor |",
+      "| --- | --- | --- | --- |",
+      "| 001 | First task | done | — |",
+      "| 002 | Second task | in-review | 001 |",
+      "| 003 | Third task | todo | 002 |",
+    ].join("\n"),
+  );
+  try {
+    assert.deepEqual(findNonDoneTasks(file), [
+      { id: "002", title: "Second task", status: "in-review" },
+      { id: "003", title: "Third task", status: "todo" },
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findActiveTask: resolves the Status column dynamically when it is NOT the last column", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| # | Task | Status | Predecessor |",
+      "| --- | --- | --- | --- |",
+      "| 001 | First task | done | — |",
+      "| 002 | Second task | in-review | 001 |",
+    ].join("\n"),
+  );
+  try {
+    assert.deepEqual(findActiveTask(file), { id: "002", title: "Second task" });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findNonDoneTasks: a header row with no following separator row does not itself leak as a phantom task (id '#', defense-in-depth)", () => {
+  const { file, dir } = tmpFile(
+    ["| # | Task | Status | Predecessor |", "| 001 | First task | done | — |"].join("\n"),
+  );
+  try {
+    // No separator row → isHeaderRow can't detect the header structurally (the PRIMARY defense
+    // needs a well-formed table, which every observed real PLAN.md has); the backup guard (id
+    // === "#") still keeps the header row ITSELF out of the result — the exact leak this was
+    // filed against. Resolving the data row's own status correctly still needs the separator.
+    assert.equal(
+      findNonDoneTasks(file).some((t) => t.id === "#"),
+      false,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("findNonDoneTasks: ignores the header + separator rows (not counted as non-done)", () => {
   const { file, dir } = tmpFile(
     [
@@ -214,6 +271,77 @@ test("findNonDoneTasks: ignores the header + separator rows (not counted as non-
     // separator row is dashes. Only the real task row may appear in the result.
     assert.deepEqual(findNonDoneTasks(file), [
       { id: "005", title: "Build it", status: "in-progress" },
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// --- findHintTask ------------------------------------------------------------
+
+test("findHintTask: prefers the active (in-progress/in-review) task over any todo task", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| # | Task | Status | Predecessor |",
+      "| --- | --- | --- | --- |",
+      "| 001 | Not started | todo | — |",
+      "| 002 | Being built | in-progress | 001 |",
+    ].join("\n"),
+  );
+  try {
+    assert.deepEqual(findHintTask(file), { id: "002", title: "Being built" });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findHintTask: falls back to the first 'todo' task when nothing is active (the compact-hint bug fix — was generic-only)", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| # | Task | Status | Predecessor |",
+      "| --- | --- | --- | --- |",
+      "| 001 | Just finished | done | — |",
+      "| 002 | Next up | todo | 001 |",
+      "| 003 | Later | todo | 002 |",
+    ].join("\n"),
+  );
+  try {
+    assert.deepEqual(findHintTask(file), { id: "002", title: "Next up" });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findHintTask: returns null when every task is done or blocked (nothing left to hint)", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| # | Task | Status | Predecessor |",
+      "| --- | --- | --- | --- |",
+      "| 001 | Done one | done | — |",
+      "| 002 | Stuck one | blocked | 001 |",
+    ].join("\n"),
+  );
+  try {
+    assert.equal(findHintTask(file), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findNonDoneTasks: 'dropped' is a CLOSED status (deliberately abandoned), same as 'done' — not nagged forever", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| # | Task | Status | Predecessor |",
+      "| --- | --- | --- | --- |",
+      "| 001 | Finished | done | — |",
+      "| 002 | Abandoned by decision | dropped | 001 |",
+      "| 003 | Still open | blocked | 002 |",
+    ].join("\n"),
+  );
+  try {
+    // 'dropped' is closed like 'done'; 'blocked' stays open — the nudge should only ever surface 003.
+    assert.deepEqual(findNonDoneTasks(file), [
+      { id: "003", title: "Still open", status: "blocked" },
     ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });

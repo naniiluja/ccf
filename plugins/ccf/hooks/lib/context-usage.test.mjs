@@ -230,6 +230,12 @@ test("modelWindowSize: current-gen Opus/Sonnet 4.x → 1M (id can't reveal the b
   assert.equal(modelWindowSize("claude-sonnet-4-6"), 1_000_000);
 });
 
+test("modelWindowSize: next-gen Sonnet/Opus (generation >= 4, e.g. Sonnet 5) → 1M", () => {
+  assert.equal(modelWindowSize("claude-sonnet-5"), 1_000_000);
+  assert.equal(modelWindowSize("claude-opus-5"), 1_000_000);
+  assert.equal(modelWindowSize("claude-opus-4-8"), 1_000_000);
+});
+
 test("modelWindowSize: explicit 1m suffix → 1M even for a 200k family (both bracket and dash forms)", () => {
   assert.equal(modelWindowSize("claude-haiku-4-5-1m"), 1_000_000);
   assert.equal(modelWindowSize("claude-haiku-4-5[1m]"), 1_000_000);

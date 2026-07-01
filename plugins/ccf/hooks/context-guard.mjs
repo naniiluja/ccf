@@ -4,6 +4,9 @@
 // deterministic, not dependent on the model choosing to relay it. When wired with the --hard-block
 // arg (the hooks.json entry IS the toggle), it instead exit-2 BLOCKS the prompt, with an escape
 // hatch: a /compact prefix or an explicit ccf:override token still passes (warns, never blocks).
+// The hint task is `findHintTask` (prefers in-progress/in-review, falls back to the next "todo"),
+// NOT `findActiveTask` — so the hint stays task-specific even between finishing one task and
+// starting the next, instead of degrading to generic wording just because nothing is in-progress.
 
 import { join } from "node:path";
 import { readStdinJson, emitPromptWarning, blockUserPrompt } from "./lib/io.mjs";
@@ -13,7 +16,7 @@ import {
   decideGuardAction,
   buildCompactHint,
 } from "./lib/context-usage.mjs";
-import { findActiveTask } from "./lib/plan.mjs";
+import { findHintTask } from "./lib/plan.mjs";
 
 const input = await readStdinJson();
 
@@ -30,7 +33,7 @@ const action = decideGuardAction({ aboveThreshold, hardBlock, isEscape });
 if (action === "silent") process.exit(0);
 
 const cwd = String(input.cwd ?? process.cwd());
-const task = findActiveTask(join(cwd, ".claude", "plan", "PLAN.md"));
+const task = findHintTask(join(cwd, ".claude", "plan", "PLAN.md"));
 const hint = buildCompactHint(task);
 const pct = Math.round((usage.tokens / usage.windowSize) * 100);
 
