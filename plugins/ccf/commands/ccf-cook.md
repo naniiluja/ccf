@@ -53,6 +53,8 @@ Not every harness exposes the Skill tool or a SlashCommand tool for invoking `/c
 ## 8. Context management
 Suggest `/compact` between implement slices (step 2) once the transcript grows large — a long sequential backlog accumulates context fast. Recommend running `/ccf-cook` over a **small backlog** per invocation (a handful of tasks, not an entire multi-iteration plan) so a single session stays within a manageable context budget and a RED gate stops the loop early rather than deep into a long queue.
 
+**OPTIONAL secondary stop condition:** if the official `/goal` command is available (OPTIONAL, may be absent on an older Claude Code build), the user MAY set a condition such as `/goal all selected tasks are in-review` to keep the session working autonomously across the implement loop. This is a SECONDARY convenience only — it does NOT replace the sequential law's stop-on-red-gate (step 2.3): a RED gate still STOPS the loop immediately regardless of any `/goal` condition.
+
 ## Notes
 - The **"≤3 agents" cap** applies ONLY to CCF-spawned work via Task (i.e. `ccf-spec-checker` in step 3a). Built-in `/code-review` and `/simplify` fan out INTERNALLY — `/code-review`'s depth is tuned by `effort`, and `/simplify` is fixed at 4 parallel agents — neither is numerically cappable from the outside; do not conflate the two mechanisms.
 - Never spawn two `ccf-implementer` agents in parallel, and never spawn a writer (`ccf-implementer` or `/simplify`) at the same time as anything else that touches files.

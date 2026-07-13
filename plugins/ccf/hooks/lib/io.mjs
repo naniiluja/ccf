@@ -82,6 +82,19 @@ export function blockStop(reason, systemMessage) {
 }
 
 /**
+ * BLOCK a SubagentStop: `decision: "block"` keeps the SUBAGENT running (scope is child-only — it does
+ * NOT affect the main loop) and `reason` is fed back as the subagent's next instruction. Unlike
+ * `blockStop` (the main-loop Stop event), a SubagentStop payload has NO documented `systemMessage`
+ * field at authoring time (task 034) — so this does NOT blindly reuse `blockStop`'s shape; it emits
+ * only `decision`/`reason`. Then exit 0 (the block is carried by the JSON, not the exit code).
+ * @param {string} reason the instruction fed back to the subagent (drives its next turn)
+ */
+export function blockSubagentStop(reason) {
+  process.stdout.write(JSON.stringify({ decision: "block", reason }));
+  process.exit(0);
+}
+
+/**
  * Surface a non-blocking warning at UserPromptSubmit through BOTH channels: `additionalContext`
  * (model-facing, enters Claude's context) and `systemMessage` (the universal user-facing field).
  * Lets the prompt proceed (exit 0) while the user actually SEES the message. Print JSON then exit 0.

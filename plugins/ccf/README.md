@@ -32,6 +32,7 @@ plugins/ccf/
 │  ├─ lib/verify-chain.mjs      # decide whether a Stop drives the verify chain + build its reason
 │  ├─ lib/output-style.mjs      # resolve active output style + build the SubagentStart rules directive
 │  ├─ lib/explore-guide.mjs     # build the language-agnostic LSP/Grep/Glob directive for the Explore subagent
+│  ├─ lib/implementer-verify.mjs# decide whether a SubagentStop from ccf-implementer must be blocked
 │  ├─ plan-mode-guard.mjs       # UserPromptSubmit: block /ccf-plan outside plan mode
 │  ├─ plan-review-gate.mjs      # PreToolUse(ExitPlanMode): deny until plan is spec-checker reviewed
 │  ├─ session-start.mjs         # SessionStart: reminder + re-load task after compact
@@ -39,7 +40,8 @@ plugins/ccf/
 │  ├─ auto-verify.mjs           # Stop: opt-in (--auto-verify) block to drive the verify chain
 │  ├─ context-guard.mjs         # UserPromptSubmit: warn (or opt-in --hard-block) for /compact in the dumb zone
 │  ├─ agent-rules-inject.mjs    # SubagentStart: inject coding rules + active style into spawned ccf-implementer
-│  └─ explore-guide-inject.mjs  # SubagentStart(Explore): inject the LSP/Grep/Glob exploration directive
+│  ├─ explore-guide-inject.mjs  # SubagentStart(Explore): inject the LSP/Grep/Glob exploration directive
+│  └─ implementer-verify-gate.mjs # SubagentStop(ccf-implementer): opt-in (--enforce-tests) block on missing TEST-RESULT
 └─ templates/                   # read by /ccf-init to generate files (not auto-loaded)
    ├─ root/      backend/      frontend/
 ```
@@ -50,10 +52,11 @@ The 6 subagents have **no `tools` allowlist**; they inherit the host project's f
 
 ## Hooks
 
-8 hooks, run directly with `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.mjs"`. No build, no dependency.
+9 hooks, run directly with `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.mjs"`. No build, no dependency.
 They use the `.mjs` extension (not `.sh`) so Claude Code on Windows doesn't auto-prepend `bash`.
 The `SubagentStart` array carries two hooks: `agent-rules-inject` (no matcher; gated by an internal `WRITER_AGENTS` allowlist) injects coding rules into the writer `ccf-implementer`, and `explore-guide-inject` (matcher `Explore`) injects a language-agnostic LSP/Grep/Glob exploration directive into the built-in `Explore` subagent.
 The `Stop` array also carries two hooks: `updatespec-nudge` (purely advisory) and `auto-verify` (opt-in via `--auto-verify`, the only CCF Stop hook that BLOCKS — it drives the verify chain via `decision:"block"`).
+The new `SubagentStop` array carries ONE hook (matcher `ccf-implementer`): `implementer-verify-gate`, opt-in via `--enforce-tests`, blocks a spawned implementer's stop (child-scoped `decision:"block"`) when its final message carries no `TEST-RESULT:` evidence.
 
 Manual test:
 ```bash

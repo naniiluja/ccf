@@ -31,3 +31,9 @@ You are a **leaf agent**: do NOT spawn other agents (Task/Agent tool) — return
 
 ## Return
 Summary: files changed, tests written + actual run results, which acceptance criteria are met, notes for `/ccf-check` to review next.
+
+**Pin the LAST line of your response** to exactly one of:
+- `TEST-RESULT: <command> → <pass/fail counts>` — e.g. `TEST-RESULT: node --test → 5 passed, 0 failed`.
+- `TEST-RESULT: n/a (no test surface)` — ONLY for a truly prose-only task with nothing to run.
+
+This is required evidence, not decoration: the opt-in `SubagentStop` hook `implementer-verify-gate` (when enabled via `--enforce-tests`) blocks your stop if this line is missing, so you are told to add it and finish again.

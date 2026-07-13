@@ -83,6 +83,7 @@ claude plugin install ccf@ccf
 | **context-guard** | `UserPromptSubmit` | 当 transcript 显示上下文已超过模型上下文窗口的约 40%——并设置 ~300k token 的绝对上限，因为 40% 的 1M-native 窗口（Opus/Sonnet 4.x）在自动 compact 前不可能达到——即「变笨区」，它会提示执行**主动 `/compact`**（附上从当前任务预填好的 hint）。**默认 = 警告**，不阻止：建议会同时送达你（`systemMessage`）和模型（`additionalContext`），每轮触发。**启用硬阻止**：在 `hooks.json` 的 `context-guard.mjs` 命令后加上 `--hard-block`——届时它会**阻止**（exit 2）任何超阈值的 prompt 直到你 compact，并带有逃生舱（在 prompt 前缀 `/compact`，或包含 `ccf:override`）。尽力而为：读不到 transcript 时保持沉默。 |
 | **agent-rules-inject** | `SubagentStart` | 输出样式只修改**主**循环，不会被子 agent 继承，因此被 spawn 的写文件 `ccf-implementer` 可能违反编码规则。在 spawn 时，此钩子**注入**（通过 `additionalContext`）一条指令，要求阅读并遵守项目规则（`.claude/rules/*` + CLAUDE.md）以及当前生效输出样式的**编码**规则（排除人设/语气/emoji），然后自检。仅写文件的 agent 会收到（只读 agent 为 no-op）；尽力而为，绝不阻止 spawn。 |
 | **explore-guide-inject** | `SubagentStart`（`Explore`） | CCF 不拥有内置 `Explore` 子 agent 的提示词，因此在 spawn 时此钩子**注入**（通过 `additionalContext`）一条简短、**与语言无关、按 LSP 条件**的探索指令：优先语义导航（`LSP` 工具——`workspaceSymbol`/`goToDefinition`/`findReferences`/`documentSymbol`，无 language server 时回退）以及 `Grep`（ripgrep）和 `Glob`，仅在定位到相关区域后才读取整个文件。尽力而为，绝不阻止 spawn。 |
+| **implementer-verify-gate** | `SubagentStop`（`ccf-implementer`） | **可选开启**（默认关闭），仅作用于子 agent 本身。在 `hooks.json` 的 `implementer-verify-gate.mjs` 命令后加上 `--enforce-tests` 即可启用。当被 spawn 的 `ccf-implementer` 最后一条消息没有 `TEST-RESULT:` 证据（已固定的 Return 格式行——真实结果或纯文案声明 `TEST-RESULT: n/a (no test surface)`）时，它返回 `decision: "block"`，要求该实现者补上该行后重新完成；这只让**子 agent** 继续运行，不影响主循环。防御性设计：撰写本钩子时 SubagentStop 的 loop-guard/`transcript_path` 结构尚未获文档确认；尽力而为，任何错误都静默退出。 |
 
 **新鲜度启发式（共享，单一事实来源位于 `hooks/lib/freshness.mjs`）：** 两个具备新鲜度感知的钩子都比较*代码*文件与*规格*文件（`.claude/rules` 下的 `.md` 加 `CLAUDE.md`）的最后一次 **git 提交时间**（`git log -1 --format=%ct`）——采用 committer time，因此反映真实的内容变更，并**不受 `checkout`/`pull`/`clone` 造成的 `mtime` 扰动影响**。当 git 无法回答时（不是 git 仓库，或某路径尚无提交——例如刚 `/ccf-init` 的项目），它会**回退到有限深度的 `mtime` 遍历**，适用于*任何*布局（`src/`、`server/`、`packages/x/src`、插件式的 `plugins/x/hooks`，或位于根目录的代码）。这是轻量提示，绝非硬性结论——内容层面「规格是否仍然准确？」的判断留给 `/ccf:ccf-updatespec`。
 
@@ -120,7 +121,7 @@ claude plugin install ccf@ccf
 - **命令** = 7 个在会话中驱动 Claude 的 markdown 提示（不是脚本）：init、plan、check、test、fix、updatespec、cook。
 - **Agent** = 6 个专用子 agent（分析器、研究员、实现者、规格撰写者、规格检查者、调试器）。
 - **Skill** = 1 个内部 skill（`grill-me`）——各命令通过 Skill 工具调用的共享需求访谈引擎；从 `/` 菜单隐藏（`user-invocable: false`）。
-- **钩子** = 8 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、context-usage、review-trace、git-trace、verify-trace、verify-chain、output-style、explore-guide）位于 `hooks/lib/`。
+- **钩子** = 9 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、context-usage、review-trace、git-trace、verify-trace、verify-chain、output-style、explore-guide、implementer-verify）位于 `hooks/lib/`。
 - **模板** = 带 `{{...}}` 占位符的文件（`root/` 始终使用，`backend/` + `frontend/` 在全栈时使用），由 `/ccf:ccf-init` 实例化。
 
 详见 `plugins/ccf/`。钩子需要 Node ≥ 18。

@@ -1,5 +1,5 @@
 {
-  "description": "CCF: enforce plan mode for /ccf-plan, gate ExitPlanMode on a ccf-spec-checker plan review, inject the context-first reminder + re-load the task after compact, nudge spec updates, optionally (opt-in via --auto-verify) block a Stop to drive the verify chain when a task is in-review and code changed this session, warn about a proactive compact (systemMessage + additionalContext) when context enters the degrade zone, inject the project coding rules (+ active output style's coding rules, persona excluded) into spawned ccf-implementer subagents, and inject a language-agnostic LSP/ripgrep/Glob exploration directive into the built-in Explore subagent.",
+  "description": "CCF: enforce plan mode for /ccf-plan, gate ExitPlanMode on a ccf-spec-checker plan review, inject the context-first reminder + re-load the task after compact, nudge spec updates, optionally (opt-in via --auto-verify) block a Stop to drive the verify chain when a task is in-review and code changed this session, warn about a proactive compact (systemMessage + additionalContext) when context enters the degrade zone, inject the project coding rules (+ active output style's coding rules, persona excluded) into spawned ccf-implementer subagents, inject a language-agnostic LSP/ripgrep/Glob exploration directive into the built-in Explore subagent, and optionally (opt-in via --enforce-tests) block a spawned ccf-implementer's SubagentStop when its final message carries no TEST-RESULT evidence.",
   "hooks": {
     "PreToolUse": [
       {
@@ -81,6 +81,18 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/explore-guide-inject.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "ccf-implementer",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/implementer-verify-gate.mjs\"",
             "timeout": 10
           }
         ]

@@ -27,6 +27,7 @@ You are running CCF `/ccf-check`. You are a **fresh-context reviewer** (Anthropi
 6. **Produce a structured report:** Conforms / Violations (with `file:line`) / Spec drift / Recommended fixes. Do NOT fix anything.
 
 ## Closing (mandatory)
+0. **OPTIONAL cross-model second opinion:** if the official `/advisor` command is available (OPTIONAL, may be absent on an older Claude Code build), the user MAY run `/advisor sonnet` or `/advisor fable` for a DIFFERENT-model review of this implementation alongside `ccf-spec-checker`. This is a SUPPLEMENT, never a substitute — it does NOT replace the `ccf-spec-checker` delegation in step 3, which stays mandatory.
 1. If the project opted into the test discipline and a function/slice still lacks its contract-level matrix, flag it as spec drift (the matrix should have been written by `ccf-implementer` during implement) and recommend the next implementer task add it — then run the project's test command to prove it passes.
 2. Recommend the user run Claude's **`/code-review`** on this change to surface additional quality/correctness issues.
 3. Then recommend **`/ccf:ccf-updatespec`** to capture any drift/lessons discovered into the spec, keeping context fresh for future sessions. **If this review (and `/code-review`) came back clean,** recommend that `/ccf:ccf-updatespec` then mark the `in-review` task `done` — this command is read-only and does NOT write task status itself; it only RECOMMENDS the transition.
