@@ -1,7 +1,7 @@
 // Tests for lib/verify-chain.mjs — node --test, no dependency.
 // Covers the three pure helpers that drive the opt-in auto-verify Stop hook:
 //   shouldDriveVerify  — full 5-input decision table (each input toggled off blocks the drive).
-//   buildVerifyReason  — the ordered verify-chain reason; the /ccf-test step is present iff disciplineOn.
+//   buildVerifyReason  — the ordered verify-chain reason; the run-the-test-suite step is present iff disciplineOn.
 //   readDisciplineOn   — reads <rulesDir>/testing.md: discipline on / off / missing file.
 
 import { test } from "node:test";
@@ -60,24 +60,25 @@ test("buildVerifyReason: always names the ordered chain (check → code-review �
   assert.ok(r.indexOf("/code-review") < r.indexOf("/ccf:ccf-updatespec"));
 });
 
-test("buildVerifyReason: disciplineOn=false → NO /ccf:ccf-test step", () => {
+test("buildVerifyReason: disciplineOn=false → NO test-suite step", () => {
   const r = buildVerifyReason({ disciplineOn: false });
-  assert.doesNotMatch(r, /\/ccf:ccf-test/);
+  assert.doesNotMatch(r, /test discipline/i);
 });
 
-test("buildVerifyReason: disciplineOn=true → includes /ccf:ccf-test step", () => {
+test("buildVerifyReason: disciplineOn=true → includes the run-the-test-suite step", () => {
   const r = buildVerifyReason({ disciplineOn: true });
-  assert.match(r, /\/ccf:ccf-test/);
-  // ccf-test sits between code-review and updatespec.
-  assert.ok(r.indexOf("/code-review") < r.indexOf("/ccf:ccf-test"));
-  assert.ok(r.indexOf("/ccf:ccf-test") < r.indexOf("/ccf:ccf-updatespec"));
+  assert.match(r, /test discipline/i);
+  // the test-suite step sits between code-review and updatespec.
+  const testStepIdx = r.search(/test discipline/i);
+  assert.ok(r.indexOf("/code-review") < testStepIdx);
+  assert.ok(testStepIdx < r.indexOf("/ccf:ccf-updatespec"));
 });
 
 test("buildVerifyReason: garbage input → still a non-empty string, no test step", () => {
   const r = buildVerifyReason(undefined);
   assert.equal(typeof r, "string");
   assert.ok(r.length > 0);
-  assert.doesNotMatch(r, /\/ccf:ccf-test/);
+  assert.doesNotMatch(r, /test discipline/i);
 });
 
 /** Create <rulesDir>/testing.md with the given body (null body → no file). */

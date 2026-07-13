@@ -63,7 +63,7 @@ export function readDisciplineOn(rulesDir) {
 
 /**
  * Build the verify-chain reason fed to the main loop via decision:"block". Names the ORDERED steps:
- *   /ccf:ccf-check → /code-review → (/ccf:ccf-test only if disciplineOn) → /ccf:ccf-updatespec.
+ *   /ccf:ccf-check → /code-review → (run the project's test suite only if disciplineOn) → /ccf:ccf-updatespec.
  * updatespec runs ONLY when check + review are clean (no ❌); any ❌ → STOP + tell the user, do NOT
  * mark done; if /code-review cannot self-invoke, run the rest + ask the user to run it by hand.
  * Pure: garbage input coerces to disciplineOn=false; always returns a non-empty string.
@@ -73,7 +73,7 @@ export function readDisciplineOn(rulesDir) {
 export function buildVerifyReason(opts) {
   const disciplineOn = Boolean(opts && opts.disciplineOn);
   const testStep = disciplineOn
-    ? "3. Then run /ccf:ccf-test (this project opted into the test discipline).\n"
+    ? "3. Then run the project's test command to confirm the contract-level matrix tests pass (this project opted into the test discipline).\n"
     : "";
   return (
     "<ccf-auto-verify>This task is in-review and you changed code this session. Drive the verify chain IN ORDER " +

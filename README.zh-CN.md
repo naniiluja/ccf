@@ -19,7 +19,7 @@
 | 设计决策基于陈旧记忆 | 自带 **Context7 + Microsoft Learn** MCP；CCF 提示词在动笔前引用官方文档。 |
 | 错误跨会话重复出现 | `/ccf:ccf-updatespec` 写入**两层**——项目规则写进规格，防错 feedback 写进系统 **memory**（以更高权重加载）。 |
 | 难以审查的大爆炸式功能 | 计划是**垂直切片的瀑布式**，每个切片是一颗细的曳光弹（DB→service→UI），各自带有测试关卡。 |
-| 赶进度时测试写得草率（或被跳过） | 一个**可选启用的测试纪律**——`/ccf:ccf-test` 设计契约级矩阵（等价类划分 + 边界值分析 + 决策表），一旦启用，生成的 **Stop 钩子关卡会阻止停止**，直到测试真正通过。追求快速上线的流程则直接不启用。 |
+| 赶进度时测试写得草率（或被跳过） | 一个**可选启用的测试纪律**——启用后，`ccf-implementer` 在实现阶段设计契约级矩阵（等价类划分 + 边界值分析 + 决策表）并先写失败测试，且生成的 **Stop 钩子关卡会阻止停止**，直到测试真正通过。追求快速上线的流程则直接不启用。 |
 
 ## 安装
 
@@ -43,19 +43,18 @@ claude plugin install ccf@ccf
 
 安装后，在你的项目文件夹中打开 Claude Code 并运行 `/ccf:ccf-init`。
 
-## 7 个命令
+## 6 个命令
 
 | 命令 | 作用 |
 |------|------|
 | `/ccf:ccf-init` | 引导一个新项目（访谈 → 生成 CLAUDE.md + .claude + 计划）或接管一个已有项目（5 个只读分析 agent 映射真实结构）。 |
 | `/ccf:ccf-plan` | 为一个功能创建串行计划，基于最佳实践。**需要 plan mode**（Shift+Tab）——由钩子强制。计划后用 agent 执行每个任务。 |
 | `/ccf:ccf-check` | 对照规格验证实现（一致性、约定、SOLID/OOP、前后端交叉检查）。只读。 |
-| `/ccf:ccf-test` | 为一个函数/切片设计契约级测试矩阵（EP + BVA + 决策表），先写失败测试，运行，再报告实际结果与覆盖率关卡的对比。仅在项目已选择启用测试纪律时运行。 |
 | `/ccf:ccf-fix` | 有纪律的调试：复现 → 逐步追踪日志/数据库 → 根因 → 失败测试 → 最小修复。不靠猜。 |
 | `/ccf:ccf-updatespec` | 用本次会话的经验更新规格**和系统 memory**（包括新工具及其「何时使用」）。 |
-| `/cook` | 一次性跑完整个 todo/in-progress backlog：顺序执行 `ccf-implementer` 循环（遇到红色关卡立即停止），然后批量验证（review + `/code-review` 并行，`/simplify`，重新过关，`/ccf:ccf-updatespec`）。与 `auto-verify.mjs --auto-verify` 互斥。 |
+| `/ccf:ccf-cook` | 一次性跑完整个 todo/in-progress backlog：顺序执行 `ccf-implementer` 循环（遇到红色关卡立即停止），然后批量验证（review + `/code-review` 并行，`/simplify`，重新过关，`/ccf:ccf-updatespec`）。与 `auto-verify.mjs --auto-verify` 互斥。 |
 
-典型流程：`ccf-init` → （plan mode）`ccf-plan` → 实现（逐任务，或通过 `/cook` 跑完整个 backlog）→ `ccf-check` → （启用测试纪律时 `ccf-test`）→ `/code-review` → `ccf-updatespec`。
+典型流程：`ccf-init` → （plan mode）`ccf-plan` → 实现（逐任务，或通过 `/ccf:ccf-cook` 跑完整个 backlog）→ `ccf-check` → `/code-review` → `ccf-updatespec`。启用测试纪律时，`ccf-implementer` 在实现阶段编写契约级测试矩阵，验证链会运行它们。
 
 ## 6 个 agent
 
@@ -80,7 +79,7 @@ claude plugin install ccf@ccf
 | **plan-review-gate** | `PreToolUse`（`ExitPlanMode`） | 在 `/ccf-plan` 会话中，**拒绝** `ExitPlanMode`（使计划无法被提交审批），直到 transcript 显示已运行过一次 `ccf-spec-checker` 计划审查。对未公开的 transcript 结构尽力而为：任何读取失败或非 CCF 会话都会放行，因此绝不会误阻——强力强制，并由 `ccf-plan` 第 6 步提示词作为后备。（审查现在包含 premortem 视角；gate 机制不变。） |
 | **session-start** | `SessionStart`（`startup\|clear\|compact`） | 注入上下文优先提醒，让模型醒来就已处于 CCF 模式。若**受 CCF 管理**，当代码看起来比规格新时它会加上*新鲜度信号*，并在 `compact`/`clear` 后从 `.claude/plan/PLAN.md` **重新加载进行中的任务**，让你精确地从中断处继续。 |
 | **updatespec-nudge** | `Stop` | 纯**建议性**，从不阻止。三个独立提示：**(A)** 若本次会话改了代码却没跑测试，提醒你*验证工作*（运行测试 / 类型检查）；**(B)** 若代码变了但规格没变，提示 `/ccf:ccf-check` 然后 `/ccf:ccf-updatespec`；**(C)** 若本次会话跑了 `git commit` 但 `PLAN.md` 仍有任务未 `done`，提醒你把每个任务标为 `done`（仅在其 `/ccf-check` + `/code-review` 通过后）或修正其状态。通过 `stop_hook_active` 防止重复触发循环。 |
-| **auto-verify** | `Stop` | **可选开启**（默认关闭），且是 CCF 唯一能**阻止**停止的 Stop 钩子。在 `hooks.json` 的 `auto-verify.mjs` 命令后加上 `--auto-verify` 即可启用。当某任务处于 **in-review**、本次会话**改了代码**、且尚无 `ccf-spec-checker` 评审运行时，它返回 `decision: "block"`（「ralph loop」），其 reason 驱动主循环跑完验证链——`/ccf:ccf-check` → `/code-review` →（若开启测试纪律则 `/ccf:ccf-test`）→ 仅当两者都干净时才 `/ccf:ccf-updatespec`。通过 `stop_hook_active` 防止循环；尽力而为，任何错误都静默退出。 |
+| **auto-verify** | `Stop` | **可选开启**（默认关闭），且是 CCF 唯一能**阻止**停止的 Stop 钩子。在 `hooks.json` 的 `auto-verify.mjs` 命令后加上 `--auto-verify` 即可启用。当某任务处于 **in-review**、本次会话**改了代码**、且尚无 `ccf-spec-checker` 评审运行时，它返回 `decision: "block"`（「ralph loop」），其 reason 驱动主循环跑完验证链——`/ccf:ccf-check` → `/code-review` →（若开启测试纪律则运行项目的测试命令）→ 仅当两者都干净时才 `/ccf:ccf-updatespec`。通过 `stop_hook_active` 防止循环；尽力而为，任何错误都静默退出。 |
 | **context-guard** | `UserPromptSubmit` | 当 transcript 显示上下文已超过模型上下文窗口的约 40%——并设置 ~300k token 的绝对上限，因为 40% 的 1M-native 窗口（Opus/Sonnet 4.x）在自动 compact 前不可能达到——即「变笨区」，它会提示执行**主动 `/compact`**（附上从当前任务预填好的 hint）。**默认 = 警告**，不阻止：建议会同时送达你（`systemMessage`）和模型（`additionalContext`），每轮触发。**启用硬阻止**：在 `hooks.json` 的 `context-guard.mjs` 命令后加上 `--hard-block`——届时它会**阻止**（exit 2）任何超阈值的 prompt 直到你 compact，并带有逃生舱（在 prompt 前缀 `/compact`，或包含 `ccf:override`）。尽力而为：读不到 transcript 时保持沉默。 |
 | **agent-rules-inject** | `SubagentStart` | 输出样式只修改**主**循环，不会被子 agent 继承，因此被 spawn 的写文件 `ccf-implementer` 可能违反编码规则。在 spawn 时，此钩子**注入**（通过 `additionalContext`）一条指令，要求阅读并遵守项目规则（`.claude/rules/*` + CLAUDE.md）以及当前生效输出样式的**编码**规则（排除人设/语气/emoji），然后自检。仅写文件的 agent 会收到（只读 agent 为 no-op）；尽力而为，绝不阻止 spawn。 |
 | **explore-guide-inject** | `SubagentStart`（`Explore`） | CCF 不拥有内置 `Explore` 子 agent 的提示词，因此在 spawn 时此钩子**注入**（通过 `additionalContext`）一条简短、**与语言无关、按 LSP 条件**的探索指令：优先语义导航（`LSP` 工具——`workspaceSymbol`/`goToDefinition`/`findReferences`/`documentSymbol`，无 language server 时回退）以及 `Grep`（ripgrep）和 `Glob`，仅在定位到相关区域后才读取整个文件。尽力而为，绝不阻止 spawn。 |

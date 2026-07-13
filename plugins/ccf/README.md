@@ -8,9 +8,9 @@ The Claude Context First plugin. See the [root README](../../README.md) for inst
 plugins/ccf/
 ├─ .claude-plugin/plugin.json   # manifest
 ├─ .mcp.json                    # microsoft-learn + context7 (HTTP, key-less)
-├─ commands/                    # 7 slash commands (markdown prompts)
+├─ commands/                    # 6 slash commands (markdown prompts)
 │  ├─ ccf-init.md  ccf-plan.md  ccf-check.md
-│  ├─ ccf-fix.md   ccf-updatespec.md  cook.md
+│  ├─ ccf-fix.md   ccf-updatespec.md  ccf-cook.md
 ├─ agents/                      # 6 subagents — inherit the project's tools/MCP/skills (see below)
 │  ├─ ccf-codebase-analyzer.md       # x5 in parallel to onboard an existing project
 │  ├─ ccf-best-practice-researcher.md# fetch best practices from Context7/MS Learn
