@@ -52,12 +52,12 @@ test("shouldDriveVerify: undefined/garbage input → false, never throws", () =>
 
 test("buildVerifyReason: always names the ordered chain (check → code-review → updatespec)", () => {
   const r = buildVerifyReason({ disciplineOn: false });
-  assert.match(r, /\/ccf:ccf-check/);
+  assert.match(r, /\/ccf:check/);
   assert.match(r, /\/code-review/);
-  assert.match(r, /\/ccf:ccf-updatespec/);
+  assert.match(r, /\/ccf:updatespec/);
   // updatespec must come AFTER check + review in the ordered chain.
-  assert.ok(r.indexOf("/ccf:ccf-check") < r.indexOf("/ccf:ccf-updatespec"));
-  assert.ok(r.indexOf("/code-review") < r.indexOf("/ccf:ccf-updatespec"));
+  assert.ok(r.indexOf("/ccf:check") < r.indexOf("/ccf:updatespec"));
+  assert.ok(r.indexOf("/code-review") < r.indexOf("/ccf:updatespec"));
 });
 
 test("buildVerifyReason: disciplineOn=false → NO test-suite step", () => {
@@ -71,7 +71,7 @@ test("buildVerifyReason: disciplineOn=true → includes the run-the-test-suite s
   // the test-suite step sits between code-review and updatespec.
   const testStepIdx = r.search(/test discipline/i);
   assert.ok(r.indexOf("/code-review") < testStepIdx);
-  assert.ok(testStepIdx < r.indexOf("/ccf:ccf-updatespec"));
+  assert.ok(testStepIdx < r.indexOf("/ccf:updatespec"));
 });
 
 test("buildVerifyReason: garbage input → still a non-empty string, no test step", () => {

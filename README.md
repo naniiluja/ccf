@@ -7,17 +7,17 @@ A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **c
 - **Context-first** — the spec lives in `CLAUDE.md` + `.claude/`, kept continuously fresh so every session starts already knowing the project.
 - **Grounding** — every design decision references best practices from **Context7** and **Microsoft Learn** (two MCP servers bundled with the plugin), not from memory.
 - **Strictly sequential** — one task at a time (waterfall of vertical slices), no parallel feature development, to maximize quality.
-- **Adapts to your codebase** — bootstrap a fresh project as a monorepo (git init at the root; fullstack splits into `be/` + `fe/` with nested specs) *or* onboard an existing one, where `/ccf:ccf-init` analyzes the real structure (5 read-only agents) and writes a spec that mirrors it — no layout forced on you.
+- **Adapts to your codebase** — bootstrap a fresh project as a monorepo (git init at the root; fullstack splits into `be/` + `fe/` with nested specs) *or* onboard an existing one, where `/ccf:init` analyzes the real structure (5 read-only agents) and writes a spec that mirrors it — no layout forced on you.
 
 ## Why CCF — the problems it solves
 
 | Pain in plain Claude Code | What CCF does about it |
 |---|---|
 | Context "rots" over a long session; the model drifts from the rules | A **`SessionStart` hook** re-injects the context-first reminder every start/clear/compact, and re-loads your in-progress task after a compact. |
-| The spec silently falls behind the code | Two **freshness hooks** compare the spec's vs the code's last **git commit time** and *nudge* `/ccf:ccf-updatespec` — at session start and when you stop. |
-| Planning slips straight into editing files | A **`UserPromptSubmit` hook** hard-blocks `/ccf:ccf-plan` unless you're in plan mode — planning stays read-only and reviewable. |
+| The spec silently falls behind the code | Two **freshness hooks** compare the spec's vs the code's last **git commit time** and *nudge* `/ccf:updatespec` — at session start and when you stop. |
+| Planning slips straight into editing files | A **`UserPromptSubmit` hook** hard-blocks `/ccf:plan` unless you're in plan mode — planning stays read-only and reviewable. |
 | Design decisions made from stale memory | Bundled **Context7 + Microsoft Learn** MCP servers; CCF prompts cite official docs before writing. |
-| Mistakes repeat across sessions | `/ccf:ccf-updatespec` writes **two tiers** — project rules to the spec, anti-mistake feedback to system **memory** (loaded at higher weight). |
+| Mistakes repeat across sessions | `/ccf:updatespec` writes **two tiers** — project rules to the spec, anti-mistake feedback to system **memory** (loaded at higher weight). |
 | Big-bang features that are hard to review | Plans are a **sequential waterfall of vertical slices**, each a thin tracer-bullet (DB→service→UI) with its own test gate. |
 | Tests written loosely (or skipped) under time pressure | An **opt-in test discipline** — when on, `ccf-implementer` designs a contract-level matrix (Equivalence Partitioning + Boundary Value Analysis + decision table) and writes the tests failing-first as part of implement, and a generated **Stop-hook gate blocks stopping** until the tests actually pass. Ship-fast flows simply don't opt in. |
 
@@ -41,20 +41,20 @@ claude plugin marketplace add D:/projects/ccf
 claude plugin install ccf@ccf
 ```
 
-After installing, open Claude Code in your project folder and run `/ccf:ccf-init`.
+After installing, open Claude Code in your project folder and run `/ccf:init`.
 
 ## The 6 commands
 
 | Command | What it does |
 |---------|--------------|
-| `/ccf:ccf-init` | Bootstrap a new project (interview → generate CLAUDE.md + .claude + plan) or onboard an existing one (5 read-only analyzer agents map the real structure). |
-| `/ccf:ccf-plan` | Create a sequential plan for one feature, grounded in best practices. **Requires plan mode** (Shift+Tab) — enforced by a hook. After planning, execute each task with an agent. |
-| `/ccf:ccf-check` | Verify the implementation against the spec (conformance, conventions, SOLID/OOP, BE↔FE cross-check). Read-only. |
-| `/ccf:ccf-fix` | Disciplined debugging: reproduce → trace logs/DB step by step → root cause → failing test → minimal fix. No guessing. |
-| `/ccf:ccf-updatespec` | Update the spec **and system memory** with this session's lessons (incl. new tools with "when to use"). |
-| `/ccf:ccf-cook` | Run the whole todo/in-progress backlog in one go: sequential `ccf-implementer` loop (stop on any red gate), then a batch-verify pass (review + `/code-review` in parallel, `/simplify`, re-gate, `/ccf:ccf-updatespec`). Mutually exclusive with `auto-verify.mjs --auto-verify`. |
+| `/ccf:init` | Bootstrap a new project (interview → generate CLAUDE.md + .claude + plan) or onboard an existing one (5 read-only analyzer agents map the real structure). |
+| `/ccf:plan` | Create a sequential plan for one feature, grounded in best practices. **Requires plan mode** (Shift+Tab) — enforced by a hook. After planning, execute each task with an agent. |
+| `/ccf:check` | Verify the implementation against the spec (conformance, conventions, SOLID/OOP, BE↔FE cross-check). Read-only. |
+| `/ccf:fix` | Disciplined debugging: reproduce → trace logs/DB step by step → root cause → failing test → minimal fix. No guessing. |
+| `/ccf:updatespec` | Update the spec **and system memory** with this session's lessons (incl. new tools with "when to use"). |
+| `/ccf:cook` | Run the whole todo/in-progress backlog in one go: sequential `ccf-implementer` loop (stop on any red gate), then a batch-verify pass (review + `/code-review` in parallel, `/simplify`, re-gate, `/ccf:updatespec`). Mutually exclusive with `auto-verify.mjs --auto-verify`. |
 
-Typical flow: `ccf-init` → (plan mode) `ccf-plan` → implement (per task, or the whole backlog via `/ccf:ccf-cook`) → `ccf-check` → `/code-review` → `ccf-updatespec`. When the test discipline is ON, `ccf-implementer` writes the contract-level matrix tests during implement and the verify chain runs them.
+Typical flow: `/ccf:init` → (plan mode) `/ccf:plan` → implement (per task, or the whole backlog via `/ccf:cook`) → `/ccf:check` → `/code-review` → `/ccf:updatespec`. When the test discipline is ON, `ccf-implementer` writes the contract-level matrix tests during implement and the verify chain runs them.
 
 ## The 6 agents
 
@@ -62,7 +62,7 @@ Specialized subagents that **inherit the host project's tools, MCP servers and s
 
 | Agent | Role | Mode |
 |---|---|---|
-| `ccf-codebase-analyzer` | Analyzes one slice of an existing codebase; `/ccf-init` fans out 5 in parallel. | read-only |
+| `ccf-codebase-analyzer` | Analyzes one slice of an existing codebase; `/ccf:init` fans out 5 in parallel. | read-only |
 | `ccf-best-practice-researcher` | Fetches cited best practices from Context7 / MS Learn in an isolated context. | read-only |
 | `ccf-implementer` | Implements **exactly one** plan task: failing test first, then code to meet acceptance criteria. | writes |
 | `ccf-spec-writer` | Drafts CLAUDE.md / rules content from a decisions summary. | drafts |
@@ -75,17 +75,17 @@ Commands and agents are *prompts* (a model can choose to ignore a prompt). **Hoo
 
 | Hook | Event | What it guarantees |
 |---|---|---|
-| **plan-mode-guard** | `UserPromptSubmit` | If a prompt contains `/ccf:ccf-plan` but the session is **not in plan mode**, it **blocks** (exit 2) and tells you to enter plan mode. Every other prompt passes through untouched. This is the *enforced* half of "planning is read-only and reviewed before execution". |
-| **plan-review-gate** | `PreToolUse` (`ExitPlanMode`) | In a `/ccf-plan` session, **denies** `ExitPlanMode` (so the plan can't be presented for approval) until the transcript shows a `ccf-spec-checker` plan review ran. Best-effort on the undocumented transcript shape: any read failure or a non-CCF session passes through, so it never blocks wrongly — strong enforcement backed by `ccf-plan`'s step-6 prompt. (The review now includes a premortem lens; the gate mechanism is unchanged.) |
+| **plan-mode-guard** | `UserPromptSubmit` | If a prompt contains `/ccf:plan` but the session is **not in plan mode**, it **blocks** (exit 2) and tells you to enter plan mode. Every other prompt passes through untouched. This is the *enforced* half of "planning is read-only and reviewed before execution". |
+| **plan-review-gate** | `PreToolUse` (`ExitPlanMode`) | In a `/ccf:plan` session, **denies** `ExitPlanMode` (so the plan can't be presented for approval) until the transcript shows a `ccf-spec-checker` plan review ran. Best-effort on the undocumented transcript shape: any read failure or a non-CCF session passes through, so it never blocks wrongly — strong enforcement backed by `/ccf:plan`'s step-6 prompt. (The review now includes a premortem lens; the gate mechanism is unchanged.) |
 | **session-start** | `SessionStart` (`startup\|clear\|compact`) | Injects the context-first reminder so the model wakes up already in CCF mode. If **CCF-managed**, it adds a *freshness signal* when the code looks newer than the spec, and after a `compact`/`clear` it **re-loads the in-progress task** from `.claude/plan/PLAN.md` so you resume exactly where you left off. |
-| **updatespec-nudge** | `Stop` | Purely **advisory**, never blocks. Three independent nudges: **(A)** if you edited code this session but ran no tests, it reminds you to *verify your work* (run the tests / type-check); **(B)** if the code changed but the spec didn't, it nudges `/ccf:ccf-check` then `/ccf:ccf-updatespec`; **(C)** if you ran `git commit` this session but `PLAN.md` still has tasks not `done`, it nudges you to mark each `done` (only after its `/ccf-check` + `/code-review`) or fix its status. Guards against re-trigger loops via `stop_hook_active`. |
-| **auto-verify** | `Stop` | **Opt-in** (default off) and the only CCF Stop hook that can **block**. Enable by adding `--auto-verify` to the `auto-verify.mjs` command in `hooks.json`. When a task is **in-review**, this session **changed code**, and no `ccf-spec-checker` review has run yet, it returns `decision: "block"` (the "ralph loop") with a reason that drives the main loop through the verify chain — `/ccf:ccf-check` → `/code-review` → (run the project's test command if the test discipline is on) → `/ccf:ccf-updatespec` only when both come back clean. Guards against loops via `stop_hook_active`; best-effort, any error exits silently. |
+| **updatespec-nudge** | `Stop` | Purely **advisory**, never blocks. Three independent nudges: **(A)** if you edited code this session but ran no tests, it reminds you to *verify your work* (run the tests / type-check); **(B)** if the code changed but the spec didn't, it nudges `/ccf:check` then `/ccf:updatespec`; **(C)** if you ran `git commit` this session but `PLAN.md` still has tasks not `done`, it nudges you to mark each `done` (only after its `/ccf:check` + `/code-review`) or fix its status. Guards against re-trigger loops via `stop_hook_active`. |
+| **auto-verify** | `Stop` | **Opt-in** (default off) and the only CCF Stop hook that can **block**. Enable by adding `--auto-verify` to the `auto-verify.mjs` command in `hooks.json`. When a task is **in-review**, this session **changed code**, and no `ccf-spec-checker` review has run yet, it returns `decision: "block"` (the "ralph loop") with a reason that drives the main loop through the verify chain — `/ccf:check` → `/code-review` → (run the project's test command if the test discipline is on) → `/ccf:updatespec` only when both come back clean. Guards against loops via `stop_hook_active`; best-effort, any error exits silently. |
 | **context-guard** | `UserPromptSubmit` | When the session transcript shows context has crossed ~40% of the model window — capped at an absolute ~300k tokens, since 40% of a 1M-native window (Opus/Sonnet 4.x) would be unreachable before auto-compact — i.e. the "dumb zone", it surfaces a **proactive `/compact`** warning (with a ready-made hint pre-filled from your active task). **Default = warn**, non-blocking: the advice reaches both you (`systemMessage`) and the model (`additionalContext`) every turn. **Opt into hard-block** by adding `--hard-block` to the `context-guard.mjs` command in `hooks.json` — it then **blocks** (exit 2) any over-threshold prompt until you compact, with an escape hatch (prefix the prompt with `/compact`, or include `ccf:override`). Best-effort: if it can't read the transcript it stays silent. |
 | **agent-rules-inject** | `SubagentStart` | Output styles modify only the **main** loop and aren't inherited by subagents, so a spawned file-writing `ccf-implementer` could violate the coding rules. At spawn this hook **injects** (via `additionalContext`) a directive to read & obey the project rules (`.claude/rules/*` + CLAUDE.md) plus the active output style's **coding** rules (persona/tone/emoji excluded), then self-check. Only the writer agent gets it (read-only agents are a no-op); best-effort, never blocks the spawn. |
 | **explore-guide-inject** | `SubagentStart` (`Explore`) | CCF doesn't own the built-in `Explore` subagent's prompt, so at spawn this hook **injects** (via `additionalContext`) a short, **language-agnostic, LSP-conditional** exploration directive: prefer semantic navigation (the `LSP` tool — `workspaceSymbol`/`goToDefinition`/`findReferences`/`documentSymbol`, falling back when no server exists) plus ripgrep-backed `Grep` and `Glob`, and read whole files only after locating the region. Best-effort, never blocks the spawn. |
 | **implementer-verify-gate** | `SubagentStop` (`ccf-implementer`) | **Opt-in** (default off), child-scoped. Enable by adding `--enforce-tests` to the `implementer-verify-gate.mjs` command in `hooks.json`. When a spawned `ccf-implementer`'s final message carries no `TEST-RESULT:` evidence (the pinned Return-format line — a real result OR the prose-only `TEST-RESULT: n/a (no test surface)`), it returns `decision: "block"` telling the implementer to add the line and finish again; this only keeps the SUBAGENT running, it does not affect the main loop. Defensive-by-design: SubagentStop's loop-guard/`transcript_path` shape were unconfirmed by docs at authoring time; best-effort, any error exits silently. |
 
-**Freshness heuristic (shared, single source of truth in `hooks/lib/freshness.mjs`):** both freshness-aware hooks compare the last **git commit time** (`git log -1 --format=%ct`) of *code* files against that of *spec* files (`.md` under `.claude/rules` + `CLAUDE.md`) — committer time, so it reflects real content change and is **immune to `mtime` churn** from `checkout`/`pull`/`clone`. When git can't answer (not a git repo, or a path with no commits yet — e.g. a freshly `/ccf-init`-ed project) it **falls back to a depth-limited `mtime` walk** that works for *any* layout (`src/`, `server/`, `packages/x/src`, plugin-style `plugins/x/hooks`, or code at the root). It is a lightweight nudge, never a hard conclusion — a content-level "is the spec still accurate?" judgment is left to `/ccf:ccf-updatespec`.
+**Freshness heuristic (shared, single source of truth in `hooks/lib/freshness.mjs`):** both freshness-aware hooks compare the last **git commit time** (`git log -1 --format=%ct`) of *code* files against that of *spec* files (`.md` under `.claude/rules` + `CLAUDE.md`) — committer time, so it reflects real content change and is **immune to `mtime` churn** from `checkout`/`pull`/`clone`. When git can't answer (not a git repo, or a path with no commits yet — e.g. a freshly `/ccf:init`-ed project) it **falls back to a depth-limited `mtime` walk** that works for *any* layout (`src/`, `server/`, `packages/x/src`, plugin-style `plugins/x/hooks`, or code at the root). It is a lightweight nudge, never a hard conclusion — a content-level "is the spec still accurate?" judgment is left to `/ccf:updatespec`.
 
 **Why hooks are auto-loaded, not declared:** like commands/agents/MCP, hooks load automatically from the standard `hooks/hooks.json` location — current Claude Code (v2.1.x) auto-discovers it. Do **not** add a `"hooks"` field to `plugin.json` pointing back at the standard path: that loads the file twice and fails with `Duplicate hooks file detected`. The `manifest.hooks` field is only for *additional* hook files at a non-standard path.
 
@@ -100,7 +100,7 @@ The plugin bundles 2 MCP servers (plugin scope, auto started/stopped by Claude C
 
 ## Spec vs Memory (two context tiers)
 
-`/ccf:ccf-updatespec` records lessons in **two places** with different purposes:
+`/ccf:updatespec` records lessons in **two places** with different purposes:
 
 - **Spec** (`CLAUDE.md` + `.claude/rules/`) — loaded as a *user message*, lower weight. Holds **project rules**: conventions, architecture, tech-stack, tooling.
 - **Memory** (`~/.claude/projects/<path>/memory/`) — loaded into the *system prompt*, **not down-weighted**, so Claude follows it more strongly. Holds **anti-mistake feedback** + **user preferences** across sessions → helps Claude repeat fewer mistakes.
@@ -114,7 +114,7 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 
 ## Plan = sequential waterfall of vertical slices
 
-`/ccf:ccf-init` and `/ccf:ccf-plan` produce one plan in `.claude/plan/` (a `PLAN.md` index + `task-NNN-*.md` files). Each task is a **thin vertical slice** — a tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, each as *spec → failing test → implement*. Every task has exactly **one predecessor** and names the **test gate** that must be green before the next slice starts. This is what makes "strictly sequential" concrete and reviewable.
+`/ccf:init` and `/ccf:plan` produce one plan in `.claude/plan/` (a `PLAN.md` index + `task-NNN-*.md` files). Each task is a **thin vertical slice** — a tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, each as *spec → failing test → implement*. Every task has exactly **one predecessor** and names the **test gate** that must be green before the next slice starts. This is what makes "strictly sequential" concrete and reviewable.
 
 ## Architecture
 
@@ -122,7 +122,7 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 - **Agents** = 6 specialized subagents (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
 - **Skills** = 1 internal skill (`grill-me`) — the shared requirements-interview engine the commands invoke via the Skill tool; hidden from the `/` menu (`user-invocable: false`).
 - **Hooks** = 9 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, context-usage, review-trace, git-trace, verify-trace, verify-chain, output-style, explore-guide, implementer-verify) live in `hooks/lib/`.
-- **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:ccf-init` instantiates.
+- **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:init` instantiates.
 
 See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.
 

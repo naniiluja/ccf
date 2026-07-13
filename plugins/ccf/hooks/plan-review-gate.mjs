@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// CCF plan-review gate — enforces that a /ccf-plan session reviews its plan before presenting it.
+// CCF plan-review gate — enforces that a /ccf:plan session reviews its plan before presenting it.
 // Event: PreToolUse, matcher ExitPlanMode (the tool that surfaces the plan for user approval).
-// Deterministic mechanism: read the transcript best-effort; if this IS a /ccf-plan session and no
+// Deterministic mechanism: read the transcript best-effort; if this IS a /ccf:plan session and no
 // ccf-spec-checker review has run yet → deny ExitPlanMode (permissionDecision) with guidance.
 // Best-effort: the transcript .jsonl shape is undocumented, so ANY read/parse failure → allow
-// (never block a non-CCF or unreadable session). This is the deterministic backbone; ccf-plan's
+// (never block a non-CCF or unreadable session). This is the deterministic backbone; plan.md's
 // step 6 prompt is the defense-in-depth backup layer.
 
 import { existsSync, readFileSync } from "node:fs";
@@ -25,7 +25,7 @@ try {
 
 const records = parseJsonl(raw);
 
-// Scope: only enforce inside a /ccf-plan session; leave every other ExitPlanMode untouched.
+// Scope: only enforce inside a /ccf:plan session; leave every other ExitPlanMode untouched.
 if (!hasCcfPlanCommand(records)) process.exit(0);
 
 if (hasSpecCheckerReview(records)) process.exit(0); // already reviewed → allow

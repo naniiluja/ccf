@@ -1,5 +1,5 @@
 // CCF review-trace helpers — pure logic for the plan-review-gate hook (PreToolUse / ExitPlanMode).
-// Decides, from the session transcript (.jsonl), whether the current /ccf-plan session has already
+// Decides, from the session transcript (.jsonl), whether the current /ccf:plan session has already
 // had its plan reviewed by the ccf-spec-checker subagent. Kept pure + defensive so it is
 // unit-testable with `node --test` and never throws.
 //
@@ -27,9 +27,11 @@ export function parseJsonl(raw) {
 }
 
 /**
- * True when the transcript shows this is a /ccf-plan session (the user invoked the command in
- * either its namespaced `/ccf:ccf-plan` or bare `/ccf-plan` form). Outside such a session the gate
- * must NOT fire, so this scopes the deny to CCF planning only.
+ * True when the transcript shows this is a /ccf:plan session (the user invoked the command in
+ * its namespaced `/ccf:plan` form). ONLY the namespaced form is matched: after dropping the
+ * `ccf-` prefix, the bare `/plan` is Claude Code's BUILT-IN plan command (not CCF's), so matching
+ * bare `/plan` would over-fire the gate on an unrelated built-in session. Anchored with a word
+ * boundary after "plan" so it does not over-match "planning" or "/ccf:plan-b".
  * @param {Array<Record<string, any>>} records parsed transcript records
  * @returns {boolean}
  */
@@ -37,7 +39,7 @@ export function hasCcfPlanCommand(records) {
   for (const r of records) {
     if (!r || r.type !== "user") continue;
     const text = JSON.stringify(r.message?.content ?? r.message ?? r);
-    if (/\/ccf:ccf-plan|\/ccf-plan/.test(text)) return true;
+    if (/\/ccf:plan\b/.test(text)) return true;
   }
   return false;
 }

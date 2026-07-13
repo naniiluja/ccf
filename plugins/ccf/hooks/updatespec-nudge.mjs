@@ -49,7 +49,7 @@ if (needsVerifyNudge(readTranscriptSignals(transcriptPath))) {
 if (specsOlderThanCode(cwd, rulesDir)) {
   parts.push(
     "<ccf>Code changed this session but the spec wasn't updated. " +
-      "Consider running /ccf:ccf-check then /ccf:ccf-updatespec to keep context fresh for future sessions.</ccf>",
+      "Consider running /ccf:check then /ccf:updatespec to keep context fresh for future sessions.</ccf>",
   );
 }
 
@@ -60,7 +60,7 @@ if (committedThisSession(transcriptPath)) {
     const ids = pending.map((t) => t.id).join(", ");
     parts.push(
       `<ccf>You committed code this session but PLAN.md still has ${pending.length} task(s) not 'done' (ids ${ids}). ` +
-        "Mark each 'done' only after its /ccf-check + /code-review pass, or fix its status.</ccf>",
+        "Mark each 'done' only after its /ccf:check + /code-review pass, or fix its status.</ccf>",
     );
   }
 }

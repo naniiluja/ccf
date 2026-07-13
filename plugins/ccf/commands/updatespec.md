@@ -5,7 +5,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 model: opus
 ---
 
-You are running CCF `/ccf-updatespec`. Goal: distill this session's lessons into **two places** — the project spec (`.claude/`) and Claude Code's system memory — so future sessions start with fresh context and Claude repeats fewer mistakes.
+You are running CCF `/ccf:updatespec`. Goal: distill this session's lessons into **two places** — the project spec (`.claude/`) and Claude Code's system memory — so future sessions start with fresh context and Claude repeats fewer mistakes.
 
 > **Why two places (important — decides what goes where):**
 > - **Spec** (`CLAUDE.md` + `.claude/rules/`) is loaded as a *user message*, tagged "may not be relevant" → lower weight. Good for **project rules**: conventions, architecture, tech-stack, tooling.
@@ -36,7 +36,7 @@ If this session added a new **skill / MCP server / subagent / tool** (e.g. the u
 
 ### 5. Update system memory (cross-session anti-mistake)
 For the lessons classified as **memory** in step 1, write them to this project's memory directory: `~/.claude/projects/<sanitized-project-path>/memory/`.
-> **Auto Memory interplay:** Claude Code's `autoMemoryEnabled` (on by default, v2.1.59+) may already have auto-saved notes from this session; `/ccf-updatespec` is the *deliberate curation* pass — review/dedupe what's there, then write the high-signal lessons explicitly rather than relying on the auto-extractor.
+> **Auto Memory interplay:** Claude Code's `autoMemoryEnabled` (on by default, v2.1.59+) may already have auto-saved notes from this session; `/ccf:updatespec` is the *deliberate curation* pass — review/dedupe what's there, then write the high-signal lessons explicitly rather than relying on the auto-extractor.
 - Each memory is **one file** holding **one fact**, with frontmatter `name` (kebab-case), `description` (one line — used for recall), `metadata.type` (`feedback` | `user` | `project` | `reference`).
 - For `feedback`/`project`: the body is followed by `**Why:**` and `**How to apply:**` lines. The `**Why:**` is MANDATORY, not decoration: without it Claude obeys rigidly and stalls on edge cases; with it Claude grasps the intent and handles ambiguous cases on its own.
 - Before creating a new file, **check for an existing file** covering the same fact → update it instead of duplicating; delete memories that turn out to be wrong.
@@ -44,7 +44,7 @@ For the lessons classified as **memory** in step 1, write them to this project's
 - **Memory is point-in-time:** describe a memory by intent/behavior, NOT a code location (e.g. "auth via middleware in main.go", not "the check at line 42") — a recalled memory reflects what was true when written, so a reader must verify the file/function/flag still exists before asserting it as fact.
 
 ### 6. Sync the plan
-If `.claude/plan/` changed (tasks done, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:ccf-check` + `/code-review` cleanly → mark it `done` here. `ccf-implementer` only ever reaches `in-review`; `ccf-check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` (or move back to `in-progress`) — do NOT mark `done`.
+If `.claude/plan/` changed (tasks done, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:check` + `/code-review` cleanly → mark it `done` here. `ccf-implementer` only ever reaches `in-review`; `/ccf:check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` (or move back to `in-progress`) — do NOT mark `done`.
 
 ## Closing (mandatory, per output style)
 - **Check harness-level attribution:** confirm `.claude/settings.json` exists with an `attribution` key set (the deterministic, harness-enforced replacement for the deprecated `includeCoAuthoredBy` and for any "never add Co-Authored-By" narrative). If the file is missing or `attribution` is absent, **nudge the user** to set it (e.g. `attribution.commit`/`attribution.pr` = the desired trailer text, or `""` to suppress). Do NOT auto-write it and do NOT auto-commit.

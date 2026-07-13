@@ -29,7 +29,7 @@ description: Conventions for writing CCF plugin commands, agents, and templates 
 - Use a skill to hold a multi-step procedure reused across commands (single source of truth), not a one-off fact.
 
 ## Template (`templates/**/*.tmpl`)
-- Placeholders are `{{UPPER_SNAKE}}` for `/ccf-init` to replace when instantiating into the target project.
+- Placeholders are `{{UPPER_SNAKE}}` for `/ccf:init` to replace when instantiating into the target project.
 - Usage hints use HTML comments `<!-- ... -->` so they don't leak into the final output.
 - A `CLAUDE.md.tmpl` must itself obey the < 200-line + `@import` rule, since it is the mold for another project's spec.
 - Three template branches: `root/` (always used), `backend/` + `frontend/` (only when the target project is fullstack).

@@ -13,7 +13,7 @@ description: How to verify changes in the CCF plugin — current state and expec
   - **Use `-p typescript`**: bare `npx tsc` resolves to an UNRELATED squat package (`typescript` is not in `devDependencies`, only `@types/node` is) and fails with "This is not the tsc command you are looking for". `npx -p typescript tsc` fetches the real compiler.
   - **Dependency note**: `tsconfig.json` sets `"types": ["node"]` so it needs `@types/node` (already in `devDependencies`). This is a **type-check-only devDependency**, NOT a runtime dependency — it doesn't violate the "hook no-dependency at runtime" invariant. Never add a runtime dependency.
 - **Manual hook smoke test**: pipe simulated stdin JSON into a hook, check stdout/exit code. Examples:
-  - `'{"prompt":"/ccf:ccf-plan","permission_mode":"default"}' | node plugins/ccf/hooks/plan-mode-guard.mjs` → expect exit 2 + a message on stderr.
+  - `'{"prompt":"/ccf:plan","permission_mode":"default"}' | node plugins/ccf/hooks/plan-mode-guard.mjs` → expect exit 2 + a message on stderr.
   - `'{"source":"startup","cwd":"."}' | node plugins/ccf/hooks/session-start.mjs` → expect stdout JSON with `additionalContext`.
 - **Local install test**: `claude plugin marketplace add D:/projects/ccf` + `install`, then try the `/ccf:*` commands.
 

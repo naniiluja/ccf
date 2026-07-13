@@ -22,7 +22,7 @@ function manualInstructions() {
   console.log("Could not invoke the `claude` CLI automatically. Install manually:");
   console.log(`  1. claude plugin marketplace add ${REPO}`);
   console.log(`  2. claude plugin install ccf@${MARKETPLACE}`);
-  console.log("  3. Open Claude Code in your project folder and run /ccf:ccf-init");
+  console.log("  3. Open Claude Code in your project folder and run /ccf:init");
   console.log("");
 }
 
@@ -41,4 +41,4 @@ if (!ok2) {
 }
 
 console.log("");
-console.log("CCF installed. Open Claude Code in your project folder and run /ccf:ccf-init to start.");
+console.log("CCF installed. Open Claude Code in your project folder and run /ccf:init to start.");

@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
  * id = first cell, title = second cell, status = resolved dynamically per table — see
  * collectTaskRows (NOT assumed to be the last cell; a real-world table may put another column,
  * e.g. Predecessor, after Status). Both statuses are reloadable: an `in-review` task is still the
- * task you are on (awaiting /ccf-check + review).
+ * task you are on (awaiting /ccf:check + review).
  * @param {string} file path to PLAN.md
  * @returns {{ id: string, title: string } | null}
  */

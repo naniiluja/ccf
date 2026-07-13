@@ -5,9 +5,9 @@ allowed-tools: Read, Glob, Grep, Task, Skill
 model: opus
 ---
 
-You are running CCF `/ccf-cook`. You are the **backlog orchestrator**: after `/ccf:ccf-plan` has produced a sequential task queue, `/ccf-cook` drives it end to end — one implementer slice at a time, then a batch-verify pass — without the user re-invoking each step by hand.
+You are running CCF `/ccf:cook`. You are the **backlog orchestrator**: after `/ccf:plan` has produced a sequential task queue, `/ccf:cook` drives it end to end — one implementer slice at a time, then a batch-verify pass — without the user re-invoking each step by hand.
 
-**Mutually exclusive with `auto-verify.mjs --auto-verify`:** `/ccf-cook` drives the verify chain itself. Do NOT enable `--auto-verify` in the same workflow — see step 7.
+**Mutually exclusive with `auto-verify.mjs --auto-verify`:** `/ccf:cook` drives the verify chain itself. Do NOT enable `--auto-verify` in the same workflow — see step 7.
 
 ## 1. Read the backlog
 Read `.claude/plan/PLAN.md` + the relevant `.claude/plan/task-NNN-*.md` files. Select the `todo`/`in-progress` tasks in dependency order (respect `Depends on`; a task with an open predecessor is not eligible yet). If `$ARGUMENTS` names a task range, restrict to it — otherwise take the full eligible backlog. State the ordered task list to the user before starting.
@@ -26,32 +26,32 @@ Once every selected task is `in-review`, run TWO READ-ONLY checks **in parallel*
 - **(a) Spec/code review** — spawn `ccf-spec-checker` via Task (this is the CCF-spawned side, capped at **≤3 agents** per the sequential-work-unit convention — one reviewer is normally enough here, so this cap is rarely binding).
 - **(b) `/code-review`** — invoke via the **Skill tool** (it is a bundled Skill, not a SlashCommand — see step 6). Its internal fan-out is tuned by **effort** (low/high/ultra), not a numeric agent cap — this is NOT the same "≤3" cap as (a); it's a different mechanism entirely.
 
-Gather both results. If EITHER reports a ❌/correctness finding → **STOP here**, report to the user, do NOT proceed to `/simplify` or `/ccf:ccf-updatespec`.
+Gather both results. If EITHER reports a ❌/correctness finding → **STOP here**, report to the user, do NOT proceed to `/simplify` or `/ccf:updatespec`.
 
-**If the project opted into the test discipline** (`.claude/rules/testing.md` has the "Test design discipline" block / `Matrix required: yes`): `ccf-implementer` already designed + wrote the contract-level EP/BVA/decision-table matrix tests for each slice during step 2 (that is part of the implementer's failing-test-first flow, not a separate command). After the read-only pair comes back clean, RUN the project's test command to confirm those matrix tests actually pass before `/simplify`. This keeps `/ccf-cook`'s chain aligned with `auto-verify.mjs`/`buildVerifyReason`, which also runs the matrix tests when the discipline is on. When the discipline is OFF, skip this (no matrix forced).
+**If the project opted into the test discipline** (`.claude/rules/testing.md` has the "Test design discipline" block / `Matrix required: yes`): `ccf-implementer` already designed + wrote the contract-level EP/BVA/decision-table matrix tests for each slice during step 2 (that is part of the implementer's failing-test-first flow, not a separate command). After the read-only pair comes back clean, RUN the project's test command to confirm those matrix tests actually pass before `/simplify`. This keeps `/ccf:cook`'s chain aligned with `auto-verify.mjs`/`buildVerifyReason`, which also runs the matrix tests when the discipline is on. When the discipline is OFF, skip this (no matrix forced).
 
 ## 4. `/simplify` (runs alone, after the read-only pair finishes)
 `/simplify` **WRITES files** (cleanup: helper reuse, simplification, efficiency, abstraction — a fixed 4-parallel-agent fan-out, not numerically cappable). Invoke it via the **Skill tool** only AFTER both (a) and (b) from step 3 have finished, to avoid a race between a read-only reviewer diffing the tree and `/simplify` rewriting it.
 
-## 5. Re-gate after `/simplify`, then `/ccf:ccf-updatespec`
+## 5. Re-gate after `/simplify`, then `/ccf:updatespec`
 `/simplify` can change code, so re-run the **deterministic** gates only (this is NOT a fresh correctness review — that already happened in step 3; re-gating here just confirms `/simplify`'s edits didn't break anything mechanical):
 - `npx -p typescript tsc --noEmit`
 - `node --test plugins/ccf/hooks/lib/*.test.mjs` (+ any template libs the task touched)
 - `claude plugin validate plugins/ccf`
 
-**Only if** step 3's review + code-review came back clean (no ❌) **AND** this re-gate is green → invoke `/ccf:ccf-updatespec` (via Skill/SlashCommand if exposed, else instruct the user to run it) to mark the tasks `done`. **Any ❌ or red gate anywhere → STOP, report to the user, do NOT mark anything `done`.**
+**Only if** step 3's review + code-review came back clean (no ❌) **AND** this re-gate is green → invoke `/ccf:updatespec` (via Skill/SlashCommand if exposed, else instruct the user to run it) to mark the tasks `done`. **Any ❌ or red gate anywhere → STOP, report to the user, do NOT mark anything `done`.**
 
 ## 6. Fallback when Skill/SlashCommand isn't exposed
-Not every harness exposes the Skill tool or a SlashCommand tool for invoking `/code-review`, `/simplify`, or `/ccf:ccf-updatespec` (this varies by environment — do not assume). If a call fails or the tool isn't available: **tell the user explicitly** which step could not be auto-invoked, and instruct them to run it by hand, in the same order (`/ccf:ccf-check` → `/code-review` → run the project's test command if the test discipline is on → `/simplify` → re-gate → `/ccf:ccf-updatespec`) — the same manual sequence `auto-verify.mjs` documents as its own fallback.
+Not every harness exposes the Skill tool or a SlashCommand tool for invoking `/code-review`, `/simplify`, or `/ccf:updatespec` (this varies by environment — do not assume). If a call fails or the tool isn't available: **tell the user explicitly** which step could not be auto-invoked, and instruct them to run it by hand, in the same order (`/ccf:check` → `/code-review` → run the project's test command if the test discipline is on → `/simplify` → re-gate → `/ccf:updatespec`) — the same manual sequence `auto-verify.mjs` documents as its own fallback.
 
 ## 7. Relationship with `auto-verify.mjs`
-`/ccf-cook` and the opt-in `auto-verify.mjs` Stop hook both drive the SAME verify chain — do not run both in the same workflow:
-- If you use `/ccf-cook`, do NOT also enable `--auto-verify` in `hooks.json` — they would double-drive the chain.
-- When `/ccf-cook` DID successfully spawn `ccf-spec-checker` via Task (step 3a), `auto-verify.mjs`'s own `checkAlreadyRan`/`hasSpecCheckerReview` guard will see that review in the transcript and auto-suppress a redundant drive at Stop — so leaving `--auto-verify` on is harmless (merely redundant) in that case.
-- In the **manual-fallback** branch (step 6 — no Task spawn happened because Skill/SlashCommand wasn't available), that guard does NOT fire (there is no `ccf-spec-checker` transcript entry to detect), so `auto-verify.mjs` re-driving the chain at Stop is CORRECT and harmless — it picks up exactly the work `/ccf-cook` couldn't finish itself.
+`/ccf:cook` and the opt-in `auto-verify.mjs` Stop hook both drive the SAME verify chain — do not run both in the same workflow:
+- If you use `/ccf:cook`, do NOT also enable `--auto-verify` in `hooks.json` — they would double-drive the chain.
+- When `/ccf:cook` DID successfully spawn `ccf-spec-checker` via Task (step 3a), `auto-verify.mjs`'s own `checkAlreadyRan`/`hasSpecCheckerReview` guard will see that review in the transcript and auto-suppress a redundant drive at Stop — so leaving `--auto-verify` on is harmless (merely redundant) in that case.
+- In the **manual-fallback** branch (step 6 — no Task spawn happened because Skill/SlashCommand wasn't available), that guard does NOT fire (there is no `ccf-spec-checker` transcript entry to detect), so `auto-verify.mjs` re-driving the chain at Stop is CORRECT and harmless — it picks up exactly the work `/ccf:cook` couldn't finish itself.
 
 ## 8. Context management
-Suggest `/compact` between implement slices (step 2) once the transcript grows large — a long sequential backlog accumulates context fast. Recommend running `/ccf-cook` over a **small backlog** per invocation (a handful of tasks, not an entire multi-iteration plan) so a single session stays within a manageable context budget and a RED gate stops the loop early rather than deep into a long queue.
+Suggest `/compact` between implement slices (step 2) once the transcript grows large — a long sequential backlog accumulates context fast. Recommend running `/ccf:cook` over a **small backlog** per invocation (a handful of tasks, not an entire multi-iteration plan) so a single session stays within a manageable context budget and a RED gate stops the loop early rather than deep into a long queue.
 
 **OPTIONAL secondary stop condition:** if the official `/goal` command is available (OPTIONAL, may be absent on an older Claude Code build), the user MAY set a condition such as `/goal all selected tasks are in-review` to keep the session working autonomously across the implement loop. This is a SECONDARY convenience only — it does NOT replace the sequential law's stop-on-red-gate (step 2.3): a RED gate still STOPS the loop immediately regardless of any `/goal` condition.
 

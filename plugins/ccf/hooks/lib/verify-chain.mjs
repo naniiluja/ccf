@@ -39,7 +39,7 @@ export function shouldDriveVerify(signals) {
 
 /**
  * Read whether the project opted into the test-design discipline, from <rulesDir>/testing.md.
- * The opt-in signal (matching the /ccf-init template) is the "Test design discipline" block together
+ * The opt-in signal (matching the /ccf:init template) is the "Test design discipline" block together
  * with a `Matrix required: yes` line. Best-effort: missing/unreadable file or any error → false.
  * @param {string} rulesDir path to the project's .claude/rules directory
  * @returns {boolean}
@@ -63,7 +63,7 @@ export function readDisciplineOn(rulesDir) {
 
 /**
  * Build the verify-chain reason fed to the main loop via decision:"block". Names the ORDERED steps:
- *   /ccf:ccf-check → /code-review → (run the project's test suite only if disciplineOn) → /ccf:ccf-updatespec.
+ *   /ccf:check → /code-review → (run the project's test suite only if disciplineOn) → /ccf:updatespec.
  * updatespec runs ONLY when check + review are clean (no ❌); any ❌ → STOP + tell the user, do NOT
  * mark done; if /code-review cannot self-invoke, run the rest + ask the user to run it by hand.
  * Pure: garbage input coerces to disciplineOn=false; always returns a non-empty string.
@@ -78,10 +78,10 @@ export function buildVerifyReason(opts) {
   return (
     "<ccf-auto-verify>This task is in-review and you changed code this session. Drive the verify chain IN ORDER " +
     "before stopping — do not stop early:\n" +
-    "1. Run /ccf:ccf-check (conformance + conventions review of the implementation).\n" +
+    "1. Run /ccf:check (conformance + conventions review of the implementation).\n" +
     "2. Run /code-review on the current diff.\n" +
     testStep +
-    "Only when BOTH /ccf:ccf-check and /code-review come back CLEAN (no ❌ findings) run /ccf:ccf-updatespec to " +
+    "Only when BOTH /ccf:check and /code-review come back CLEAN (no ❌ findings) run /ccf:updatespec to " +
     "refresh the spec and mark the task done. If any step reports a ❌ failing finding, STOP, report it to the user, " +
     "and do NOT mark the task done. If /code-review cannot be invoked automatically, run the remaining steps and " +
     "ask the user to run /code-review by hand.</ccf-auto-verify>"

@@ -4,7 +4,7 @@
 // Kept pure + defensive so it is unit-testable with `node --test` and never throws — a missing or
 // malformed signal object decays to a safe "do not block".
 //
-// NOTE: this lib is shipped into a TARGET project by /ccf-init and is intentionally self-contained
+// NOTE: this lib is shipped into a TARGET project by /ccf:init and is intentionally self-contained
 // (the hook copies the io/transcript-reading pattern in rather than importing from the plugin).
 
 /** @typedef {{ editedCode?: boolean, ranTests?: boolean, testFailed?: boolean }} GateSignals */

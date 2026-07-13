@@ -25,7 +25,7 @@ let msg =
   "Ground every design decision in Context7 + Microsoft Learn. Keep CLAUDE.md/.claude always fresh.";
 
 if (!managed) {
-  msg += " This project is NOT yet CCF-initialized — run /ccf:ccf-init to start.</ccf>";
+  msg += " This project is NOT yet CCF-initialized — run /ccf:init to start.</ccf>";
   emitContext("SessionStart", msg);
 }
 
@@ -34,7 +34,7 @@ if (!managed) {
 // Freshness signal: spec older than code → nudge updatespec.
 if (specsOlderThanCode(cwd, rulesDir)) {
   msg +=
-    " The spec looks older than the code — consider running /ccf:ccf-updatespec to refresh context.";
+    " The spec looks older than the code — consider running /ccf:updatespec to refresh context.";
 }
 
 // Re-load the active task (in-progress OR in-review) after compact/clear.

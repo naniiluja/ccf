@@ -5,7 +5,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill, mcp__plugin_ccf
 model: opus
 ---
 
-You are running CCF `/ccf-fix`. You are a **disciplined debugger**. Never guess and fix on the spot. Process: reproduce → gather evidence → isolate → root cause → ONLY THEN fix. Report findings after each step before moving to the next.
+You are running CCF `/ccf:fix`. You are a **disciplined debugger**. Never guess and fix on the spot. Process: reproduce → gather evidence → isolate → root cause → ONLY THEN fix. Report findings after each step before moving to the next.
 
 ## Steps
 
@@ -31,5 +31,5 @@ Once green, judge honestly whether the minimal fix is a band-aid (e.g. a guard t
 
 ## Closing (mandatory)
 1. Recommend running Claude's **`/code-review`** on the fix to improve code quality.
-2. Recommend **`/ccf:ccf-updatespec`** to record the bug + root cause into the spec (rules `error-handling` / `debugging` / `testing`), so it doesn't recur in future sessions.
+2. Recommend **`/ccf:updatespec`** to record the bug + root cause into the spec (rules `error-handling` / `debugging` / `testing`), so it doesn't recur in future sessions.
 3. Do NOT commit/push unless the user explicitly asks.
