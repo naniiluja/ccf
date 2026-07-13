@@ -43,7 +43,7 @@ claude plugin install ccf@ccf
 
 Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:ccf-init`.
 
-## 6 lệnh
+## 7 lệnh
 
 | Lệnh | Tác dụng |
 |------|----------|
@@ -53,12 +53,13 @@ Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:ccf-init
 | `/ccf:ccf-test` | Thiết kế ma trận test ở mức contract (EP + BVA + decision table) cho một hàm/slice, viết test failing-first, chạy, rồi báo cáo kết quả thực tế so với coverage gate. Chỉ chạy khi dự án đã opt-in test discipline. |
 | `/ccf:ccf-fix` | Debug có kỷ luật: tái hiện → trace log/DB từng bước → root cause → failing test → fix tối thiểu. Không đoán mò. |
 | `/ccf:ccf-updatespec` | Cập nhật spec **và memory hệ thống** với bài học trong session (gồm công cụ mới kèm "dùng khi nào"). |
+| `/cook` | Chạy toàn bộ backlog todo/in-progress trong một lần: vòng lặp tuần tự `ccf-implementer` (dừng ngay khi gate đỏ), rồi batch-verify (review + `/code-review` song song, `/simplify`, re-gate, `/ccf:ccf-updatespec`). Loại trừ lẫn nhau với `auto-verify.mjs --auto-verify`. |
 
-Luồng điển hình: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → (`ccf-test` khi test discipline bật) → `/code-review` → `ccf-updatespec`.
+Luồng điển hình: `ccf-init` → (plan mode) `ccf-plan` → implement (từng task, hoặc cả backlog qua `/cook`) → `ccf-check` → (`ccf-test` khi test discipline bật) → `/code-review` → `ccf-updatespec`.
 
 ## 6 agent
 
-Các subagent chuyên biệt **kế thừa tool, MCP server và skill của dự án host** — nên chúng dùng được bất kỳ MCP nào dự án bạn cung cấp (Supabase, Oracle, chrome-devtools, …) và gọi được skill của dự án, không phải bảo trì allowlist riêng cho từng agent. Các agent read-only (tất cả trừ `ccf-implementer`) mang `disallowedTools: Write, Edit, NotebookEdit`, nên cũng có cùng tầm với MCP/skill nhưng **không ghi file được**. Parallelism **chỉ dành cho research read-only** — agent ghi file không bao giờ chạy song song trên cùng một feature.
+Các subagent chuyên biệt **kế thừa tool, MCP server và skill của dự án host** — nên chúng dùng được bất kỳ MCP nào dự án bạn cung cấp (Supabase, Oracle, chrome-devtools, …) và gọi được skill của dự án, không phải bảo trì allowlist riêng cho từng agent. Mọi agent CCF đều là **leaf** — mang `disallowedTools: Agent, Task` nên không spawn được agent con (subagent *mặc định* nest-spawn được tới độ sâu 5; CCF chặn xác định). Các agent read-only (tất cả trừ `ccf-implementer`) còn liệt kê thêm `Write, Edit, NotebookEdit`, nên cũng có cùng tầm với MCP/skill nhưng **không ghi file được**. Parallelism **chỉ dành cho research read-only** — agent ghi file không bao giờ chạy song song trên cùng một feature.
 
 | Agent | Vai trò | Chế độ |
 |---|---|---|
@@ -117,7 +118,7 @@ Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → 
 
 ## Kiến trúc
 
-- **Command** = file markdown prompt điều khiển Claude trong session (không phải script).
+- **Command** = 7 file markdown prompt điều khiển Claude trong session (không phải script): init, plan, check, test, fix, updatespec, cook.
 - **Agent** = 6 subagent chuyên biệt (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
 - **Skill** = 1 skill nội bộ (`grill-me`) — engine phỏng vấn dùng chung mà các command gọi qua Skill tool; ẩn khỏi menu `/` (`user-invocable: false`).
 - **Hook** = 8 `.mjs` chạy trực tiếp bằng `node` — không build step, không dependency, Windows-clean; các helper dùng chung (freshness, đọc plan, context-usage, review-trace, git-trace, verify-trace, verify-chain, output-style, explore-guide) nằm ở `hooks/lib/`.

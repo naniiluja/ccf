@@ -43,7 +43,7 @@ claude plugin install ccf@ccf
 
 After installing, open Claude Code in your project folder and run `/ccf:ccf-init`.
 
-## The 6 commands
+## The 7 commands
 
 | Command | What it does |
 |---------|--------------|
@@ -53,12 +53,13 @@ After installing, open Claude Code in your project folder and run `/ccf:ccf-init
 | `/ccf:ccf-test` | Design a contract-level test matrix (EP + BVA + decision table) for a function/slice, write the tests failing-first, run them, and report actual results vs the coverage gate. Only under a project that opted into the test discipline. |
 | `/ccf:ccf-fix` | Disciplined debugging: reproduce → trace logs/DB step by step → root cause → failing test → minimal fix. No guessing. |
 | `/ccf:ccf-updatespec` | Update the spec **and system memory** with this session's lessons (incl. new tools with "when to use"). |
+| `/cook` | Run the whole todo/in-progress backlog in one go: sequential `ccf-implementer` loop (stop on any red gate), then a batch-verify pass (review + `/code-review` in parallel, `/simplify`, re-gate, `/ccf:ccf-updatespec`). Mutually exclusive with `auto-verify.mjs --auto-verify`. |
 
-Typical flow: `ccf-init` → (plan mode) `ccf-plan` → implement → `ccf-check` → (`ccf-test` when the test discipline is ON) → `/code-review` → `ccf-updatespec`.
+Typical flow: `ccf-init` → (plan mode) `ccf-plan` → implement (per task, or the whole backlog via `/cook`) → `ccf-check` → (`ccf-test` when the test discipline is ON) → `/code-review` → `ccf-updatespec`.
 
 ## The 6 agents
 
-Specialized subagents that **inherit the host project's tools, MCP servers and skills** — so they can use whatever MCP your project provides (Supabase, Oracle, chrome-devtools, …) and call its skills, with no per-agent allowlist to maintain. The read-only agents (everyone except `ccf-implementer`) carry `disallowedTools: Write, Edit, NotebookEdit`, so they get the same MCP/skill reach but **cannot write files**. Parallelism is **read-only research only** — file-writing agents never run in parallel on the same feature.
+Specialized subagents that **inherit the host project's tools, MCP servers and skills** — so they can use whatever MCP your project provides (Supabase, Oracle, chrome-devtools, …) and call its skills, with no per-agent allowlist to maintain. Every CCF agent is a **leaf** — it carries `disallowedTools: Agent, Task` so it cannot spawn nested subagents (subagents *can* nest-spawn by default up to depth 5; CCF blocks it deterministically). The read-only agents (everyone except `ccf-implementer`) also list `Write, Edit, NotebookEdit`, so they get the same MCP/skill reach but **cannot write files**. Parallelism is **read-only research only** — file-writing agents never run in parallel on the same feature.
 
 | Agent | Role | Mode |
 |---|---|---|
@@ -117,7 +118,7 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 
 ## Architecture
 
-- **Commands** = markdown prompts that drive Claude in-session (not scripts).
+- **Commands** = 7 markdown prompts that drive Claude in-session (not scripts): init, plan, check, test, fix, updatespec, cook.
 - **Agents** = 6 specialized subagents (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
 - **Skills** = 1 internal skill (`grill-me`) — the shared requirements-interview engine the commands invoke via the Skill tool; hidden from the `/` menu (`user-invocable: false`).
 - **Hooks** = 8 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, context-usage, review-trace, git-trace, verify-trace, verify-chain, output-style, explore-guide) live in `hooks/lib/`.

@@ -43,7 +43,7 @@ claude plugin install ccf@ccf
 
 安装后，在你的项目文件夹中打开 Claude Code 并运行 `/ccf:ccf-init`。
 
-## 6 个命令
+## 7 个命令
 
 | 命令 | 作用 |
 |------|------|
@@ -53,12 +53,13 @@ claude plugin install ccf@ccf
 | `/ccf:ccf-test` | 为一个函数/切片设计契约级测试矩阵（EP + BVA + 决策表），先写失败测试，运行，再报告实际结果与覆盖率关卡的对比。仅在项目已选择启用测试纪律时运行。 |
 | `/ccf:ccf-fix` | 有纪律的调试：复现 → 逐步追踪日志/数据库 → 根因 → 失败测试 → 最小修复。不靠猜。 |
 | `/ccf:ccf-updatespec` | 用本次会话的经验更新规格**和系统 memory**（包括新工具及其「何时使用」）。 |
+| `/cook` | 一次性跑完整个 todo/in-progress backlog：顺序执行 `ccf-implementer` 循环（遇到红色关卡立即停止），然后批量验证（review + `/code-review` 并行，`/simplify`，重新过关，`/ccf:ccf-updatespec`）。与 `auto-verify.mjs --auto-verify` 互斥。 |
 
-典型流程：`ccf-init` → （plan mode）`ccf-plan` → 实现 → `ccf-check` → （启用测试纪律时 `ccf-test`）→ `/code-review` → `ccf-updatespec`。
+典型流程：`ccf-init` → （plan mode）`ccf-plan` → 实现（逐任务，或通过 `/cook` 跑完整个 backlog）→ `ccf-check` → （启用测试纪律时 `ccf-test`）→ `/code-review` → `ccf-updatespec`。
 
 ## 6 个 agent
 
-专用子 agent **继承宿主项目的工具、MCP 服务器与 skill**——因此可以使用你项目提供的任意 MCP（Supabase、Oracle、chrome-devtools 等）并调用项目的 skill，无需为每个 agent 维护 allowlist。只读 agent（除 `ccf-implementer` 外的全部）带有 `disallowedTools: Write, Edit, NotebookEdit`，因此拥有同样的 MCP/skill 访问范围但**不能写文件**。并行**仅用于只读研究**——写文件的 agent 绝不在同一功能上并行运行。
+专用子 agent **继承宿主项目的工具、MCP 服务器与 skill**——因此可以使用你项目提供的任意 MCP（Supabase、Oracle、chrome-devtools 等）并调用项目的 skill，无需为每个 agent 维护 allowlist。每个 CCF agent 都是 **leaf**——带有 `disallowedTools: Agent, Task`，因此不能 spawn 嵌套子 agent（子 agent 默认可嵌套 spawn 至深度 5；CCF 确定性地阻止）。只读 agent（除 `ccf-implementer` 外的全部）还额外列出 `Write, Edit, NotebookEdit`，因此拥有同样的 MCP/skill 访问范围但**不能写文件**。并行**仅用于只读研究**——写文件的 agent 绝不在同一功能上并行运行。
 
 | Agent | 角色 | 模式 |
 |---|---|---|
@@ -117,7 +118,7 @@ claude plugin install ccf@ccf
 
 ## 架构
 
-- **命令** = 在会话中驱动 Claude 的 markdown 提示（不是脚本）。
+- **命令** = 7 个在会话中驱动 Claude 的 markdown 提示（不是脚本）：init、plan、check、test、fix、updatespec、cook。
 - **Agent** = 6 个专用子 agent（分析器、研究员、实现者、规格撰写者、规格检查者、调试器）。
 - **Skill** = 1 个内部 skill（`grill-me`）——各命令通过 Skill 工具调用的共享需求访谈引擎；从 `/` 菜单隐藏（`user-invocable: false`）。
 - **钩子** = 8 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、context-usage、review-trace、git-trace、verify-trace、verify-chain、output-style、explore-guide）位于 `hooks/lib/`。
