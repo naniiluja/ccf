@@ -13,7 +13,7 @@ import {
   modelWindowSize,
   shouldNudgeCompact,
   decideGuardAction,
-  buildCompactHint,
+  normalizeHintTask,
   NUDGE_RATIO,
   NUDGE_ABS_CAP,
 } from "./context-usage.mjs";
@@ -342,31 +342,41 @@ test("decideGuardAction: escape + hardBlock + above → 'warn', not 'block'", ()
   assert.equal(decideGuardAction({ aboveThreshold: true, hardBlock: true, isEscape: true }), "warn");
 });
 
-// --- buildCompactHint --------------------------------------------------------
+// --- normalizeHintTask (task 040/cc-2.1.220-realign: data only, no canned /compact command) -----
+// The hook can only be SURE of the hint task's id/title (the caller computes `pct` itself and no
+// longer routes it through this helper — task cc-2.1.220-realign removed the dead `pct` param/field,
+// since only the test file, never product code, read `hint.pct` after task 040's split).
+// Composing the actual /compact wording is judgment work left to the model (see context-guard.mjs).
 
-test("buildCompactHint: with a task embeds id + title and the Focus/preserve/drop pattern", () => {
-  const hint = buildCompactHint({ id: "003", title: "Add auth flow" });
-  assert.match(hint, /^\/compact /);
-  assert.match(hint, /task 003/);
-  assert.match(hint, /Add auth flow/);
-  assert.match(hint, /[Pp]reserve/);
-  assert.match(hint, /drop/i);
+test("normalizeHintTask: with a hint task → task data is embedded", () => {
+  const hint = normalizeHintTask({ id: "003", title: "Add auth flow" });
+  assert.deepEqual(hint, { id: "003", title: "Add auth flow" });
 });
 
-test("buildCompactHint: without a task still follows Focus/preserve/drop", () => {
-  const hint = buildCompactHint(null);
-  assert.match(hint, /^\/compact /);
-  assert.match(hint, /[Ff]ocus on/);
-  assert.match(hint, /[Pp]reserve/);
-  assert.match(hint, /drop/i);
+test("normalizeHintTask: without a task (PLAN.md has nothing active) → null, NOT a generic filler", () => {
+  const hint = normalizeHintTask(null);
+  assert.equal(hint, null);
 });
 
-test("buildCompactHint: blank/undefined title falls back to generic (no '()' or 'undefined')", () => {
-  // Bug #8: must never interpolate an empty or missing title into the suggested command.
+test("normalizeHintTask: blank/undefined title never produces a partial task object", () => {
+  // Bug #8 (still applies to the data shape): a malformed row must not surface as
+  // { id: "003", title: undefined } or similar — it must collapse to null.
   for (const task of [{ id: "003", title: "" }, { id: "003" }, { id: "", title: "x" }]) {
-    const hint = buildCompactHint(/** @type {any} */ (task));
-    assert.doesNotMatch(hint, /\(\s*\)/); // no empty parens
-    assert.doesNotMatch(hint, /undefined/); // no literal undefined
-    assert.match(hint, /^\/compact Focus on/);
+    const hint = normalizeHintTask(/** @type {any} */ (task));
+    assert.equal(hint, null);
+  }
+});
+
+test("normalizeHintTask: return value never contains a hardcoded English filler command (anti-regression)", () => {
+  // Task 040: the OLD implementation returned a fixed English /compact string that (a) wrongly
+  // claimed modified files/test commands exist, and (b) was hardcoded English regardless of the
+  // user's language. Pin the data shape so a future edit can't silently re-introduce that string.
+  const withTask = JSON.stringify(normalizeHintTask({ id: "003", title: "Add auth flow" }));
+  const withoutTask = JSON.stringify(normalizeHintTask(null));
+  for (const serialized of [withTask, withoutTask]) {
+    assert.doesNotMatch(serialized, /Focus on the current task/);
+    assert.doesNotMatch(serialized, /preserve modified files/);
+    assert.doesNotMatch(serialized, /drop old tool output/);
+    assert.doesNotMatch(serialized, /\/compact/); // building the command is the MODEL's job, not this helper's
   }
 });

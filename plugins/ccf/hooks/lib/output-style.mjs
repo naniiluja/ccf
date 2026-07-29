@@ -5,6 +5,8 @@
 // functions decide WHICH agent gets injected, WHICH style is active, and WHAT directive to inject.
 // The hook does the I/O; all branching decisions live here so they are node --test covered.
 
+import { matchesAgentName } from "./agent-match.mjs";
+
 /**
  * File-writing agents that must receive the coding-rules directive. Only ccf-implementer writes
  * code; read-only research/review agents (ccf-codebase-analyzer, ccf-spec-checker, …) do not.
@@ -13,12 +15,22 @@
 export const WRITER_AGENTS = new Set(["ccf-implementer"]);
 
 /**
- * Whether a spawning agent should receive the injected coding-rules directive.
+ * Whether a spawning agent should receive the injected coding-rules directive. Matches the EXACT
+ * agent-type tail (after the last `:`), case-insensitively, against `WRITER_AGENTS` — via the shared
+ * `matchesAgentName` helper (also used by `implementer-verify.mjs#isImplementer`; kept in one place
+ * per DRY). A live call-site observation (39/39 async-agent ack strings) showed the agent name
+ * reaching hooks carries a `ccf:` namespace prefix (e.g. `ccf:ccf-implementer`), never the bare
+ * unprefixed literal — an exact-equality `Set.has` on the raw string would silently never match that
+ * real shape. Matching the tail EXACTLY (not a loose substring) avoids a false positive on a
+ * hypothetical distinct agent whose name merely contains the writer name (e.g. a future
+ * `ccf-implementer-helper`), which would otherwise wrongly receive a "fix any violation" directive
+ * that contradicts its own (possibly read-only) mandate.
  * @param {string | undefined} agentType the SubagentStart input.agent_type
  * @returns {boolean}
  */
 export function shouldInject(agentType) {
-  return WRITER_AGENTS.has(String(agentType ?? ""));
+  if (!agentType) return false;
+  return [...WRITER_AGENTS].some((writer) => matchesAgentName(agentType, writer));
 }
 
 /**

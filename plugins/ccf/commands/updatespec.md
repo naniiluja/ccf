@@ -12,6 +12,16 @@ You are running CCF `/ccf:updatespec`. Goal: distill this session's lessons into
 > - **Memory** (`~/.claude/projects/<path>/memory/`) is loaded into the *system prompt*, **not down-weighted** → Claude follows it more strongly. Good for **anti-mistake feedback** and **user preferences** across sessions.
 > - **No duplication:** anything already in CLAUDE.md must NOT be copied into memory. If a rule in CLAUDE.md keeps getting forgotten/violated, write a `feedback` memory that *reinforces* it (stating why), rather than repeating its content.
 
+## Style for user-facing text
+**Scope boundary:** this rule governs CCF-generated text meant for the human reader (the diff explanation, the "why" line, the plan/task sync notes shown to the user). It does NOT apply to the CCF repo's own source, which stays English per `.claude/rules/components.md` (never translate the repo itself).
+- Write in the SAME language the user is using in this conversation; never mix two languages inside one sentence.
+- Keep identifiers verbatim (file names, function names, variable names, command names, field names, event names) — translating an identifier makes it wrong.
+- Translate every other concept into the user's language (do not leave English jargon untranslated when a plain equivalent exists, e.g. gate, fold, spike, toggle, fail-open, surface, drift, premortem).
+- No em dash; use a comma, colon, or parentheses instead.
+- One idea per sentence; split a sentence longer than two lines.
+- A language that uses diacritics (e.g. Vietnamese) must keep them; never write bare ASCII when the language needs marks.
+- Do not invent abbreviations; if one is used, spell it out on first use.
+
 ## Steps
 
 ### 1. Reflect & classify
@@ -28,7 +38,7 @@ Find every `CLAUDE.md` + `.claude/rules/*` (root + nested). Each lesson belongs 
 ### 3. Update modularly
 - Write lessons as **specific, verifiable rules**.
 - Each rule file < 50 lines, one topic; create a new `.claude/rules/<topic>.md` if none fits + add a `@.claude/rules/<topic>.md` import line to the relevant CLAUDE.md.
-- Keep every CLAUDE.md < 200 lines (you may delegate drafting to `ccf-spec-writer` via Task).
+- Keep every CLAUDE.md < 200 lines (you may delegate drafting to `ccf-spec-writer` via Task **with `run_in_background: false`**, since Claude Code v2.1.198 an omitted `run_in_background` defaults to background and this step needs the draft back before writing it).
 - **Show a diff + a one-line "why"** before writing, then Edit/Write.
 
 ### 4. Record new tools (important)

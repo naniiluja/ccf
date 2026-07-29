@@ -4,7 +4,7 @@
 // Kept pure + defensive so it is unit-testable with `node --test` and never throws.
 //
 // All five drive signals are gathered by the hook (from argv / stdin / reused tested helpers):
-//   plan.mjs#findActiveTask, verify-trace.mjs#readTranscriptSignals, review-trace.mjs#hasSpecCheckerReview.
+//   plan.mjs#findActiveTask, verify-trace.mjs#readTranscriptSignals, review-trace.mjs#hasSpecCheckerSpawn.
 // This module only COMBINES them — it does not read the transcript itself (DRY: reuse the tested readers).
 
 import { existsSync, readFileSync } from "node:fs";

@@ -14,7 +14,7 @@ import { readStdinJson, blockStop } from "./lib/io.mjs";
 import { shouldDriveVerify, buildVerifyReason, readDisciplineOn } from "./lib/verify-chain.mjs";
 import { findActiveTask } from "./lib/plan.mjs";
 import { readTranscriptSignals } from "./lib/verify-trace.mjs";
-import { hasSpecCheckerReview, parseJsonl } from "./lib/review-trace.mjs";
+import { hasSpecCheckerSpawn, parseJsonl } from "./lib/review-trace.mjs";
 
 try {
   // Opt-in toggle: the hooks.json command must pass `--auto-verify`, else this hook is a no-op.
@@ -38,7 +38,7 @@ try {
   let checkAlreadyRan = false;
   if (transcriptPath && existsSync(transcriptPath)) {
     try {
-      checkAlreadyRan = hasSpecCheckerReview(parseJsonl(readFileSync(transcriptPath, "utf8")));
+      checkAlreadyRan = hasSpecCheckerSpawn(parseJsonl(readFileSync(transcriptPath, "utf8")));
     } catch {
       checkAlreadyRan = false; // best-effort: an unreadable transcript means "not yet"
     }

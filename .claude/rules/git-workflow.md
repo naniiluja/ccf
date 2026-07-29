@@ -10,8 +10,9 @@ description: Git and distribution/versioning conventions for the CCF plugin.
 - When asked to commit: the message describes the change by artifact type (e.g. `feat: add hook X`, `docs: sync README`).
 
 ## Commit attribution (harness-enforced)
-- Attribution is enforced by `.claude/settings.json` `attribution` (`{ "commit": "...", "pr": "..." }`), per `code.claude.com/docs/en/settings`. Harness-level settings are deterministic and **supersede** any narrative rule here — settings win over prose. (`attribution` replaces the deprecated `includeCoAuthoredBy`.)
-- This narrative is only the **backup**: keep the trailer behavior consistent with `settings.json`. Do NOT add a Co-Authored-By trailer by hand if `attribution.commit` is `""`.
+- The deterministic lever is `.claude/settings.json` → `attribution` (`{ "commit": "...", "pr": "..." }`), per `code.claude.com/docs/en/settings`; it replaces the deprecated `includeCoAuthoredBy`. Harness-level settings **supersede** any narrative rule here — settings win over prose.
+- **Current reality (verified cc-2.1.220-realign): `.claude/settings.json` DOES NOT EXIST in this repo** — `.claude/` holds only `plan/` and `rules/`. So there is NO harness-level enforcement right now and this prose is the ONLY layer. Do not describe attribution as "enforced" while the file is absent. To make it deterministic the user must create the file and set `attribution.commit`/`attribution.pr` (use `""` to suppress a trailer); CCF must NOT auto-write it, since it changes how every future commit in the repo is attributed.
+- Until then: do NOT add a Co-Authored-By trailer by hand.
 
 ## Versioning (synced in 3 places — easy to drift)
 The version number appears in **three** files and must match on every bump:

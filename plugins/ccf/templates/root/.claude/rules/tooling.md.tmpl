@@ -1,6 +1,6 @@
 # Tooling (available skills / MCP / subagents — WHEN TO USE)
 
-A catalog of this project's tools, with **when to use** each, so future-session agents can decide. Updated by `/ccf:ccf-updatespec` whenever a new tool is added.
+A catalog of this project's tools, with **when to use** each, so future-session agents can decide. Updated by `/ccf:updatespec` whenever a new tool is added.
 
 ## MCP servers
 - **context7** — look up current docs for libraries/frameworks. **Use when:** you need a lib's API syntax/best practice/migration. How: `resolve-library-id` → `query-docs`.
@@ -18,12 +18,12 @@ A catalog of this project's tools, with **when to use** each, so future-session 
 <!-- Each skill: name — WHEN TO USE — example trigger -->
 
 ## Subagents (CCF)
-- **ccf-implementer** — implement one task from the plan (has MCP). **Use when:** executing a task after /ccf-plan.
-- **ccf-spec-checker** — review conformance/SOLID. **Use when:** /ccf-check.
-- **ccf-debugger** — investigate one root-cause branch. **Use when:** /ccf-fix needs isolation.
+- **ccf-implementer** — implement one task from the plan (has MCP). **Use when:** executing a task after /ccf:plan.
+- **ccf-spec-checker** — review conformance/SOLID. **Use when:** /ccf:check.
+- **ccf-debugger** — investigate one root-cause branch. **Use when:** /ccf:fix needs isolation.
 - **ccf-best-practice-researcher** — fetch best practices. **Use when:** grounding a decision.
 
 ## System memory vs Spec (WHEN TO write where)
 - **Spec** (this file + other rules): project rules that are derivable / belong to the repo. Lower weight (user message).
-- **Memory** (`~/.claude/projects/<path>/memory/`): `feedback` anti-mistakes + `user` preferences. Higher weight (system prompt) → Claude repeats fewer mistakes. Updated via `/ccf:ccf-updatespec`. **Do not duplicate** CLAUDE.md content.
+- **Memory** (`~/.claude/projects/<path>/memory/`): `feedback` anti-mistakes + `user` preferences. Higher weight (system prompt) → Claude repeats fewer mistakes. Updated via `/ccf:updatespec`. **Do not duplicate** CLAUDE.md content.
 - **MEMORY.md is a pure index** — only its first **200 lines or 25KB** (whichever first) load per session, so keep it lean (curate when near). The strongest tier is `feedback` (record wins + losses, with a mandatory `Why`).

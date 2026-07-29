@@ -9,6 +9,16 @@ You are running CCF `/ccf:init`. Task: produce a fresh, best-practice-grounded c
 
 Templates live in `${CLAUDE_PLUGIN_ROOT}/templates/`. Read and instantiate them (replacing `{{...}}` placeholders) when generating real files into the project.
 
+## Step 0a: Style for user-facing text
+**Scope boundary:** this rule governs CCF-generated text meant for the human reader (the decisions summary, the plan/task files this command writes, explanations shown to the user). It does NOT apply to the CCF repo's own source, which stays English per `.claude/rules/components.md` (never translate the repo itself).
+- Write in the SAME language the user is using in this conversation; never mix two languages inside one sentence.
+- Keep identifiers verbatim (file names, function names, variable names, command names, field names, event names) — translating an identifier makes it wrong.
+- Translate every other concept into the user's language (do not leave English jargon untranslated when a plain equivalent exists, e.g. gate, fold, spike, toggle, fail-open, surface, drift, premortem).
+- No em dash; use a comma, colon, or parentheses instead.
+- One idea per sentence; split a sentence longer than two lines.
+- A language that uses diacritics (e.g. Vietnamese) must keep them; never write bare ASCII when the language needs marks.
+- Do not invent abbreviations; if one is used, spell it out on first use.
+
 ## Step 0: Classify the project
 Scan `cwd` read-only (Glob `**/*` excluding `node_modules`/`.git`; check for `package.json`, `src/`, an existing `CLAUDE.md`). Classify as **EMPTY** (nothing substantial yet) or **EXISTING** (has code).
 
@@ -22,7 +32,7 @@ Invoke the `grill-me` skill via the Skill tool, passing `init` as the argument. 
 Synthesize the result into a **"decisions summary"** and present it for the user to confirm.
 
 ### A2. Best-practice grounding
-For each chosen design pattern / DB design / framework, **consult the docs before writing the spec**. Delegate to `ccf-best-practice-researcher` (via Task) — or directly call Context7 (`resolve-library-id` → `query-docs`) and the Microsoft Learn docs tool. Cite what you learned in the spec.
+For each chosen design pattern / DB design / framework, **consult the docs before writing the spec**. Delegate to `ccf-best-practice-researcher` via Task **with `run_in_background: false`** (since Claude Code v2.1.198 a Task spawn omitting this defaults to running in the background, which would let A3 start writing the spec before the researcher's report exists) — or directly call Context7 (`resolve-library-id` → `query-docs`) and the Microsoft Learn docs tool. Cite what you learned in the spec.
 
 ### A3. Generate spec files
 Read the templates in `${CLAUDE_PLUGIN_ROOT}/templates/root/`, instantiate them, write the root `CLAUDE.md` + `.claude/rules/*` into the root folder. If **fullstack**: also write nested `CLAUDE.md` + `.claude/rules/*` inside `be/` (template `templates/backend/`) and `fe/` (template `templates/frontend/`).
@@ -43,8 +53,9 @@ Read the templates in `${CLAUDE_PLUGIN_ROOT}/templates/root/`, instantiate them,
 
 ### A4. Generate the initial plan
 Generate one large plan in `.claude/plan/` using the templates (`PLAN.md` index + `task-NNN-*.md` files), structured as a **sequential waterfall of VERTICAL SLICES** — each task a thin tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, spec → failing test → implement. **Right-size each slice** to a cohesive PR-sized increment (fold its doc/spec-sync in by default; split smaller only on a real driver — data dependency, an independent green gate, risk isolation, or won't-fit-one-context), not a swarm of micro-tasks. Each task has exactly one predecessor and names the test gate that must be green before the next slice.
+- **Model line:** write `Model: <alias>` (e.g. `Model: sonnet`) as its own line in EVERY generated task file — an ALIAS ONLY, never a dated model ID, never any parenthetical/translated text on this line — so `/ccf:cook` can parse it later without falling back to asking the user. When no explicit choice was made for this project, still write the plain `Model: sonnet` line (the `ccf-implementer` frontmatter default) and separately tell the user, in prose, that the default was applied.
 
-**MANDATORY review gate:** after generating the plan, **STOP — do NOT proceed to A5 until** a fresh-context `ccf-spec-checker` subagent (plan-review mode, read-only, via Task) has critiqued it: vertical slicing, real/verifiable gates, exactly one predecessor per task, no task hiding multiple concerns, no drift from the spec, PLUS its **premortem / prospective-failure lens** (top 2–4 failure modes anchored to the project's real past failures where any exist — a brand-new project has none yet → `anchor: none` — each with a preventing change). Fold the critique back in (loop until clean, or the user knowingly accepts a finding) before closing. **Every H-likelihood premortem finding MUST be resolved** — fix the plan OR have the user knowingly accept it — and record each H-finding's **disposition** (`fixed-by …` / `accepted-because …`). (`/ccf:init` does not run in plan mode, so there is no ExitPlanMode hook here — this prompt gate is the enforcement.)
+**MANDATORY review gate:** after generating the plan, **STOP — do NOT proceed to A5 until** a fresh-context `ccf-spec-checker` subagent (plan-review mode, read-only, via Task **with `run_in_background: false`** — since Claude Code v2.1.198 a Task spawn omitting this defaults to running in the background, which would let A5 proceed before the review exists) has critiqued it: vertical slicing, real/verifiable gates, exactly one predecessor per task, no task hiding multiple concerns, no drift from the spec, PLUS its **premortem / prospective-failure lens** (top 2–4 failure modes anchored to the project's real past failures where any exist — a brand-new project has none yet → `anchor: none` — each with a preventing change). Fold the critique back in (loop until clean, or the user knowingly accepts a finding) before closing. **Every H-likelihood premortem finding MUST be resolved** — fix the plan OR have the user knowingly accept it — and record each H-finding's **disposition** (`fixed-by …` / `accepted-because …`). (`/ccf:init` does not run in plan mode, so there is no ExitPlanMode hook here — this prompt gate is the enforcement.)
 
 ### A5. Closing
 Do NOT run git. Tell the user to start a fresh session and run `/ccf:plan` (in plan mode) when ready to detail the first feature. Remind them: if Context7 hits a rate limit, set a free `CONTEXT7_API_KEY` env var and restart Claude Code.
@@ -55,7 +66,9 @@ Do NOT run git. Tell the user to start a fresh session and run `/ccf:plan` (in p
 ## Branch B — EXISTING project
 
 ### B1. Analyze with 5 parallel agents
-Launch **5 `ccf-codebase-analyzer` subagents in parallel** (via Task — this is the ONLY place CCF allows parallelism, since it's read-only research). Assign each one slice:
+The `ccf-codebase-analyzer` frontmatter default (`haiku`) is a starting point, not a fixed choice: it stays sensible here because the scan is cheap, but ask the user once whether to keep `haiku` for these 5 agents or override to a stronger model for a large/complex codebase (accept a model alias such as `sonnet`/`opus`, never a dated model ID). If `AskUserQuestion` is blocked (non-interactive mode), use the frontmatter default and STATE explicitly that the default was used, do not silently proceed as if the user had answered.
+
+Launch **5 `ccf-codebase-analyzer` subagents in parallel** (via Task, with the chosen model override — this is the ONLY place CCF allows parallelism, since it's read-only research). Running in parallel does NOT mean fire-and-forget: pass `run_in_background: false` on all 5 spawns and wait for every one of them to finish before B2 synthesizes — since Claude Code v2.1.198 an omitted `run_in_background` defaults to background, which could let B2 start summarizing incomplete reports. Assign each one slice:
 1. Architecture & module boundaries
 2. Data layer & DB
 3. API surface
@@ -65,7 +78,7 @@ Launch **5 `ccf-codebase-analyzer` subagents in parallel** (via Task — this is
 Each returns a structured report; they must NOT write files.
 
 ### B2. Synthesize + validate
-Synthesize the 5 reports. Validate the observed patterns against best practices via Context7 + Microsoft Learn (or `ccf-best-practice-researcher`), flagging drift.
+Synthesize the 5 reports. Validate the observed patterns against best practices via Context7 + Microsoft Learn (or delegate to `ccf-best-practice-researcher` via Task **with `run_in_background: false`** — since Claude Code v2.1.198 a Task spawn omitting this defaults to running in the background, which would let B3 start writing the spec before the researcher's report exists), flagging drift.
 
 ### B3. Generate spec reflecting the ACTUAL codebase
 Generate `CLAUDE.md` + `.claude/` describing the existing codebase (not an idealized one), using the same templates + the same < 200-line / `@import` rules. For a monorepo with several sub-packages, generate nested CLAUDE.md per package.

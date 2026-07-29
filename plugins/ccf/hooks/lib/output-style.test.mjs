@@ -34,6 +34,30 @@ test("shouldInject — undefined → false", () => {
   assert.equal(shouldInject(undefined), false);
 });
 
+test("shouldInject — real call-site prefixed form (ccf:ccf-implementer) → true", () => {
+  // Live observation (39/39 async-agent ack strings at the call site) showed the agent name
+  // reaching hooks carries a `ccf:` namespace prefix, never the bare unprefixed literal — an
+  // exact-equality match against WRITER_AGENTS would silently never fire on the real shape.
+  assert.equal(shouldInject("ccf:ccf-implementer"), true);
+});
+
+test("shouldInject — prefixed read-only agent (ccf:ccf-spec-checker) → false", () => {
+  assert.equal(shouldInject("ccf:ccf-spec-checker"), false);
+});
+
+test("shouldInject — case-insensitive match (CCF:CCF-IMPLEMENTER) → true", () => {
+  assert.equal(shouldInject("CCF:CCF-IMPLEMENTER"), true);
+});
+
+test("shouldInject — a FUTURE distinct agent whose name merely CONTAINS the writer name → false", () => {
+  // Regression guard (task cc-2.1.220-realign): shouldInject must match the agent-type TAIL exactly
+  // (after splitting on ":"), not a loose substring — a hypothetical "ccf-implementer-helper"
+  // read-only agent must NOT be treated as the writer, or it would receive a "self-check and fix any
+  // violation" directive that contradicts its read-only mandate and wastes context.
+  assert.equal(shouldInject("ccf-implementer-helper"), false);
+  assert.equal(shouldInject("ccf:ccf-implementer-helper"), false);
+});
+
 test("resolveActiveOutputStyle — no settings layers → null", () => {
   const got = resolveActiveOutputStyle({
     settingsLayers: [],

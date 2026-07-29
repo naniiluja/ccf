@@ -4,6 +4,7 @@
 - **Depends on:** {{PREDECESSOR}}   <!-- exactly ONE predecessor to keep the sequential chain -->
 - **Spec refs:** {{SPEC_REFS}}      <!-- links to related rules/requirements -->
 - **Implemented by:** {{AGENT}} + MCP {{MCP}}  <!-- e.g. ccf-implementer + supabase -->
+- **Model:** {{MODEL_ALIAS}}         <!-- a BARE alias only: sonnet | opus | haiku. No dated model ID, no parenthetical note on this line — /ccf:cook parses this exact line to override the agent's frontmatter default. -->
 - **Gate (must be GREEN before the next slice):** {{GATE}}  <!-- which test types: unit always; integration when crossing a boundary; e2e for the user-visible path -->
 
 ## Goal (one sentence)
@@ -23,7 +24,7 @@
 1. Write the failing test (cover the slice's user-visible behavior, not just one layer)
 2. Implement minimally across the layers the slice touches
 3. Run the test / verify actual output — the gate above must be GREEN, then mark the task `in-review` (NOT `done`)
-4. `/ccf:ccf-check` → `/code-review` → `/ccf:ccf-updatespec` — `done` is set ONLY here, after the review passes
+4. `/ccf:check` → `/code-review` → `/ccf:updatespec` — `done` is set ONLY here, after the review passes
 
 ## Notes / best-practice sources
-{{CITATIONS}}   <!-- Context7 / MS Learn citations gathered during /ccf-plan -->
+{{CITATIONS}}   <!-- Context7 / MS Learn citations gathered during /ccf:plan -->

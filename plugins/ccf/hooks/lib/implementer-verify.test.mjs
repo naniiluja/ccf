@@ -40,6 +40,23 @@ test("implementerReportedTests: false when there is no TEST-RESULT evidence", ()
   assert.equal(implementerReportedTests("I finished the task, all good."), false);
 });
 
+// Regression guard (cc-2.1.220-realign correctness fix): a mid-sentence PROMISE to add the line
+// later must not count as evidence — only a real line starting with `TEST-RESULT:` (allowing leading
+// whitespace) counts, matching the pinned Return-format convention in agents/ccf-implementer.md.
+test("implementerReportedTests: false for a mid-sentence promise, not an actual TEST-RESULT: line", () => {
+  assert.equal(
+    implementerReportedTests("I will add a TEST-RESULT: line later"),
+    false,
+  );
+});
+
+test("implementerReportedTests: true for a real TEST-RESULT: line anchored at line-start (leading whitespace allowed)", () => {
+  assert.equal(
+    implementerReportedTests("Summary...\n  TEST-RESULT: node --test → 5 passed, 0 failed"),
+    true,
+  );
+});
+
 test("implementerReportedTests: false/no-throw on garbage input", () => {
   assert.equal(implementerReportedTests(""), false);
   assert.equal(implementerReportedTests(undefined), false);
@@ -88,6 +105,62 @@ test("shouldBlockImplementerStop: implementer + TEST-RESULT n/a → false (allow
     }),
     false,
   );
+});
+
+test("shouldBlockImplementerStop: stopHookActive true → false, even with missing evidence (loop guard)", () => {
+  assert.equal(
+    shouldBlockImplementerStop({
+      enabled: true,
+      stopHookActive: true,
+      agentType: "ccf-implementer",
+      lastMessage: "All done.",
+    }),
+    false,
+  );
+});
+
+test("shouldBlockImplementerStop: stopHookActive absent → behaves as false (unchanged default)", () => {
+  assert.equal(
+    shouldBlockImplementerStop({ enabled: true, agentType: "ccf-implementer", lastMessage: "All done." }),
+    true,
+  );
+});
+
+// Regression guard (cc-2.1.220-realign correctness fix): stop_hook_active's real SubagentStop shape
+// is unconfirmed — a harness that surfaces it as the STRING "false" must not be read as truthy.
+// Only the real boolean `true` may skip the block; every other truthy-but-non-boolean value must
+// still gate normally (i.e. block when there is no TEST-RESULT evidence).
+test("shouldBlockImplementerStop: stopHookActive as the STRING \"false\" must NOT be read as truthy → still blocks", () => {
+  assert.equal(
+    shouldBlockImplementerStop({
+      enabled: true,
+      stopHookActive: "false",
+      agentType: "ccf-implementer",
+      lastMessage: "All done.",
+    }),
+    true,
+  );
+});
+
+test("shouldBlockImplementerStop: stopHookActive as the STRING \"true\" must NOT be read as the loop guard → still blocks", () => {
+  assert.equal(
+    shouldBlockImplementerStop({
+      enabled: true,
+      stopHookActive: "true",
+      agentType: "ccf-implementer",
+      lastMessage: "All done.",
+    }),
+    true,
+  );
+});
+
+test("shouldBlockImplementerStop: stopHookActive as numeric 1/0, null, undefined → only real boolean true skips the block", () => {
+  const base = { enabled: true, agentType: "ccf-implementer", lastMessage: "All done." };
+  assert.equal(shouldBlockImplementerStop({ ...base, stopHookActive: 1 }), true);
+  assert.equal(shouldBlockImplementerStop({ ...base, stopHookActive: 0 }), true);
+  assert.equal(shouldBlockImplementerStop({ ...base, stopHookActive: null }), true);
+  assert.equal(shouldBlockImplementerStop({ ...base, stopHookActive: undefined }), true);
+  assert.equal(shouldBlockImplementerStop({ ...base, stopHookActive: true }), false);
 });
 
 test("shouldBlockImplementerStop: garbage input → false, never throws", () => {

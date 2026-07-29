@@ -13,8 +13,9 @@ You are running CCF `/ccf:cook`. You are the **backlog orchestrator**: after `/c
 Read `.claude/plan/PLAN.md` + the relevant `.claude/plan/task-NNN-*.md` files. Select the `todo`/`in-progress` tasks in dependency order (respect `Depends on`; a task with an open predecessor is not eligible yet). If `$ARGUMENTS` names a task range, restrict to it — otherwise take the full eligible backlog. State the ordered task list to the user before starting.
 
 ## 2. Sequential implement loop (one slice at a time — CCF law, unchanged)
+**Since Claude Code v2.1.198, a Task spawn that omits `run_in_background` defaults to running in the background** — that silently breaks the sequential law (the next step could fire before the implementer finishes). There is no agent-frontmatter lever to force synchronous execution (`background: true` only forces backgrounding; a documented `false` value does not exist), so the only lever is the CALL SITE: every `Task` spawn below MUST pass `run_in_background: false` explicitly.
 For EACH task, in order:
-1. Spawn `ccf-implementer` via **Task**, passing the task file path, with a **model override to the `sonnet` alias** (Sonnet 5 on the Anthropic API — do NOT hardcode a dated model ID like `claude-sonnet-5`; use the alias so it tracks whatever `sonnet` resolves to).
+1. Spawn `ccf-implementer` via **Task** with `run_in_background: false`, passing the task file path, with a **model override read from that task file's `Model:` line** (an alias such as `sonnet`/`opus`/`haiku` — do NOT hardcode a dated model ID like `claude-sonnet-5`; use the alias so it tracks whatever the alias resolves to). If the task file carries no `Model:` line, ask the user ONCE for the whole run which model to use for every task in this backlog, then apply that same choice to each spawn. If `AskUserQuestion` is unavailable (non-interactive), fall back to the `ccf-implementer` frontmatter default (`sonnet`) and say explicitly that the default was used.
 2. Wait for it to finish. Read its report: which test/tsc command it ran and the actual result.
 3. **Check the slice gate** (the test/tsc/validate command the task file names, per its report):
    - **GREEN** → mark progress, move to the next task.
@@ -23,7 +24,7 @@ For EACH task, in order:
 
 ## 3. Batch-verify phase (after ALL slices are implemented)
 Once every selected task is `in-review`, run TWO READ-ONLY checks **in parallel** (they don't touch files, so this is safe unlike the writer loop above):
-- **(a) Spec/code review** — spawn `ccf-spec-checker` via Task (this is the CCF-spawned side, capped at **≤3 agents** per the sequential-work-unit convention — one reviewer is normally enough here, so this cap is rarely binding).
+- **(a) Spec/code review** — spawn `ccf-spec-checker` via Task with `run_in_background: false` (this is the CCF-spawned side, capped at **≤3 agents** per the sequential-work-unit convention — one reviewer is normally enough here, so this cap is rarely binding).
 - **(b) `/code-review`** — invoke via the **Skill tool** (it is a bundled Skill, not a SlashCommand — see step 6). Its internal fan-out is tuned by **effort** (low/high/ultra), not a numeric agent cap — this is NOT the same "≤3" cap as (a); it's a different mechanism entirely.
 
 Gather both results. If EITHER reports a ❌/correctness finding → **STOP here**, report to the user, do NOT proceed to `/simplify` or `/ccf:updatespec`.
@@ -47,7 +48,7 @@ Not every harness exposes the Skill tool or a SlashCommand tool for invoking `/c
 ## 7. Relationship with `auto-verify.mjs`
 `/ccf:cook` and the opt-in `auto-verify.mjs` Stop hook both drive the SAME verify chain — do not run both in the same workflow:
 - If you use `/ccf:cook`, do NOT also enable `--auto-verify` in `hooks.json` — they would double-drive the chain.
-- When `/ccf:cook` DID successfully spawn `ccf-spec-checker` via Task (step 3a), `auto-verify.mjs`'s own `checkAlreadyRan`/`hasSpecCheckerReview` guard will see that review in the transcript and auto-suppress a redundant drive at Stop — so leaving `--auto-verify` on is harmless (merely redundant) in that case.
+- When `/ccf:cook` DID successfully spawn `ccf-spec-checker` via Task (step 3a), `auto-verify.mjs`'s own `checkAlreadyRan`/`hasSpecCheckerSpawn` guard will see that the review was SPAWNED in the transcript (not necessarily finished — see the function's own note) and auto-suppress a redundant drive at Stop — so leaving `--auto-verify` on is harmless (merely redundant) in that case.
 - In the **manual-fallback** branch (step 6 — no Task spawn happened because Skill/SlashCommand wasn't available), that guard does NOT fire (there is no `ccf-spec-checker` transcript entry to detect), so `auto-verify.mjs` re-driving the chain at Stop is CORRECT and harmless — it picks up exactly the work `/ccf:cook` couldn't finish itself.
 
 ## 8. Context management

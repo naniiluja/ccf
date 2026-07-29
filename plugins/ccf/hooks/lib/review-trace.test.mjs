@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseJsonl, hasCcfPlanCommand, hasSpecCheckerReview } from "./review-trace.mjs";
+import { parseJsonl, hasCcfPlanCommand, hasSpecCheckerSpawn } from "./review-trace.mjs";
 
 const userPlan = JSON.stringify({ type: "user", message: { content: "please run /ccf:plan now" } });
 // Bare `/plan` is Claude Code's BUILT-IN plan command (NOT CCF's `/ccf:plan`) — must NOT match.
@@ -63,42 +63,42 @@ test("hasCcfPlanCommand: false when no /ccf:plan in any user line", () => {
   assert.equal(hasCcfPlanCommand(parseJsonl([userOther, specCheckerTask].join("\n"))), false);
 });
 
-test("hasSpecCheckerReview: true when a Task delegates to ccf-spec-checker", () => {
-  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, specCheckerTask].join("\n"))), true);
+test("hasSpecCheckerSpawn: true when a Task delegates to ccf-spec-checker", () => {
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, specCheckerTask].join("\n"))), true);
 });
 
-test("hasSpecCheckerReview: true when an Agent-named tool delegates to ccf-spec-checker (the deadlock bug)", () => {
+test("hasSpecCheckerSpawn: true when an Agent-named tool delegates to ccf-spec-checker (the deadlock bug)", () => {
   // Failing-first: before the fix this returns false because name !== "Task",
   // deadlocking the plan-review-gate in harnesses that spawn via "Agent".
-  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, specCheckerAgent].join("\n"))), true);
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, specCheckerAgent].join("\n"))), true);
 });
 
-test("hasSpecCheckerReview: case-insensitive on the spawn tool name (lowercase 'agent')", () => {
-  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, specCheckerAgentLower].join("\n"))), true);
+test("hasSpecCheckerSpawn: case-insensitive on the spawn tool name (lowercase 'agent')", () => {
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, specCheckerAgentLower].join("\n"))), true);
 });
 
-test("hasSpecCheckerReview: false for a different subagent", () => {
-  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, otherTask].join("\n"))), false);
+test("hasSpecCheckerSpawn: false for a different subagent", () => {
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, otherTask].join("\n"))), false);
 });
 
-test("hasSpecCheckerReview: false for an Agent spawning a non-spec-checker subagent", () => {
-  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, implementerAgent].join("\n"))), false);
+test("hasSpecCheckerSpawn: false for an Agent spawning a non-spec-checker subagent", () => {
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, implementerAgent].join("\n"))), false);
 });
 
-test("hasSpecCheckerReview: false (no throw) when a tool_use block has no name", () => {
-  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, namelessBlock].join("\n"))), false);
+test("hasSpecCheckerSpawn: false (no throw) when a tool_use block has no name", () => {
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, namelessBlock].join("\n"))), false);
 });
 
-test("hasSpecCheckerReview: false when there is no Task tool_use at all", () => {
-  assert.equal(hasSpecCheckerReview(parseJsonl([userPlan, userOther].join("\n"))), false);
+test("hasSpecCheckerSpawn: false when there is no Task tool_use at all", () => {
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, userOther].join("\n"))), false);
 });
 
 test("gate logic: plan session without review → should deny (command true, review false)", () => {
   const records = parseJsonl([userPlan, userOther].join("\n"));
-  assert.equal(hasCcfPlanCommand(records) && !hasSpecCheckerReview(records), true);
+  assert.equal(hasCcfPlanCommand(records) && !hasSpecCheckerSpawn(records), true);
 });
 
 test("gate logic: plan session with review → should allow", () => {
   const records = parseJsonl([userPlan, specCheckerTask].join("\n"));
-  assert.equal(hasCcfPlanCommand(records) && !hasSpecCheckerReview(records), false);
+  assert.equal(hasCcfPlanCommand(records) && !hasSpecCheckerSpawn(records), false);
 });

@@ -1,7 +1,8 @@
 // CCF review-trace helpers — pure logic for the plan-review-gate hook (PreToolUse / ExitPlanMode).
 // Decides, from the session transcript (.jsonl), whether the current /ccf:plan session has already
-// had its plan reviewed by the ccf-spec-checker subagent. Kept pure + defensive so it is
-// unit-testable with `node --test` and never throws.
+// spawned a ccf-spec-checker review of the plan (a spawn tool_use, not proof the review finished —
+// see hasSpecCheckerSpawn's note). Kept pure + defensive so it is unit-testable with `node --test`
+// and never throws.
 //
 // NOTE: the transcript .jsonl format is an UNDOCUMENTED internal Claude Code shape. These helpers
 // read it best-effort only; on any doubt the caller treats the result as "allow" (never block wrongly).
@@ -56,10 +57,15 @@ const SPAWN_TOOL_NAMES = new Set(["task", "agent"]);
  * ccf-spec-checker subagent — the evidence that the plan was put through a
  * fresh-context review. Matches whether the spawn tool is named `Task` or `Agent`
  * (the name is harness-dependent); the `subagent_type` is the real gate.
+ *
+ * NOTE (naming): this proves the review was CALLED, not that it FINISHED — since
+ * Claude Code 2.1.198 an agent runs in the background by default, so a spawn tool_use
+ * appearing in the transcript no longer implies the review has completed. Callers that
+ * need "review is done" must not conflate the two.
  * @param {Array<Record<string, any>>} records parsed transcript records
  * @returns {boolean}
  */
-export function hasSpecCheckerReview(records) {
+export function hasSpecCheckerSpawn(records) {
   for (const r of records) {
     if (!r || r.type !== "assistant") continue;
     const content = r.message?.content;

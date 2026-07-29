@@ -14,7 +14,7 @@ You are running CCF `/ccf:check`. You are a **fresh-context reviewer** (Anthropi
    - FE vs spec
    - **BE ↔ FE cross-check** (does the FE's API usage match the BE contract)
    If `$ARGUMENTS` is empty, ask or infer from the most recent changes.
-3. **Delegate the deep review to the `ccf-spec-checker` subagent** (via Task — fresh, read-only). For cross-check, spawn one checker per side (BE and FE). Each checker verifies:
+3. **Delegate the deep review to the `ccf-spec-checker` subagent** (via Task — fresh, read-only — **with `run_in_background: false`**, since Claude Code v2.1.198 a Task spawn omitting this defaults to running in the background and step 4 below needs the finished report first). For cross-check, spawn one checker per side (BE and FE), waiting for both to finish before step 4. Each checker verifies:
    - Spec conformance (every requirement implemented as specified)
    - Coding conventions (per `.claude/rules/`)
    - Spec violation / drift (code differs from spec without being recorded)

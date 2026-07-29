@@ -9,7 +9,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { readStdinJson, denyTool } from "./lib/io.mjs";
-import { parseJsonl, hasCcfPlanCommand, hasSpecCheckerReview } from "./lib/review-trace.mjs";
+import { parseJsonl, hasCcfPlanCommand, hasSpecCheckerSpawn } from "./lib/review-trace.mjs";
 
 const input = await readStdinJson();
 
@@ -28,7 +28,7 @@ const records = parseJsonl(raw);
 // Scope: only enforce inside a /ccf:plan session; leave every other ExitPlanMode untouched.
 if (!hasCcfPlanCommand(records)) process.exit(0);
 
-if (hasSpecCheckerReview(records)) process.exit(0); // already reviewed → allow
+if (hasSpecCheckerSpawn(records)) process.exit(0); // review already spawned → allow
 
 denyTool(
   "CCF: this plan has not been reviewed yet. Before calling ExitPlanMode, delegate a fresh-context " +

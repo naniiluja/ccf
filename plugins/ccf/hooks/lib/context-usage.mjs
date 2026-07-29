@@ -146,26 +146,17 @@ export function decideGuardAction({ aboveThreshold, hardBlock = false, isEscape 
   return "warn";
 }
 
+/** @typedef {{ id: string, title: string } | null} CompactHintData */
+
 /**
- * Build a copy-paste /compact hint following Anthropic's documented pattern
- * ("Focus on X; preserve modified files + test commands; drop old tool output").
- * Embeds the in-progress task when known — docs favour specific over vague hints.
- * Only embeds the task when BOTH id and a non-empty title are present, so a malformed row
- * never produces "(undefined)" / "()" in the suggested command.
- * @param {{ id: string, title: string } | null} task the in-progress task, or null
- * @returns {string}
+ * Normalize the hint task to plain id/title data, or null — see the "Task 040 split" header note in
+ * context-guard.mjs for why this never composes a /compact command itself. Only returns a task when
+ * BOTH id and a non-empty title are present, so a malformed row never surfaces as "(undefined)" / "()".
+ * @param {{ id: string, title: string } | null} task the hint task, or null
+ * @returns {CompactHintData}
  */
-export function buildCompactHint(task) {
+export function normalizeHintTask(task) {
   const id = task && task.id ? String(task.id).trim() : "";
   const title = task && task.title ? String(task.title).trim() : "";
-  if (id && title) {
-    return (
-      `/compact Focus on task ${id} (${title}); ` +
-      `preserve the modified files list and test commands; drop old tool output and dead ends.`
-    );
-  }
-  return (
-    "/compact Focus on the current task and key decisions; " +
-    "preserve modified files and test commands; drop old tool output."
-  );
+  return id && title ? { id, title } : null;
 }

@@ -6,10 +6,12 @@
 // Opt-in: only fires when its hooks.json command carries `--enforce-tests` (no arg → exit 0
 // silently), the same toggle pattern as auto-verify's `--auto-verify` / context-guard's `--hard-block`.
 // Message source: trusts the DOCUMENTED SubagentStop field `last_assistant_message` first (grounded
-// via code.claude.com/docs/en/hooks + /sub-agents); `transcript_path` is NOT documented for this event,
-// so it is only a defensive FALLBACK for harnesses that supply a transcript instead of the message
-// field directly (task 034; 034a observes the real payload). Does NOT reuse `blockStop` (a different
-// event's output shape) blindly.
+// via code.claude.com/docs/en/hooks + /sub-agents); whether `transcript_path` is ALSO present on this
+// event is NOT YET OBSERVED on a real harness payload, so it is only a defensive FALLBACK for when
+// `last_assistant_message` is absent/empty. `stop_hook_active` is passed through RAW (untouched by
+// this hook) so `shouldBlockImplementerStop`'s STRICT `=== true` comparison is the only place that
+// judges it — see implementer-verify.mjs for the accepted "ask once" tradeoff and its two-sided
+// failure-mode note. Does NOT reuse `blockStop` (a different event's output shape) blindly.
 // Best-effort: any error → exit 0 (we MUST never break a subagent run).
 
 import { existsSync, readFileSync } from "node:fs";
@@ -28,12 +30,18 @@ try {
 
   const input = await readStdinJson();
   const agentType = String(input.agent_type ?? input.subagent_type ?? "");
+  // Strict boolean pass-through (cc-2.1.220-realign correctness fix): `Boolean(input.stop_hook_active)`
+  // treated ANY truthy value — including the STRING "false", plausible given this field's UNCONFIRMED
+  // SubagentStop shape — as the loop guard, silently disabling enforcement. Pass the raw value through
+  // untouched; `shouldBlockImplementerStop` itself does the strict `=== true` comparison.
+  const stopHookActive = input.stop_hook_active;
 
   // PRIMARY: the documented `last_assistant_message` field.
   let lastMessage = resolveLastMessage(input);
 
-  // FALLBACK: only when the documented field is absent/empty, try the (undocumented for this
-  // event) transcript_path — some harnesses may supply a transcript instead of the message text.
+  // FALLBACK: only when the documented field is absent/empty, try transcript_path — whether this
+  // event even carries it is NOT YET OBSERVED on a real harness payload; some harnesses may supply
+  // a transcript instead of the message text.
   if (!lastMessage) {
     const transcriptPath = String(input.transcript_path ?? "");
     if (transcriptPath && existsSync(transcriptPath)) {
@@ -45,7 +53,7 @@ try {
     }
   }
 
-  if (shouldBlockImplementerStop({ enabled, agentType, lastMessage })) {
+  if (shouldBlockImplementerStop({ enabled, stopHookActive, agentType, lastMessage })) {
     blockSubagentStop(
       "<ccf-implementer-verify-gate>Before stopping, add the required TEST-RESULT evidence to your " +
         "final message: run the test/verification command for this task and end with a trailing line " +

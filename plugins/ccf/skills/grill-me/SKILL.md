@@ -32,6 +32,7 @@ Probe, in order, only the points that are still unclear after exploring the code
 3. **Data shape** — inputs/outputs, types, persistence, schema touched.
 4. **Failure modes** — what can go wrong, and the expected handling.
 5. **Test cases** — the concrete cases that must be green (the failing test comes first).
+6. **Implementer model (default for the WHOLE plan)** — ask ONCE which model should implement this plan's tasks by default (an alias such as `sonnet`/`opus`/`haiku`, never a dated model ID). This is asked here, at plan-mode 2 (before any task exists), so it must stay a single plan-wide default, not a per-task question — the calling command's step 5 (once the actual task list is known) is where a per-task OVERRIDE can be offered for a task that is unusually hard/simple. Recommend `sonnet` (a task that is already clear and well-scoped); `opus` for a hard task or one with many constraints; `haiku` for a simple, mechanical text edit — as guidance for that later per-task override, not as a batch of questions asked now. If `AskUserQuestion` is unavailable (a non-interactive session), skip asking, use the `sonnet` default, and say explicitly that the default was used instead of a real answer — never proceed silently as if the user had chosen.
 
 ### `fix`
 Reconstruct the bug, probing only what you cannot already determine from the code/logs:

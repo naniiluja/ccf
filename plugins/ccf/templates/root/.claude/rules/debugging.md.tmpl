@@ -1,6 +1,6 @@
 # Debugging (disciplined, no rushing)
 
-Mandatory process when investigating a bug (used by `/ccf:ccf-fix`):
+Mandatory process when investigating a bug (used by `/ccf:fix`):
 1. **Reproduce** — reconstruct the bug from symptom/input/environment before touching code.
 2. **Trace step by step** — follow the correlation ID across logs, read entry+exit at each boundary.
 3. **Query the DB read-only** (if an MCP is present) — verify data state step by step.
@@ -10,6 +10,6 @@ Mandatory process when investigating a bug (used by `/ccf:ccf-fix`):
 
 > Never guess and fix on the spot before you have evidence.
 
-## Known bugs (updated by /ccf:ccf-updatespec)
+## Known bugs (updated by /ccf:updatespec)
 {{KNOWN_BUGS}}
 <!-- Each entry: symptom — root cause — how to prevent — related files -->

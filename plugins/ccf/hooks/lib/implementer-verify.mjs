@@ -3,23 +3,47 @@
 // carries no TEST-RESULT evidence (per the pinned Return format in agents/ccf-implementer.md).
 // Kept pure + defensive so it is unit-testable with `node --test` and never throws.
 //
-// Message resolution order (grounded via code.claude.com/docs/en/hooks + /sub-agents): the SubagentStop
-// payload documents `last_assistant_message` — resolved by `resolveLastMessage` and used as the
-// PRIMARY source. `transcript_path` is NOT a documented SubagentStop field; `extractLastAssistantText`
-// remains only as a DEFENSIVE FALLBACK for harnesses that provide a transcript instead (task 034 —
-// SubagentStop's loop-guard/transcript shape were unconfirmed by docs at authoring time; 034a observes
-// the real payload).
+// Message resolution order: per changelog/docs at authoring time (task 034), the SubagentStop
+// payload is expected to carry `last_assistant_message` — resolved by `resolveLastMessage` and used
+// as the PRIMARY source. Whether `transcript_path` is ALSO present on this event, and whether
+// `stop_hook_active` exists as a loop-guard signal, is NOT YET OBSERVED on a real harness payload
+// (see project memory `subagentstop-shape-unconfirmed`; `034a` closed by user acceptance without a
+// live observation). `extractLastAssistantText` remains a DEFENSIVE FALLBACK for the case
+// `last_assistant_message` is absent/empty, reading `transcript_path` only if it is present at all.
+//
+// `stop_hook_active` tradeoff (task cc-2.1.220-realign — corrected to state BOTH failure directions,
+// not just one): `shouldBlockImplementerStop` treats `stopHookActive === true` (strict boolean,
+// never a truthy coercion) as "skip the block". The real SubagentStop shape of this field is STILL
+// UNCONFIRMED (see project memory `subagentstop-shape-unconfirmed`; `034a` closed by user acceptance
+// without a live observation), and it can fail in TWO opposite ways, not one:
+//   - If `stop_hook_active` is simply ABSENT on the real payload and the implementer never manages to
+//     add a `TEST-RESULT:` line, this gate has no retry counter at all — it blocks EVERY SubagentStop
+//     for that run, i.e. it can loop INDEFINITELY, not just "fail safe toward blocking once".
+//   - If the harness sets `stop_hook_active` to `true` already on the FIRST SubagentStop this gate
+//     itself triggers (semantics unconfirmed for a child-scoped event), the gate lets that very first
+//     re-entrant stop through with zero enforcement, even though `--enforce-tests` is on and no
+//     TEST-RESULT evidence was ever reported.
+// Neither direction is "safe" in the sense of matching the intended one-retry design — only real
+// observation of a live payload can tell which (if either) actually happens. Do not read this gate
+// as a hard guarantee that every implementer stop carries TEST-RESULT evidence, nor as a guarantee
+// that it can never hang; it is a best-effort nudge whose retry behavior is unverified, matching the
+// "advisory, not airtight" caution already accepted for auto-verify.mjs's `checkAlreadyRan` guard.
+//
+// `matchesAgentName` moved to lib/agent-match.mjs (task cc-2.1.220-realign): it is a neutral
+// name-matching predicate with no real ties to the SubagentStop domain this file owns, and
+// output-style.mjs (a different hook domain, SubagentStart) needed it too — importing FROM this
+// file made that dependency read backwards. Re-used here for `isImplementer`.
+
+import { matchesAgentName } from "./agent-match.mjs";
 
 /**
- * Recognize the ccf-implementer agent type, defensively (harness-dependent casing/spacing).
+ * Recognize the ccf-implementer agent type, defensively (harness-dependent casing/namespace prefix).
  * Coerces non-string input to "" so it never throws. Empty/missing → false.
  * @param {unknown} agentType the input.agent_type field from a SubagentStop payload
  * @returns {boolean}
  */
 export function isImplementer(agentType) {
-  const type = typeof agentType === "string" ? agentType : "";
-  if (!type) return false;
-  return type.toLowerCase().includes("ccf-implementer");
+  return matchesAgentName(agentType, "ccf-implementer");
 }
 
 /**
@@ -33,18 +57,29 @@ export function isImplementer(agentType) {
 export function implementerReportedTests(text) {
   const message = typeof text === "string" ? text : "";
   if (!message) return false;
-  return /TEST-RESULT:\s*\S/.test(message);
+  // Anchored at the START of a line (leading whitespace allowed), per the pinned Return-format
+  // convention in agents/ccf-implementer.md ("Pin the LAST line of your response to exactly one
+  // of..."). Without the `^`/`m` anchor, a mid-sentence PROMISE like "I will add a TEST-RESULT: line
+  // later" also matched (cc-2.1.220-realign correctness fix) — a hollow phrase, not real evidence.
+  return /^\s*TEST-RESULT:\s*\S/m.test(message);
 }
 
 /**
  * @typedef {object} StopSignals
- * @property {boolean} enabled       the --enforce-tests arg is present (opt-in; default off)
- * @property {unknown} agentType     input.agent_type from the SubagentStop payload
- * @property {unknown} lastMessage   the subagent's final assistant message text
+ * @property {boolean} enabled          the --enforce-tests arg is present (opt-in; default off)
+ * @property {boolean} [stopHookActive] input.stop_hook_active — true when this is a re-entrant
+ *                                       SubagentStop already driven by this same gate (ASK-ONCE loop
+ *                                       guard, not a cumulative-enforcement guarantee — see the
+ *                                       module-level tradeoff note above). Absent/non-boolean coerces
+ *                                       to false, so omitting it keeps the pre-existing behavior
+ *                                       unchanged.
+ * @property {unknown} agentType        input.agent_type from the SubagentStop payload
+ * @property {unknown} lastMessage      the subagent's final assistant message text
  */
 
 /**
- * Pure decision: block the SubagentStop ONLY when the gate is enabled, the stopping agent IS
+ * Pure decision: block the SubagentStop ONLY when the gate is enabled, this is NOT a re-entrant
+ * stop (stopHookActive guards against re-blocking the same drive in a loop), the stopping agent IS
  * ccf-implementer, AND its last message reports no TEST-RESULT evidence. Coerces untrusted/missing
  * input to a safe `false` — never throws.
  * @param {StopSignals} signals
@@ -55,6 +90,12 @@ export function shouldBlockImplementerStop(signals) {
   const s = signals && typeof signals === "object" ? signals : {};
   const enabled = Boolean(s.enabled);
   if (!enabled) return false;
+  // Strict boolean check (cc-2.1.220-realign correctness fix): the real SubagentStop shape of this
+  // field is UNCONFIRMED (see the module-level tradeoff note above), and `Boolean(s.stopHookActive)`
+  // treated ANY truthy value — including the STRING "false", which a harness could plausibly emit —
+  // as "skip the block", silently disabling enforcement. Only the real boolean `true` may act as the
+  // loop guard; every other value (a string, a number, null, undefined) is treated as "not active".
+  if (s.stopHookActive === true) return false;
   if (!isImplementer(s.agentType)) return false;
   return !implementerReportedTests(s.lastMessage);
 }
