@@ -51,9 +51,15 @@ and reported it. Two separate defects behind one symptom:
 Fixed here: `AskUserQuestion` added to `plan.md` + `init.md` (the two analyzer fan-outs, i.e. the
 user's actual request), step 1b and `init.md` B1 both rewritten to ASK with **`haiku` labelled as the
 recommendation** and an explicit ban on silently reusing the session's own model, and the rule
-written into `components.md` so it cannot recur. **`fix.md` (debugger model) and `cook.md`
-(implementer model) are still broken** — same one-line defect, different feature, deliberately left
-for the user to approve rather than widened into unrequested scope.
+written into `components.md` so it cannot recur.
+
+**Then extended to `fix.md` + `cook.md` on the user's explicit go-ahead** ("sao ko sửa, sửa đi"), so
+all FOUR asking commands are fixed: `plan.md` (analyzer model), `init.md` (analyzer model), `fix.md`
+(debugger model, recommends `opus` — root-cause work is the high-stakes reasoning its default exists
+for) and `cook.md` (implementer model, recommends `sonnet`). Each now names a labelled
+RECOMMENDATION and bans silently reusing the session's own model. `check.md` and `updatespec.md`
+deliberately do NOT get the tool: neither asks through it, and `updatespec.md`'s "nudge the user"
+closing is a printed sentence, not a prompt.
 - Spec sync, 6 places that claimed only init fans out: `init.md` (the "ONLY place" sentence, plus
   labelling its list as set A), `architecture.md`, `plugins/ccf/README.md` tree, and the agent table
   in all 3 READMEs.

@@ -1,7 +1,7 @@
 ---
 description: Execute the entire todo/in-progress backlog sequentially via ccf-implementer, then batch-verify (review + code-review in parallel, simplify, re-gate, updatespec).
 argument-hint: "[optional: task range]"
-allowed-tools: Read, Glob, Grep, Task, Skill, TaskCreate, TaskUpdate, TaskList
+allowed-tools: Read, Glob, Grep, Task, Skill, AskUserQuestion, TaskCreate, TaskUpdate, TaskList
 model: opus
 ---
 
@@ -25,7 +25,7 @@ Two constraints, both load-bearing:
 **Since Claude Code v2.1.198, a Task spawn that omits `run_in_background` defaults to running in the background** — that silently breaks the sequential law (the next step could fire before the implementer finishes). There is no agent-frontmatter lever to force synchronous execution (`background: true` only forces backgrounding; a documented `false` value does not exist), so the only lever is the CALL SITE: every `Task` spawn below MUST pass `run_in_background: false` explicitly.
 For EACH task, in order:
 0. `TaskUpdate` this task's session entry to `in_progress` **before** spawning, so the list reflects reality rather than being back-filled afterwards.
-1. Spawn `ccf-implementer` via **Task** with `run_in_background: false`, passing the task file path, with a **model override read from that task file's `Model:` line** (an alias such as `sonnet`/`opus`/`haiku` — do NOT hardcode a dated model ID like `claude-sonnet-5`; use the alias so it tracks whatever the alias resolves to). If the task file carries no `Model:` line, ask the user ONCE for the whole run which model to use for every task in this backlog, then apply that same choice to each spawn. If `AskUserQuestion` is unavailable (non-interactive), fall back to the `ccf-implementer` frontmatter default (`sonnet`) and say explicitly that the default was used.
+1. Spawn `ccf-implementer` via **Task** with `run_in_background: false`, passing the task file path, with a **model override read from that task file's `Model:` line** (an alias such as `sonnet`/`opus`/`haiku` — do NOT hardcode a dated model ID like `claude-sonnet-5`; use the alias so it tracks whatever the alias resolves to). If the task file carries no `Model:` line, **ASK with `AskUserQuestion`** ONCE for the whole run which model to use for every task in this backlog, then apply that same choice to each spawn. **Recommend `sonnet`** and label it as the recommendation (a CCF task is an already-sliced, spec-clear unit, which is why it is the agent's frontmatter default); offer `opus` for a backlog of unusually hard tasks and `haiku` for mechanical text edits. Do NOT silently spawn the session's own model just because it is what the main loop runs as. If `AskUserQuestion` is unavailable (non-interactive), fall back to `sonnet` and say explicitly that the default was used because asking was blocked; never proceed as if the user had chosen.
 2. Wait for it to finish. Read its report: which test/tsc command it ran and the actual result.
 3. **Check the slice gate** (the test/tsc/validate command the task file names, per its report):
    - **GREEN** → `TaskUpdate` the session entry to `completed`, write `in-review` (never `done`) into the `PLAN.md` status column, then move to the next task.
