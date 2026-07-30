@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // CCF Stop nudge — Stop event, PURELY ADVISORY (never blocks).
-// Composes THREE INDEPENDENT advisories into the single non-blocking Stop channel:
+// Composes FOUR INDEPENDENT advisories into the single non-blocking Stop channel:
 //   (A) verify-work     : this SESSION edited code but ran no test command (session transcript evidence).
 //   (B) updatespec      : code changed more recently than the spec (cross-history staleness, freshness.mjs).
 //   (C) plan-status-sync: this SESSION ran `git commit` but PLAN.md still has tasks not 'done'.
+//   (D) archive-plan    : PLAN.md holds an iteration whose every task is CLOSED — it should be retired.
 // No clause gates another; all off → emit nothing, exit 0.
 // Channel: default is emitSystemMessage (user-facing only, SINGLE channel — must stay INVARIANT).
 // Opt-in via a `--dual-channel-stop` argv flag → emitStopAdvisory (BOTH additionalContext + systemMessage,
@@ -13,11 +14,13 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { readStdinJson, emitSystemMessage, emitStopAdvisory, RELAY_IN_USER_LANGUAGE } from "./lib/io.mjs";
 import { specsOlderThanCode } from "./lib/freshness.mjs";
 import { needsVerifyNudge, readTranscriptSignals } from "./lib/verify-trace.mjs";
 import { findNonDoneTasks } from "./lib/plan.mjs";
 import { committedThisSession } from "./lib/git-trace.mjs";
+import { findRetirableIterationsIn } from "./lib/archive.mjs";
 
 const input = await readStdinJson();
 
@@ -66,9 +69,11 @@ if (specsOlderThanCode(cwd, rulesDir)) {
   });
 }
 
+const planFile = join(cwd, ".claude", "plan", "PLAN.md");
+
 // (C) Plan-status-sync — committed this session but PLAN.md still has unfinished tasks (independent of A/B).
 if (committedThisSession(transcriptPath)) {
-  const pending = findNonDoneTasks(join(cwd, ".claude", "plan", "PLAN.md"));
+  const pending = findNonDoneTasks(planFile);
   if (pending.length > 0) {
     const ids = pending.map((t) => t.id).join(", ");
     advisories.push({
@@ -76,6 +81,24 @@ if (committedThisSession(transcriptPath)) {
       userNote: `PLAN.md still has ${pending.length} task(s) not 'done' (ids ${ids}) — mark each done only after its /ccf:check + /code-review pass, or fix its status`,
     });
   }
+}
+
+// (D) Archive-plan — PLAN.md holds an iteration whose every task row is CLOSED (independent of A/B/C).
+// Detection is deterministic and harmless here; the actual retirement REWRITES two files and moves
+// task files, so it is deliberately NOT done by this hook — it is left to `scripts/archive-plan.mjs`,
+// which a human runs. Same detection-vs-action split as context-guard (task 040): the hook is certain
+// about the fact, the human owns the mutation.
+// The script path is resolved from import.meta.url rather than from `cwd`, because the plugin runs
+// from its installed cache copy, not from this repo — a cwd-relative path would not exist there.
+const retirable = findRetirableIterationsIn(planFile);
+if (retirable.length > 0) {
+  const scriptPath = fileURLToPath(new URL("../scripts/archive-plan.mjs", import.meta.url));
+  const command = `node "${scriptPath}" --apply`;
+  const count = retirable.length;
+  advisories.push({
+    directive: `<ccf>PLAN.md still holds ${count} iteration(s) whose every task is closed. Tell the user, ${RELAY_IN_USER_LANGUAGE}, that a closed iteration left in PLAN.md is counted as live work by the plan hooks, and that running \`${command}\` retires it into ARCHIVE.md (task files into archive/). Mention they can run it without --apply first to preview.</ccf>`,
+    userNote: `${count} fully-closed iteration(s) still in PLAN.md — retire with: ${command} (drop --apply to preview first)`,
+  });
 }
 
 // Fold all advisories; silent if none. Channel picked by the opt-in flag.

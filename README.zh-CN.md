@@ -62,7 +62,7 @@ claude plugin install ccf@ccf
 
 | Agent | 角色 | 模式 |
 |---|---|---|
-| `ccf-codebase-analyzer` | 分析已有代码库的一个切片；`/ccf:init` 并行 fan-out 5 个。 | 只读 |
+| `ccf-codebase-analyzer` | 分析已有代码库的一个切片。由 `/ccf:init`（onboarding 切片，覆盖整个项目）和 `/ccf:plan`（规划切片，限定在所请求的变更范围内）各并行 fan-out 5 个。CCF 命令通过该 agent 探索代码，不使用内置的 `Explore`。 | 只读 |
 | `ccf-best-practice-researcher` | 在隔离上下文中从 Context7 / MS Learn 获取带引用的最佳实践。 | 只读 |
 | `ccf-implementer` | 实现**恰好一个**计划任务：先写失败测试，再写代码以满足验收标准。 | 写 |
 | `ccf-spec-writer` | 根据决策摘要起草 CLAUDE.md / rules 内容。 | 起草 |
@@ -116,7 +116,9 @@ claude plugin install ccf@ccf
 
 `/ccf:init` 和 `/ccf:plan` 在 `.claude/plan/` 中生成一份计划（一个 `PLAN.md` 索引 + 若干 `task-NNN-*.md` 文件）。每个任务都是一个**细的垂直切片**——穿过它所触及各层（DB + service + UI）的曳光弹，按从薄到厚排序，每个都遵循 *规格 → 失败测试 → 实现*。每个任务恰好有**一个前驱**，并指明下一切片开始前必须变绿的**测试关卡**。这正是让「严格串行」变得具体且可审查的东西。
 
-`PLAN.md` 只保留**当前**迭代。当某个迭代的所有任务都 `done` 之后，`/ccf:updatespec` 会把它退役到 `ARCHIVE.md`（任务文件移入 `.claude/plan/archive/`）。这条规则刻意在两个方向上都成立：已关闭的行若留在 `PLAN.md` 中，会被 session-start 钩子和 Stop 钩子当成仍在进行的工作来计数；而*删除*历史又会让 `ccf-spec-checker` 的 premortem 失去它用来锚定预测的真实过往失败。所以规则是归档，绝不删除。
+`PLAN.md` 只保留**当前**迭代。当某个迭代的所有任务都 `done` 之后，它会被退役到 `ARCHIVE.md`（任务文件移入 `.claude/plan/archive/`）。这条规则刻意在两个方向上都成立：已关闭的行若留在 `PLAN.md` 中，会被 session-start 钩子和 Stop 钩子当成仍在进行的工作来计数；而*删除*历史又会让 `ccf-spec-checker` 的 premortem 失去它用来锚定预测的真实过往失败。所以规则是归档，绝不删除。
+
+退役是**自动检测、手动执行**的。Stop 钩子发现某个迭代已完全关闭后会打印出确切命令；`node "<plugin-root>/scripts/archive-plan.mjs"` 只做预览（不写入任何内容，并指出还有哪些行让迭代处于打开状态），加上 `--apply` 才真正执行——重写两个文件并 `git mv` 任务文件，只暂存、绝不提交。写入操作刻意不自动化：钩子在无人参与的情况下触发，一次错误检测就会悄悄改写你的计划与历史。
 
 ## 架构
 
@@ -124,6 +126,7 @@ claude plugin install ccf@ccf
 - **Agent** = 6 个专用子 agent（分析器、研究员、实现者、规格撰写者、规格检查者、调试器）。
 - **Skill** = 1 个内部 skill（`grill-me`）——各命令通过 Skill 工具调用的共享需求访谈引擎；从 `/` 菜单隐藏（`user-invocable: false`）。
 - **钩子** = 9 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、context-usage、review-trace、git-trace、verify-trace、verify-chain、output-style、explore-guide、implementer-verify）位于 `hooks/lib/`。
+- **脚本** = 1 个由人手动运行的 CLI（`scripts/archive-plan.mjs`）—— 与钩子遵循同样的无构建、无依赖规则，但没有任何机制会自动调用它。**会改写你的文件**的操作就应该放在这里，这样影响范围始终由你主动运行来界定。
 - **模板** = 带 `{{...}}` 占位符的文件（`root/` 始终使用，`backend/` + `frontend/` 在全栈时使用），由 `/ccf:init` 实例化。
 
 详见 `plugins/ccf/`。钩子需要 Node ≥ 18。

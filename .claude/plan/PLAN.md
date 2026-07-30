@@ -12,7 +12,34 @@
 > sections into `ARCHIVE.md` verbatim and `git mv` its task files into `archive/`.
 > **Premortem note:** `ccf-spec-checker` and `/ccf:plan` step 6 anchor failure modes to real past
 > iterations, so they must read `ARCHIVE.md` as well as this file.
-## Origin — cc-2.1.220-realign (tasks 036–041) — IN-REVIEW (LEAD, v0.8.0, no predecessor)
+## Origin — workflow-hardening (tasks 043–044) — IN-REVIEW (LEAD, no predecessor)
+Bước retire iteration đã đóng trước đây chỉ tồn tại dưới dạng văn bản trong `commands/updatespec.md` bước 6. Không hook, không script, không phát hiện: nếu không ai gọi `/ccf:updatespec` thì một iteration đã đóng cứ nằm trong `PLAN.md` và `lib/plan.mjs` đếm các row của nó là việc còn sống. Người dùng yêu cầu biến bước này thành cơ chế thật, và chọn hình dạng **hook PHÁT HIỆN, script GHI FILE** thay vì để hook tự ghi, phạm vi **chỉ archive** thay vì quản cả vòng đời plan.
+
+**Kết quả.** Thư viện `hooks/lib/archive.mjs` giữ quyết định dùng chung cho cả hai phía nên chúng không thể bất đồng về nghĩa "đã đóng"; `scripts/archive-plan.mjs` là loại artifact THỨ NĂM của dự án (script do người chạy, mặc định xem trước, `--apply` mới ghi); clause **(D)** của `updatespec-nudge` nhắc kèm đường dẫn tuyệt đối lấy từ `import.meta.url` vì plugin chạy từ bản cache chứ không từ repo. `plan.mjs` export thêm `isClosedStatus`/`isRealTaskRow`/`collectTaskRows` để một định nghĩa "closed" phục vụ cả hai.
+
+**Một thiết kế bị loại TRƯỚC khi viết code:** gom section theo TÊN iteration. Đọc `ARCHIVE.md` thật thì thấy `## Origin — bestpractice-audit → advisor+goal docs → …` nằm trên `## Task backlog — bestpractice-audit + advisory/goal + SubagentStop-gate` (tên khác nhau) và một backlog heading là `## Task backlog (in execution order)` không tên. Gom theo tên sẽ cắt sai dòng. Nên gom theo VỊ TRÍ: từ `## Origin` này tới `## Origin` kế tiếp.
+
+**Cửa kiểm đã chạy thật:** 227 pass 0 fail (206 → 227, test đỏ trước vì `ERR_MODULE_NOT_FOUND`), `tsc` exit 0, `plugin validate` passed, smoke hook 4 ca spawn process con thật, và **script chạy `--apply` trên BẢN SAO dữ liệu thật**: 87500 → 87501 byte (chênh đúng 1 newline chuẩn hoá, không mất chữ), 6 file task chuyển đúng chỗ, đoạn 12410 ký tự xác nhận nằm nguyên văn trong `ARCHIVE.md` đúng thứ tự newest-first.
+
+**Chi phí nói thẳng:** `hooks.md` tăng RÒNG +1499 byte dù đã chuyển đoạn đo lường 039 ra; cả bộ spec mỗi session 85744 → 89790 byte. `CLAUDE.md` vẫn trong hạn (58 dòng / 8465 byte). Đề xuất tách `hooks.md` theo sự kiện giờ cấp thiết hơn, cố ý KHÔNG làm trong lượt này.
+
+**Task 044, cùng mạch: `/ccf:plan` tự khám phá codebase bằng 5 analyzer, không dùng `Explore` gốc.** Tiền đề của yêu cầu đã được sửa TRƯỚC khi viết: `/ccf:plan` không hề dùng `Explore` ở đâu, mà là KHÔNG CÓ bước khám phá code nào cả; `grill-me` dò code ngay trong luồng chính vì `allowed-tools` của nó không có `Task`. Cái `Explore` người dùng thấy là luồng chính tự gọi. Nên task này THÊM một bước và CẤM `Explore`, chứ không thay thế cơ chế nào.
+
+Agent `ccf-codebase-analyzer` trước đây đóng đinh đúng 5 slice của init, giờ khai hai bộ: **set A** (onboarding, giữ nguyên) và **set B** (lập kế hoạch, mới): vùng sẽ bị sửa, mẫu phải tuân theo, bề mặt test kèm câu lệnh chạy thật, điểm tích hợp và hợp đồng dữ liệu, bán kính ảnh hưởng và nơi dễ vỡ. Set B có định dạng báo cáo riêng, bắt buộc mục **Unknowns**, vì một điều chưa biết mà không nói ra sẽ thành giả định âm thầm trong kế hoạch.
+
+Bước **1b** đặt TRƯỚC phỏng vấn để báo cáo NUÔI phỏng vấn: xác nhận thay vì hỏi mù, và mỗi mục Unknowns là một câu hỏi có giá trị nhất. Lý do cấm `Explore` không phải an toàn (cả hai đều read-only) mà là quyền sở hữu: CCF không sở hữu prompt của `Explore` nên không áp được định dạng báo cáo lẫn mục Unknowns.
+
+**Drift bắt được từ 043:** cây thư mục trong `plugins/ccf/README.md` thiếu cả `scripts/` lẫn `lib/archive.mjs`, tức lượt đồng bộ của 043 đã bỏ sót hẳn file đó. Đã sửa ở 044.
+
+**Chỗ CHƯA kiểm được, nói thẳng:** chưa chạy `/ccf:plan` thật lần nào với bước mới. Toàn bộ 044 là văn bản prompt cộng kiểm tra tĩnh; việc 5 analyzer set B có trả về báo cáo hữu ích và không trùng lặp hay không là CHƯA QUAN SÁT, cùng loại cửa kiểm với 038 tới 041. **Chi phí:** `/ccf:plan` giờ spawn tới 7 agent mỗi lượt (5 analyzer + researcher tuỳ chọn + spec-checker bắt buộc), so với 1 hoặc 2 trước đây.
+
+## Task backlog — workflow-hardening
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 043 | Script archive-plan + clause D + đồng bộ spec | 2 lib + 1 test + 1 script + 1 hook + 5 rule/cmd + 3 README + CLAUDE.md | 227 pass (206→227, đỏ trước vì thiếu module) + `tsc` + `validate` + smoke hook 4 ca + `--apply` trên bản sao dữ liệu thật (đối chiếu byte + verbatim) | — | in-review |
+| 044 | `/ccf:plan` bước 1b fan out 5 analyzer set B, cấm `Explore` | 1 agent + 2 cmd + 1 rule + 4 README | `validate` + 227 pass (không đổi, task không sửa `.mjs`) + `tsc` + grep xác nhận `allowed-tools` thiếu `AskUserQuestion` và rà mọi chỗ nhắc `Explore` | 043 | in-review |
+
+## Origin — cc-2.1.220-realign (tasks 036–041) — IN-REVIEW (v0.8.0, no predecessor)
 Spec CCF được đối chiếu tài liệu lần cuối ở bản Claude Code 2.1.78, máy chạy 2.1.220. Rà changelog giữa hai bản: 3 chỗ spec nói sai, 1 lỗ hổng cơ chế, 1 nghi vấn hook chưa từng chạy, cộng 3 yêu cầu trực tiếp của người dùng (văn phong, chọn model, lời nhắc compact).
 
 **Ba chỗ spec nói sai.** (1) Từ bản 2.1.163 Stop và SubagentStop ĐỀU nhận `hookSpecificOutput.additionalContext`; `hooks.md` và `io.mjs` nói ngược, nên `updatespec-nudge` chỉ nói được với người dùng còn model không nhận lời nhắc. (2) Độ sâu spawn agent con là VERSION-DEPENDENT: mặc định 3, là 5 ở v2.1.172 tới v2.1.216, là 1 ở v2.1.217/v2.1.218, đổi được bằng `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`; spec cũ viết "fixed depth limit of five levels" nên sai cả con số lẫn chữ "fixed". (3) Từ 2.1.198 subagent chạy nền theo mặc định, đe dọa luật làm tuần tự; không có lever frontmatter ép đồng bộ, nên luật được cột bằng `run_in_background: false` ở 12 chỗ gọi trong 6 lệnh.

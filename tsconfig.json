@@ -12,6 +12,7 @@
   },
   "include": [
     "plugins/ccf/hooks/**/*.mjs",
+    "plugins/ccf/scripts/**/*.mjs",
     "plugins/ccf/templates/root/.claude/hooks/lib/**/*.mjs",
     "bin/**/*.mjs"
   ],

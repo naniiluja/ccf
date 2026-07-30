@@ -62,7 +62,7 @@ Specialized subagents that **inherit the host project's tools, MCP servers and s
 
 | Agent | Role | Mode |
 |---|---|---|
-| `ccf-codebase-analyzer` | Analyzes one slice of an existing codebase; `/ccf:init` fans out 5 in parallel. | read-only |
+| `ccf-codebase-analyzer` | Analyzes one slice of an existing codebase. Fanned out 5-in-parallel by `/ccf:init` (onboarding slices, whole project) and `/ccf:plan` (planning slices, scoped to the requested change). CCF commands discover code through this, never the built-in `Explore`. | read-only |
 | `ccf-best-practice-researcher` | Fetches cited best practices from Context7 / MS Learn in an isolated context. | read-only |
 | `ccf-implementer` | Implements **exactly one** plan task: failing test first, then code to meet acceptance criteria. | writes |
 | `ccf-spec-writer` | Drafts CLAUDE.md / rules content from a decisions summary. | drafts |
@@ -116,7 +116,9 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 
 `/ccf:init` and `/ccf:plan` produce one plan in `.claude/plan/` (a `PLAN.md` index + `task-NNN-*.md` files). Each task is a **thin vertical slice** — a tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, each as *spec → failing test → implement*. Every task has exactly **one predecessor** and names the **test gate** that must be green before the next slice starts. This is what makes "strictly sequential" concrete and reviewable.
 
-`PLAN.md` stays scoped to the **current** iteration. When every task in an iteration is `done`, `/ccf:updatespec` retires it into `ARCHIVE.md` (its task files into `.claude/plan/archive/`). This cuts both ways on purpose: a closed row left in `PLAN.md` is counted as live work by the session-start and Stop hooks, while *deleting* the history would strip `ccf-spec-checker`'s premortem of the real past failures it anchors its predictions to. So the rule is archive, never delete.
+`PLAN.md` stays scoped to the **current** iteration. When every task in an iteration is `done`, it is retired into `ARCHIVE.md` (its task files into `.claude/plan/archive/`). This cuts both ways on purpose: a closed row left in `PLAN.md` is counted as live work by the session-start and Stop hooks, while *deleting* the history would strip `ccf-spec-checker`'s premortem of the real past failures it anchors its predictions to. So the rule is archive, never delete.
+
+Retirement is **detected automatically, applied deliberately**. The Stop hook notices a fully-closed iteration and prints the exact command; `node "<plugin-root>/scripts/archive-plan.mjs"` previews it (writing nothing, and naming any row still holding an iteration open) and `--apply` performs it — rewriting both files and `git mv`-ing the task files, staged but never committed. The mutation is not automated on purpose: a hook fires with no human in the loop, and a wrong detection there would silently rewrite your plan and your history.
 
 ## Architecture
 
@@ -124,6 +126,7 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 - **Agents** = 6 specialized subagents (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
 - **Skills** = 1 internal skill (`grill-me`) — the shared requirements-interview engine the commands invoke via the Skill tool; hidden from the `/` menu (`user-invocable: false`).
 - **Hooks** = 9 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, context-usage, review-trace, git-trace, verify-trace, verify-chain, output-style, explore-guide, implementer-verify) live in `hooks/lib/`.
+- **Scripts** = 1 human-run CLI (`scripts/archive-plan.mjs`) — same no-build/no-dependency rules as a hook, but nothing invokes it automatically. This is where an action that **mutates your files** belongs, so its blast radius stays bounded by you choosing to run it.
 - **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:init` instantiates.
 
 See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.

@@ -62,7 +62,7 @@ Các subagent chuyên biệt **kế thừa tool, MCP server và skill của dự
 
 | Agent | Vai trò | Chế độ |
 |---|---|---|
-| `ccf-codebase-analyzer` | Phân tích một slice của codebase có sẵn; `/ccf:init` fan-out 5 cái song song. | read-only |
+| `ccf-codebase-analyzer` | Phân tích một slice của codebase có sẵn. Được fan-out 5 cái song song bởi `/ccf:init` (slice onboarding, quét cả dự án) và `/ccf:plan` (slice lập kế hoạch, chỉ trong phạm vi thay đổi được yêu cầu). Các lệnh CCF khám phá code qua agent này, không dùng `Explore` gốc. | read-only |
 | `ccf-best-practice-researcher` | Lấy best practice có trích dẫn từ Context7 / MS Learn trong context tách biệt. | read-only |
 | `ccf-implementer` | Implement **đúng một** task plan: failing test trước, rồi code để đạt acceptance criteria. | ghi |
 | `ccf-spec-writer` | Soạn nội dung CLAUDE.md / rules từ bản tóm tắt quyết định. | soạn |
@@ -116,7 +116,9 @@ Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → 
 
 `/ccf:init` và `/ccf:plan` sinh một plan trong `.claude/plan/` (một index `PLAN.md` + các file `task-NNN-*.md`). Mỗi task là một **vertical slice mỏng** — tracer-bullet xuyên qua các tầng nó chạm tới (DB + service + UI), sắp xếp mỏng → giàu dần, mỗi cái theo *spec → failing test → implement*. Mỗi task có đúng **một predecessor** và nêu tên **test gate** phải xanh trước khi slice kế bắt đầu. Đây là thứ khiến "strictly sequential" trở nên cụ thể và review được.
 
-`PLAN.md` chỉ chứa iteration **đang chạy**. Khi mọi task của một iteration đã `done`, `/ccf:updatespec` chuyển nó sang `ARCHIVE.md` (các file task sang `.claude/plan/archive/`). Quy tắc này cắt về hai phía, và đó là cố ý: một row đã đóng còn nằm trong `PLAN.md` sẽ bị hook session-start và hook Stop đếm là việc còn sống, còn *xoá* lịch sử thì lại lấy đi của premortem trong `ccf-spec-checker` chính những thất bại thật mà nó neo dự đoán vào. Nên luật là archive, tuyệt đối không xoá.
+`PLAN.md` chỉ chứa iteration **đang chạy**. Khi mọi task của một iteration đã `done`, nó được chuyển sang `ARCHIVE.md` (các file task sang `.claude/plan/archive/`). Quy tắc này cắt về hai phía, và đó là cố ý: một row đã đóng còn nằm trong `PLAN.md` sẽ bị hook session-start và hook Stop đếm là việc còn sống, còn *xoá* lịch sử thì lại lấy đi của premortem trong `ccf-spec-checker` chính những thất bại thật mà nó neo dự đoán vào. Nên luật là archive, tuyệt đối không xoá.
+
+Việc archive được **phát hiện tự động, nhưng thi hành có chủ ý**. Hook Stop nhận ra iteration đã đóng hoàn toàn rồi in ra đúng câu lệnh; `node "<plugin-root>/scripts/archive-plan.mjs"` là bản xem trước (không ghi gì, và nêu tên những row còn giữ iteration mở), thêm `--apply` mới thực hiện — ghi lại cả hai file và `git mv` các file task, có stage nhưng không commit. Phần ghi file cố ý không tự động: hook chạy mà không có ai trong vòng lặp, nên một lần phát hiện sai ở đó sẽ âm thầm viết lại plan và lịch sử của bạn.
 
 ## Kiến trúc
 
@@ -124,6 +126,7 @@ Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → 
 - **Agent** = 6 subagent chuyên biệt (analyzer, researcher, implementer, spec-writer, spec-checker, debugger).
 - **Skill** = 1 skill nội bộ (`grill-me`) — engine phỏng vấn dùng chung mà các command gọi qua Skill tool; ẩn khỏi menu `/` (`user-invocable: false`).
 - **Hook** = 9 `.mjs` chạy trực tiếp bằng `node` — không build step, không dependency, Windows-clean; các helper dùng chung (freshness, đọc plan, context-usage, review-trace, git-trace, verify-trace, verify-chain, output-style, explore-guide, implementer-verify) nằm ở `hooks/lib/`.
+- **Script** = 1 CLI do người chạy (`scripts/archive-plan.mjs`) — cùng luật no-build/no-dependency như hook, nhưng không có gì gọi nó tự động. Đây là chỗ dành cho hành động **ghi vào file của bạn**, để phạm vi ảnh hưởng luôn bị giới hạn bởi việc bạn chủ động chạy nó.
 - **Template** = file placeholder `{{...}}` (`root/` luôn dùng, `backend/` + `frontend/` khi fullstack) mà `/ccf:init` instantiate.
 
 Xem `plugins/ccf/` cho chi tiết. Yêu cầu Node ≥ 18 cho hook.

@@ -12,7 +12,7 @@ plugins/ccf/
 │  ├─ init.md  plan.md  check.md
 │  ├─ fix.md   updatespec.md  cook.md
 ├─ agents/                      # 6 subagents — inherit the project's tools/MCP/skills (see below)
-│  ├─ ccf-codebase-analyzer.md       # x5 in parallel to onboard an existing project
+│  ├─ ccf-codebase-analyzer.md       # x5 in parallel: onboard (init) or scope a change (plan)
 │  ├─ ccf-best-practice-researcher.md# fetch best practices from Context7/MS Learn
 │  ├─ ccf-implementer.md             # implement 1 task (writer: omits tools → inherit-all)
 │  ├─ ccf-spec-writer.md             # draft the spec
@@ -33,6 +33,7 @@ plugins/ccf/
 │  ├─ lib/output-style.mjs      # resolve active output style + build the SubagentStart rules directive
 │  ├─ lib/explore-guide.mjs     # build the language-agnostic LSP/Grep/Glob directive for the Explore subagent
 │  ├─ lib/implementer-verify.mjs# decide whether a SubagentStop from ccf-implementer must be blocked
+│  ├─ lib/archive.mjs           # decide which PLAN.md iteration is fully closed + how to retire it
 │  ├─ plan-mode-guard.mjs       # UserPromptSubmit: block /ccf:plan outside plan mode
 │  ├─ plan-review-gate.mjs      # PreToolUse(ExitPlanMode): deny until plan is spec-checker reviewed
 │  ├─ session-start.mjs         # SessionStart: reminder + re-load task after compact
@@ -42,6 +43,8 @@ plugins/ccf/
 │  ├─ agent-rules-inject.mjs    # SubagentStart: inject coding rules + active style into spawned ccf-implementer
 │  ├─ explore-guide-inject.mjs  # SubagentStart(Explore): inject the LSP/Grep/Glob exploration directive
 │  └─ implementer-verify-gate.mjs # SubagentStop(ccf-implementer): opt-in (--enforce-tests) block on missing TEST-RESULT
+├─ scripts/                     # 1 human-run CLI — nothing invokes it automatically
+│  └─ archive-plan.mjs          # retire a fully-closed iteration: PLAN.md → ARCHIVE.md (--apply)
 └─ templates/                   # read by /ccf:init to generate files (not auto-loaded)
    ├─ root/      backend/      frontend/
 ```

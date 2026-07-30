@@ -35,6 +35,31 @@ export function findActiveTask(file) {
 const CLOSED_STATUS_RE = /^(done|dropped|cancell?ed|won'?t[-\s]?fix|wontfix)$/i;
 
 /**
+ * True when a status cell means the task is CLOSED (see CLOSED_STATUS_RE). Exported so
+ * `archive.mjs` decides "iteration fully closed" against the SAME definition the Stop nudge uses
+ * for "still live work" — if the two ever diverged, an iteration could be archived while the nudge
+ * still counted its rows as open (or vice-versa). One source of truth, deliberately.
+ * @param {string} status status cell text (already emphasis-stripped by collectTaskRows)
+ * @returns {boolean}
+ */
+export function isClosedStatus(status) {
+  return CLOSED_STATUS_RE.test(status);
+}
+
+/**
+ * True when a parsed row is a REAL task row rather than a table header that slipped through.
+ * Backup guard (defense-in-depth): a header row with no following separator row (malformed table,
+ * so isHeaderRow inside collectTaskRows already missed it) still won't leak IF its resolved status
+ * literally reads "Status" or its id cell is the near-universal "#" marker used for an id column
+ * header — both harmless no-ops on a real task. Shared by findNonDoneTasks and archive.mjs.
+ * @param {{ id: string, status: string }} row
+ * @returns {boolean}
+ */
+export function isRealTaskRow(row) {
+  return !/^status$/i.test(row.status) && row.id !== "#";
+}
+
+/**
  * Strip markdown emphasis wrappers (`**bold**`, `*italic*`, `_italic_`, `` `code` ``) from a status
  * cell. Emphasis is PRESENTATION, not data, and every status predicate in this file is ANCHORED
  * (`^done$`, `^in-review$`) — so a decorated cell silently fails to match and a finished task reads
@@ -66,14 +91,9 @@ export function findNonDoneTasks(file) {
   } catch {
     return [];
   }
-  return collectTaskRows(content.split(/\r?\n/)).filter((row) => {
-    // Backup guard (defense-in-depth): a header row with no following separator row (malformed
-    // table, so isHeaderRow inside collectTaskRows already missed it) still won't leak IF its
-    // resolved status literally reads "Status" or its id cell is the near-universal "#" marker
-    // used for an id column header — both harmless no-ops on a real task.
-    if (/^status$/i.test(row.status) || row.id === "#") return false;
-    return !CLOSED_STATUS_RE.test(row.status); // only collect rows that are still OPEN
-  });
+  return collectTaskRows(content.split(/\r?\n/)).filter(
+    (row) => isRealTaskRow(row) && !isClosedStatus(row.status), // only collect rows that are still OPEN
+  );
 }
 
 /**
@@ -88,10 +108,11 @@ export function findNonDoneTasks(file) {
  * the section that follows; if no header cell matches, falls back to the last-cell heuristic
  * (previous behavior) for that section, so a table with no recognisable header still parses.
  * id = first cell, title = second cell — unaffected, both projects observed use that order.
+ * Exported for `archive.mjs`, which parses the SAME tables but scoped to one iteration's line range.
  * @param {string[]} lines all lines of the file
  * @returns {{ id: string, title: string, status: string }[]}
  */
-function collectTaskRows(lines) {
+export function collectTaskRows(lines) {
   /** @type {{ id: string, title: string, status: string }[]} */
   const rows = [];
   /** @type {number | null} column index of "Status" in the current table section; null = last cell */

@@ -23,8 +23,25 @@ You are running CCF `/ccf:plan`.
 ## 1. Read existing context
 Read `CLAUDE.md` (root + nested) + `.claude/rules/*` + `.claude/plan/PLAN.md`. The new plan must be consistent with the spec and slot into the existing sequential backlog.
 
+## 1b. Discover the codebase with 5 parallel analyzers (NOT the built-in Explore)
+Launch **5 `ccf-codebase-analyzer` subagents in parallel** via Task, each on ONE of the agent's **set B (planning) slices**. Pass `run_in_background: false` on all 5 and WAIT for every report before step 2 — since Claude Code v2.1.198 an omitted `run_in_background` defaults to background, which would let the interview start against reports that do not exist yet. This is read-only research, so parallelism is allowed here (same exemption as `/ccf:init` B1); it does NOT relax the sequential law, which governs WRITING work.
+
+**Do NOT spawn the built-in `Explore` agent for this, and do NOT hand-explore the whole codebase in the main conversation.** CCF does not own `Explore`'s prompt, so it cannot be told what a CCF planner needs; `ccf-codebase-analyzer` is read-only by `disallowedTools`, returns a fixed report shape (including a mandatory **Unknowns** section), and keeps 5 slices of findings OUT of the main context window. Reading a specific file yourself is still fine — this bans the broad sweep, not targeted reads.
+
+Give every one of the 5 the SAME context — the requested change (`$ARGUMENTS` plus anything already known from step 1) — then assign one slice each:
+1. Impact surface (the files/functions the change must touch)
+2. Patterns to conform to (nearest precedents + conventions)
+3. Existing test surface (what covers it, and the EXACT command that runs it)
+4. Integration points & dependencies (boundaries + data contracts)
+5. Blast radius & fragility (what depends on it, where it is weak)
+
+- **Skip ONLY on a greenfield project.** Check with Glob whether any source file exists outside `.claude/`, `CLAUDE.md` and docs. If there is no code to discover, skip this step and SAY SO in one line ("no source files yet, skipping codebase discovery"). Never skip silently, and never skip merely because the change looks small — "small" is a judgment the reports exist to check.
+- **Model:** the analyzer's frontmatter default is `haiku` + `effort: low`, which suits slices 2-4. Slices 1 and 5 need more inference (who calls this, what breaks). Use the default, but STATE in one line which model you used, and offer to re-run with `sonnet` if the codebase is large or the reports come back thin. If the user has already named a model for this session, that choice WINS over the default.
+- Reports are INPUT to the plan, not the plan. Do not copy them into the plan body; fold the relevant facts into the task files (files to touch, gate commands, predecessors) and cite the evidence paths the analyzers returned.
+
 ## 2. Interview
 Invoke the `grill-me` skill via the Skill tool, passing `plan` as the argument. It interrogates the user **one question at a time** (exploring the code to self-answer first) and returns a summary of the answers. Fold that summary into the plan.
+- **Feed step 1b into the interview.** The 5 reports already answer much of what the interview would otherwise ask blind, so pass their findings along: confirm rather than ask ("the analyzers found the tests run with `npm test` and that `foo.ts:42` is the only caller — still correct?"). Every item under a report's **Unknowns** heading is a candidate question, and the highest-value one: it is exactly what the code could not tell you.
 
 ## 3. Best-practice grounding
 Before finalizing, raise the plan to best-practice quality: call Context7 (`resolve-library-id` → `query-docs`) for the libraries involved and Microsoft Learn for platform guidance — or delegate to `ccf-best-practice-researcher` via Task with `run_in_background: false` (since Claude Code v2.1.198 a Task spawn defaults to background unless told otherwise — see step 6 for why this matters here). Fold the findings into the plan.
