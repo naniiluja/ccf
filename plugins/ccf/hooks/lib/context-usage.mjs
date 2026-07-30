@@ -92,6 +92,10 @@ function finiteOrZero(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Model families that run a 1M context window today. Haiku is deliberately ABSENT — it is the
+// only current family still on the classic 200k window, so it must keep falling through.
+const LARGE_WINDOW_FAMILIES = "opus|sonnet|fable|mythos";
+
 /**
  * Infer the context window size (tokens) from a model id. The id alone CANNOT reveal whether a
  * 1M-context beta is active (e.g. "claude-opus-4-7" runs at 1M here yet carries no marker), so
@@ -99,10 +103,15 @@ function finiteOrZero(v) {
  * auto-compact) instead of spamming a /compact nudge at low real usage — the failure mode this
  * fixes. Rules, in order:
  *   - explicit `-1m`/`[1m]` anchored suffix → 1M (a stray "1m" inside an id does NOT count);
- *   - current-generation Opus/Sonnet, generation number >= 4 (e.g. claude-opus-4-7,
- *     claude-sonnet-5) → 1M. The generation digit(s) must be immediately followed by "-" or the
- *     end of the id, so a legacy dated-snapshot id (e.g. "claude-3-7-sonnet-20250219", where the
- *     trailing digits are a date, not a generation number) does NOT false-match;
+ *   - a BARE family alias — the whole id is exactly `opus`/`sonnet`/`fable`/`mythos` → 1M. A
+ *     transcript line can carry the alias the user typed rather than a full id (observed live:
+ *     `"model":"sonnet"`, `"model":"haiku"`). The match is on the WHOLE id, not a substring, so
+ *     a legacy dated snapshot that merely CONTAINS a family name is not claimed here;
+ *   - a current-generation id with generation number >= 4 (e.g. claude-opus-4-7,
+ *     claude-sonnet-5, claude-fable-5) → 1M. The generation digit(s) must be immediately
+ *     followed by "-" or the end of the id, so a legacy dated-snapshot id (e.g.
+ *     "claude-3-7-sonnet-20250219", where the trailing digits are a date, not a generation
+ *     number) does NOT false-match;
  *   - Haiku, legacy Claude 3.x/2.x and unrecognised ids → the classic 200k window.
  * @param {string} model model id from the transcript
  * @returns {number} window size in tokens
@@ -110,7 +119,8 @@ function finiteOrZero(v) {
 export function modelWindowSize(model) {
   const id = String(model ?? "").toLowerCase();
   if (/(?:-|\[)1m\]?$/.test(id)) return 1_000_000;
-  const generationMatch = id.match(/(?:opus|sonnet)-(\d{1,2})(?:-|$)/);
+  if (new RegExp(`^(?:${LARGE_WINDOW_FAMILIES})$`).test(id)) return 1_000_000;
+  const generationMatch = id.match(new RegExp(`(?:${LARGE_WINDOW_FAMILIES})-(\\d{1,2})(?:-|$)`));
   if (generationMatch && Number(generationMatch[1]) >= 4) return 1_000_000;
   return 200_000;
 }

@@ -236,6 +236,30 @@ test("modelWindowSize: next-gen Sonnet/Opus (generation >= 4, e.g. Sonnet 5) →
   assert.equal(modelWindowSize("claude-opus-4-8"), 1_000_000);
 });
 
+test("modelWindowSize: Fable / Mythos (generation 5) → 1M", () => {
+  // Observed defect: `fable` was missing from the family list, so claude-fable-5 fell
+  // through to the 200k default and the nudge fired at 80k tokens on a 1M-window model.
+  assert.equal(modelWindowSize("claude-fable-5"), 1_000_000);
+  assert.equal(modelWindowSize("claude-mythos-5"), 1_000_000);
+});
+
+test("modelWindowSize: bare family alias (no generation digit) → 1M, except haiku", () => {
+  // A transcript line can carry the bare alias the user typed (observed: "sonnet", "haiku"),
+  // not a full model id. Those families are 1M today; only haiku is still 200k.
+  assert.equal(modelWindowSize("opus"), 1_000_000);
+  assert.equal(modelWindowSize("sonnet"), 1_000_000);
+  assert.equal(modelWindowSize("fable"), 1_000_000);
+  assert.equal(modelWindowSize("Sonnet"), 1_000_000); // case-insensitive
+  assert.equal(modelWindowSize("haiku"), 200_000);
+});
+
+test("modelWindowSize: a bare alias must match the WHOLE id, not appear inside one", () => {
+  // Guards the legacy dated-snapshot case below: "claude-3-7-sonnet-20250219" CONTAINS
+  // "sonnet" but is not the bare alias, so the alias rule must not claim it.
+  assert.equal(modelWindowSize("<synthetic>"), 200_000);
+  assert.equal(modelWindowSize("sonnet-legacy-20240101"), 200_000);
+});
+
 test("modelWindowSize: explicit 1m suffix → 1M even for a 200k family (both bracket and dash forms)", () => {
   assert.equal(modelWindowSize("claude-haiku-4-5-1m"), 1_000_000);
   assert.equal(modelWindowSize("claude-haiku-4-5[1m]"), 1_000_000);
