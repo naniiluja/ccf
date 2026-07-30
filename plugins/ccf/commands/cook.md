@@ -1,7 +1,7 @@
 ---
 description: Execute the entire todo/in-progress backlog sequentially via ccf-implementer, then batch-verify (review + code-review in parallel, simplify, re-gate, updatespec).
 argument-hint: "[optional: task range]"
-allowed-tools: Read, Glob, Grep, Task, Skill
+allowed-tools: Read, Glob, Grep, Task, Skill, TaskCreate, TaskUpdate, TaskList
 model: opus
 ---
 
@@ -10,16 +10,26 @@ You are running CCF `/ccf:cook`. You are the **backlog orchestrator**: after `/c
 **Mutually exclusive with `auto-verify.mjs --auto-verify`:** `/ccf:cook` drives the verify chain itself. Do NOT enable `--auto-verify` in the same workflow — see step 7.
 
 ## 1. Read the backlog
-Read `.claude/plan/PLAN.md` + the relevant `.claude/plan/task-NNN-*.md` files. Select the `todo`/`in-progress` tasks in dependency order (respect `Depends on`; a task with an open predecessor is not eligible yet). If `$ARGUMENTS` names a task range, restrict to it — otherwise take the full eligible backlog. State the ordered task list to the user before starting.
+Read `.claude/plan/PLAN.md` + the relevant `.claude/plan/task-NNN-*.md` files. `PLAN.md` holds the CURRENT iteration; closed iterations live in `.claude/plan/ARCHIVE.md` and are never eligible. Select the `todo`/`in-progress` tasks in dependency order (respect `Depends on`; a task with an open predecessor is not eligible yet). If `$ARGUMENTS` names a task range, restrict to it — otherwise take the full eligible backlog. State the ordered task list to the user before starting.
+
+### 1b. Mirror the queue into the session task list
+Call **`TaskList`** first (an earlier run may have left entries — reuse or clean them rather than duplicating), then **`TaskCreate`** one entry per selected task, in execution order. Use `addBlockedBy` via `TaskUpdate` to encode each `Depends on` edge, so the sequential law is visible in the list and not only in this prompt.
+
+This is the one place in CCF where a backlog run genuinely warrants it: the official trigger criteria are a task needing three or more distinct steps, a user-supplied list of multiple items, non-trivial work that benefits from progress tracking, and an explicit user request — a `/ccf:cook` run matches all four at once.
+
+Two constraints, both load-bearing:
+- **The session task list is EPHEMERAL and is NOT the plan.** It exists for the current coding session only. `.claude/plan/PLAN.md` remains the single source of truth for status across sessions, and `TaskUpdate` NEVER substitutes for writing the `PLAN.md` status column. Two different lifecycles: the session list runs `pending → in_progress → completed`, while `PLAN.md` runs `todo → in-progress → in-review → done`. A slice that finishes reaches `completed` in the session list but only `in-review` in `PLAN.md` — mapping `completed` onto `done` would forge a gate that only `/ccf:updatespec` may write.
+- **`TaskCreate`/`TaskUpdate`/`TaskList` are NOT the `Task` spawn tool** despite the shared prefix. `Task` spawns a subagent; these three manage a checklist. If the harness does not expose them (they are unavailable when `CLAUDE_CODE_ENABLE_TASKS=0` restores the legacy `TodoWrite`), just skip this sub-step and say so — the backlog still runs from `PLAN.md`. Never fall back to `TodoWrite`: it has been disabled by default since Claude Code v2.1.142.
 
 ## 2. Sequential implement loop (one slice at a time — CCF law, unchanged)
 **Since Claude Code v2.1.198, a Task spawn that omits `run_in_background` defaults to running in the background** — that silently breaks the sequential law (the next step could fire before the implementer finishes). There is no agent-frontmatter lever to force synchronous execution (`background: true` only forces backgrounding; a documented `false` value does not exist), so the only lever is the CALL SITE: every `Task` spawn below MUST pass `run_in_background: false` explicitly.
 For EACH task, in order:
+0. `TaskUpdate` this task's session entry to `in_progress` **before** spawning, so the list reflects reality rather than being back-filled afterwards.
 1. Spawn `ccf-implementer` via **Task** with `run_in_background: false`, passing the task file path, with a **model override read from that task file's `Model:` line** (an alias such as `sonnet`/`opus`/`haiku` — do NOT hardcode a dated model ID like `claude-sonnet-5`; use the alias so it tracks whatever the alias resolves to). If the task file carries no `Model:` line, ask the user ONCE for the whole run which model to use for every task in this backlog, then apply that same choice to each spawn. If `AskUserQuestion` is unavailable (non-interactive), fall back to the `ccf-implementer` frontmatter default (`sonnet`) and say explicitly that the default was used.
 2. Wait for it to finish. Read its report: which test/tsc command it ran and the actual result.
 3. **Check the slice gate** (the test/tsc/validate command the task file names, per its report):
-   - **GREEN** → mark progress, move to the next task.
-   - **RED** → **STOP immediately.** Tell the user which task failed and why. Do NOT spawn the next implementer, do NOT proceed to batch-verify. The sequential law is absolute: never run two `ccf-implementer` spawns in parallel, and never advance past a red gate.
+   - **GREEN** → `TaskUpdate` the session entry to `completed`, write `in-review` (never `done`) into the `PLAN.md` status column, then move to the next task.
+   - **RED** → **STOP immediately.** Tell the user which task failed and why. Do NOT spawn the next implementer, do NOT proceed to batch-verify. **Leave the session entry `in_progress`** — a red gate is unfinished work, and marking it `completed` would erase the only signal that the run stopped here. The sequential law is absolute: never run two `ccf-implementer` spawns in parallel, and never advance past a red gate.
 4. Recommend `/compact` between slices if the transcript is getting large (see step 8).
 
 ## 3. Batch-verify phase (after ALL slices are implemented)

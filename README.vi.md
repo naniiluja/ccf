@@ -116,6 +116,8 @@ Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → 
 
 `/ccf:init` và `/ccf:plan` sinh một plan trong `.claude/plan/` (một index `PLAN.md` + các file `task-NNN-*.md`). Mỗi task là một **vertical slice mỏng** — tracer-bullet xuyên qua các tầng nó chạm tới (DB + service + UI), sắp xếp mỏng → giàu dần, mỗi cái theo *spec → failing test → implement*. Mỗi task có đúng **một predecessor** và nêu tên **test gate** phải xanh trước khi slice kế bắt đầu. Đây là thứ khiến "strictly sequential" trở nên cụ thể và review được.
 
+`PLAN.md` chỉ chứa iteration **đang chạy**. Khi mọi task của một iteration đã `done`, `/ccf:updatespec` chuyển nó sang `ARCHIVE.md` (các file task sang `.claude/plan/archive/`). Quy tắc này cắt về hai phía, và đó là cố ý: một row đã đóng còn nằm trong `PLAN.md` sẽ bị hook session-start và hook Stop đếm là việc còn sống, còn *xoá* lịch sử thì lại lấy đi của premortem trong `ccf-spec-checker` chính những thất bại thật mà nó neo dự đoán vào. Nên luật là archive, tuyệt đối không xoá.
+
 ## Kiến trúc
 
 - **Command** = 7 file markdown prompt điều khiển Claude trong session (không phải script): init, plan, check, test, fix, updatespec, cook.

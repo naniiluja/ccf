@@ -116,6 +116,8 @@ claude plugin install ccf@ccf
 
 `/ccf:init` 和 `/ccf:plan` 在 `.claude/plan/` 中生成一份计划（一个 `PLAN.md` 索引 + 若干 `task-NNN-*.md` 文件）。每个任务都是一个**细的垂直切片**——穿过它所触及各层（DB + service + UI）的曳光弹，按从薄到厚排序，每个都遵循 *规格 → 失败测试 → 实现*。每个任务恰好有**一个前驱**，并指明下一切片开始前必须变绿的**测试关卡**。这正是让「严格串行」变得具体且可审查的东西。
 
+`PLAN.md` 只保留**当前**迭代。当某个迭代的所有任务都 `done` 之后，`/ccf:updatespec` 会把它退役到 `ARCHIVE.md`（任务文件移入 `.claude/plan/archive/`）。这条规则刻意在两个方向上都成立：已关闭的行若留在 `PLAN.md` 中，会被 session-start 钩子和 Stop 钩子当成仍在进行的工作来计数；而*删除*历史又会让 `ccf-spec-checker` 的 premortem 失去它用来锚定预测的真实过往失败。所以规则是归档，绝不删除。
+
 ## 架构
 
 - **命令** = 7 个在会话中驱动 Claude 的 markdown 提示（不是脚本）：init、plan、check、test、fix、updatespec、cook。

@@ -56,6 +56,15 @@ For the lessons classified as **memory** in step 1, write them to this project's
 ### 6. Sync the plan
 If `.claude/plan/` changed (tasks done, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:check` + `/code-review` cleanly → mark it `done` here. `ccf-implementer` only ever reaches `in-review`; `/ccf:check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` (or move back to `in-progress`) — do NOT mark `done`.
 
+**Write the status as a BARE word** (`done`, `in-review`) with no markdown emphasis around it. `lib/plan.mjs` strips `**bold**`/`*italic*`/`` `code` `` before matching, so a decorated cell is tolerated — but keep the cells plain anyway; the decoration carries no information and it already caused one real misread (a `**done**` row counted as unfinished by the Stop nudge before that stripping existed).
+
+**Retire a CLOSED iteration out of `PLAN.md` (do this as part of the same pass).** `PLAN.md` holds the CURRENT iteration only. When every task of an iteration is `done`:
+1. Move its `## Origin` / `## Task backlog` / `## Closed` sections VERBATIM into `.claude/plan/ARCHIVE.md`, newest first. Do not tidy the wording — the value of the archive is that it is an auditable record, and a heading that still says `OPEN` next to a `done` row is itself part of the history.
+2. `git mv` its `task-NNN-*.md` files into `.claude/plan/archive/` so their history survives.
+3. Trim `CLAUDE.md`'s `## Current plan` to the iteration now in flight, and let the archive carry the rest.
+
+Why this matters, both directions: a closed row left in `PLAN.md` is counted as LIVE work by `lib/plan.mjs` (`findActiveTask` / `findNonDoneTasks`) and by the Stop nudge, while DELETING the history instead of archiving it would degrade every future `ccf-spec-checker` premortem to `anchor: none`, since that lens anchors predicted failures to real past ones. Archive, never delete.
+
 ## Closing (mandatory, per output style)
 - **Check harness-level attribution:** confirm `.claude/settings.json` exists with an `attribution` key set (the deterministic, harness-enforced replacement for the deprecated `includeCoAuthoredBy` and for any "never add Co-Authored-By" narrative). If the file is missing or `attribution` is absent, **nudge the user** to set it (e.g. `attribution.commit`/`attribution.pr` = the desired trailer text, or `""` to suppress). Do NOT auto-write it and do NOT auto-commit.
 - ASK the user whether to commit and/or push. **Do NOT run any git command unless the user explicitly agrees.** If they agree: if on the default branch, create a branch first, and use a conventional commit message.

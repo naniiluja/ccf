@@ -116,6 +116,8 @@ A proactive `/compact <hint>` beats letting auto-compact fire (when context has 
 
 `/ccf:init` and `/ccf:plan` produce one plan in `.claude/plan/` (a `PLAN.md` index + `task-NNN-*.md` files). Each task is a **thin vertical slice** — a tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, each as *spec → failing test → implement*. Every task has exactly **one predecessor** and names the **test gate** that must be green before the next slice starts. This is what makes "strictly sequential" concrete and reviewable.
 
+`PLAN.md` stays scoped to the **current** iteration. When every task in an iteration is `done`, `/ccf:updatespec` retires it into `ARCHIVE.md` (its task files into `.claude/plan/archive/`). This cuts both ways on purpose: a closed row left in `PLAN.md` is counted as live work by the session-start and Stop hooks, while *deleting* the history would strip `ccf-spec-checker`'s premortem of the real past failures it anchors its predictions to. So the rule is archive, never delete.
+
 ## Architecture
 
 - **Commands** = 7 markdown prompts that drive Claude in-session (not scripts): init, plan, check, test, fix, updatespec, cook.

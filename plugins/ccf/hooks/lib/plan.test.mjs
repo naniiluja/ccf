@@ -347,3 +347,61 @@ test("findNonDoneTasks: 'dropped' is a CLOSED status (deliberately abandoned), s
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// Regression: a status cell wrapped in markdown emphasis. This is NOT hypothetical — this repo's own
+// PLAN.md wrote `| 036 | … | **done** |` to visually stress the status, and findNonDoneTasks reported
+// those rows as OPEN because CLOSED_STATUS_RE anchors `^done$` and `**done**` does not match. The
+// Stop hook's clause C then named two already-finished tasks as unfinished. Emphasis is presentation,
+// not data, so it must be stripped before the status is interpreted.
+test("findNonDoneTasks: markdown emphasis around a status is presentation, not data — `**done**` is CLOSED", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| # | Task | Status | Predecessor |",
+      "| --- | --- | --- | --- |",
+      "| 001 | Bold done | **done** | — |",
+      "| 002 | Italic done | *done* | 001 |",
+      "| 003 | Underscore-italic done | _done_ | 002 |",
+      "| 004 | Code-span done | `done` | 003 |",
+      "| 005 | Bold dropped | **dropped** | 004 |",
+      "| 006 | Genuinely open | in-review | 005 |",
+    ].join("\n"),
+  );
+  try {
+    assert.deepEqual(findNonDoneTasks(file), [
+      { id: "006", title: "Genuinely open", status: "in-review" },
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findActiveTask: an emphasised active status (`**in-review**`) is still detected", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| ID | Slice | Status |",
+      "| --- | --- | --- |",
+      "| 001 | Finished | **done** |",
+      "| 002 | Awaiting review | **in-review** |",
+    ].join("\n"),
+  );
+  try {
+    assert.deepEqual(findActiveTask(file), { id: "002", title: "Awaiting review" });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findActiveTask: stripping emphasis must NOT swallow a real status word — `**blocked**` is not active", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| ID | Slice | Status |",
+      "| --- | --- | --- |",
+      "| 001 | Waiting on infra | **blocked** |",
+    ].join("\n"),
+  );
+  try {
+    assert.equal(findActiveTask(file), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

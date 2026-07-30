@@ -35,6 +35,22 @@ export function findActiveTask(file) {
 const CLOSED_STATUS_RE = /^(done|dropped|cancell?ed|won'?t[-\s]?fix|wontfix)$/i;
 
 /**
+ * Strip markdown emphasis wrappers (`**bold**`, `*italic*`, `_italic_`, `` `code` ``) from a status
+ * cell. Emphasis is PRESENTATION, not data, and every status predicate in this file is ANCHORED
+ * (`^done$`, `^in-review$`) — so a decorated cell silently fails to match and a finished task reads
+ * as open. Not hypothetical: this repo's own PLAN.md wrote `| 036 | … | **done** |` to visually
+ * stress the status, and the Stop nudge's clause C then reported 036/037 among the "not done" tasks.
+ * Only the OUTER runs are removed, so a hyphenated status (`in-review`) or one containing an inner
+ * underscore is untouched. Deliberately NOT applied to the id/title cells: the status is the only
+ * field compared against anchored predicates, the others are just displayed (YAGNI).
+ * @param {string} cell raw status cell text
+ * @returns {string} the status with surrounding emphasis/whitespace removed
+ */
+function stripEmphasis(cell) {
+  return cell.replace(/^[*_`\s]+/, "").replace(/[*_`\s]+$/, "");
+}
+
+/**
  * Find every task row whose status cell is NOT a closed status (see CLOSED_STATUS_RE) — i.e.
  * todo / in-progress / in-review / blocked / any other open status.
  * id/title/status come from collectTaskRows (status column resolved dynamically, not assumed
@@ -88,8 +104,10 @@ function collectTaskRows(lines) {
       statusCol = idx >= 0 ? idx : null;
       continue;
     }
-    const status = statusCol !== null && statusCol < cells.length ? cells[statusCol] : cells[cells.length - 1];
-    rows.push({ id: cells[0], title: cells[1], status });
+    const rawStatus = statusCol !== null && statusCol < cells.length ? cells[statusCol] : cells[cells.length - 1];
+    // Normalize ONCE here, at the single place every row is produced, so both findActiveTask and
+    // findNonDoneTasks (and anything reading the returned `status`) see clean data — DRY.
+    rows.push({ id: cells[0], title: cells[1], status: stripEmphasis(rawStatus) });
   }
   return rows;
 }
