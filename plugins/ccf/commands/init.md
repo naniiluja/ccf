@@ -1,7 +1,7 @@
 ---
 description: Bootstrap a new project or onboard an existing one into the CCF workflow — generate CLAUDE.md + .claude specs + an initial sequential plan.
 argument-hint: "[optional: short description of what you want to build]"
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill, WebFetch, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill, AskUserQuestion, WebFetch, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*
 model: opus
 ---
 
@@ -66,7 +66,7 @@ Do NOT run git. Tell the user to start a fresh session and run `/ccf:plan` (in p
 ## Branch B — EXISTING project
 
 ### B1. Analyze with 5 parallel agents
-The `ccf-codebase-analyzer` frontmatter default (`haiku`) is a starting point, not a fixed choice: it stays sensible here because the scan is cheap, but ask the user once whether to keep `haiku` for these 5 agents or override to a stronger model for a large/complex codebase (accept a model alias such as `sonnet`/`opus`, never a dated model ID). If `AskUserQuestion` is blocked (non-interactive mode), use the frontmatter default and STATE explicitly that the default was used, do not silently proceed as if the user had answered.
+**Model — ASK with `AskUserQuestion`, once, before spawning.** **Recommend `haiku`** and label it as the recommendation: it is the agent's frontmatter default paired with `effort: low`, and the scan is bounded evidence-gathering. Offer `sonnet` as the step-up for a large or complex codebase, `opus` only if the user asks. Accept a model ALIAS only, never a dated model ID. Do NOT silently spawn the session's own model just because it is what you are running as — the agent's `model` frontmatter is a DEFAULT, and overriding it at the call site without asking is the exact behavior this paragraph forbids. If `AskUserQuestion` is genuinely blocked (non-interactive mode), fall back to `haiku` and STATE explicitly that the default was used because asking was blocked; never proceed as if the user had answered.
 
 Launch **5 `ccf-codebase-analyzer` subagents in parallel** (via Task, with the chosen model override — read-only research, one of the two places CCF allows parallelism; the other is `/ccf:plan` step 1b, which fans out the same agent on its **set B** planning slices. Writing work is never parallel). Running in parallel does NOT mean fire-and-forget: pass `run_in_background: false` on all 5 spawns and wait for every one of them to finish before B2 synthesizes — since Claude Code v2.1.198 an omitted `run_in_background` defaults to background, which could let B2 start summarizing incomplete reports. Assign each one slice:
 Assign the agent's **set A (onboarding) slices** — these map the WHOLE project, unlike `/ccf:plan`'s set B which is scoped to one requested change:

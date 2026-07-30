@@ -30,8 +30,30 @@ project-survey slices) and **always run, skip only on greenfield** (over asking 
   the interview (confirm instead of asking blind; each Unknown is a candidate question). 5 parallel
   spawns, `run_in_background: false` on all 5, all five given the same requested-change context.
   Explicitly forbids spawning `Explore` and forbids a main-loop broad sweep, while still allowing
-  targeted reads. Greenfield skip must be STATED, never silent. Model default stated, never asked
-  (`plan.md` has no `AskUserQuestion` in `allowed-tools` — verified, not assumed).
+  targeted reads. Greenfield skip must be STATED, never silent.
+
+## Correction after the first version shipped (user-reported)
+The first version of step 1b told the model to STATE a default model instead of asking, on the
+grounds that `plan.md` had no `AskUserQuestion` in `allowed-tools`. **That was the wrong fix
+direction and it was wrong in practice**: the user ran it, got `sonnet` spawned without being asked,
+and reported it. Two separate defects behind one symptom:
+1. **The instruction was written to fit a missing tool.** The right move was to ADD `AskUserQuestion`
+   to `allowed-tools` (done, in both `plan.md` and `init.md`), not to downgrade the behavior. A
+   missing tool is a packaging defect; matching the behavior to it makes the bug permanent.
+2. **A pre-existing, wider bug was uncovered**: `init.md`, `fix.md` and `cook.md` each already
+   carried a paragraph saying "ask the user once which model… if `AskUserQuestion` is unavailable,
+   use the frontmatter default", while NONE of the six commands listed `AskUserQuestion`. Since
+   `allowed-tools` is a whitelist, every one of those three questions had been silently taking the
+   fallback branch for as long as the paragraphs existed. It hid because
+   `skills/grill-me/SKILL.md` has its OWN allowlist that DOES include the tool, so interviews asked
+   normally and only questions asked OUTSIDE the skill were dead.
+
+Fixed here: `AskUserQuestion` added to `plan.md` + `init.md` (the two analyzer fan-outs, i.e. the
+user's actual request), step 1b and `init.md` B1 both rewritten to ASK with **`haiku` labelled as the
+recommendation** and an explicit ban on silently reusing the session's own model, and the rule
+written into `components.md` so it cannot recur. **`fix.md` (debugger model) and `cook.md`
+(implementer model) are still broken** — same one-line defect, different feature, deliberately left
+for the user to approve rather than widened into unrequested scope.
 - Spec sync, 6 places that claimed only init fans out: `init.md` (the "ONLY place" sentence, plus
   labelling its list as set A), `architecture.md`, `plugins/ccf/README.md` tree, and the agent table
   in all 3 READMEs.
@@ -57,10 +79,10 @@ project-survey slices) and **always run, skip only on greenfield** (over asking 
 - `node --test plugins/ccf/hooks/lib/*.test.mjs` → 227 pass, 0 fail (unchanged; this task touches no
   `.mjs`, so an unchanged count is the correct expectation, not a skipped gate).
 - `npx -p typescript tsc --noEmit` → exit 0.
-- `grep` verification: `plan.md` `allowed-tools` confirmed to lack `AskUserQuestion` (so step 1b
-  correctly states the model instead of asking); every remaining `Explore` mention in
-  `commands/`+`agents/` reviewed — `init.md:8` is Anthropic's "Explore → Plan" workflow NAME, not the
-  agent, so it was deliberately left alone.
+- `grep` verification: every remaining `Explore` mention in `commands/`+`agents/` reviewed —
+  `init.md:8` is Anthropic's "Explore → Plan" workflow NAME, not the agent, so it was deliberately
+  left alone. `allowed-tools` of all 6 commands audited for `AskUserQuestion` (0 of 6 had it — see
+  the correction section above).
 
 ## NOT verified — the honest gap
 No `/ccf:plan` run has been executed against this new step. Everything above is prompt text plus

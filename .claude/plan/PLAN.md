@@ -31,6 +31,10 @@ Bước **1b** đặt TRƯỚC phỏng vấn để báo cáo NUÔI phỏng vấn
 
 **Drift bắt được từ 043:** cây thư mục trong `plugins/ccf/README.md` thiếu cả `scripts/` lẫn `lib/archive.mjs`, tức lượt đồng bộ của 043 đã bỏ sót hẳn file đó. Đã sửa ở 044.
 
+**Sửa sau khi bản đầu đã phát hành, do người dùng báo lỗi.** Bản đầu của bước 1b bảo model NÊU mặc định thay vì hỏi, lấy lý do `plan.md` không có `AskUserQuestion` trong `allowed-tools`. Người dùng chạy thử thì bị spawn `sonnet` mà không được hỏi. Hướng sửa đó SAI: đúng ra phải THÊM tool vào allowlist, không phải hạ yêu cầu cho vừa với tool đang thiếu. Một tool thiếu là lỗi đóng gói, hạ hành vi cho khớp nó biến lỗi sửa được thành lỗi vĩnh viễn.
+
+Lần sửa này đào ra một lỗi RỘNG HƠN có sẵn từ trước: `init.md`, `fix.md`, `cook.md` đều đã mang đoạn "hỏi người dùng một lần chọn model, nếu `AskUserQuestion` không dùng được thì lấy mặc định", trong khi **không một lệnh nào trong sáu lệnh có `AskUserQuestion` trong `allowed-tools`**. `allowed-tools` là whitelist nên cả ba câu hỏi đó luôn rơi vào nhánh dự phòng, suốt từ khi các đoạn văn ấy tồn tại. Nó ẩn được vì `skills/grill-me/SKILL.md` có allowlist RIÊNG và có tool đó, nên phỏng vấn vẫn hỏi bình thường, chỉ những câu hỏi NGOÀI skill là chết. Đã thêm tool vào `plan.md` + `init.md` (hai chỗ fan out analyzer, đúng yêu cầu người dùng), viết lại cả hai chỗ thành HỎI với `haiku` ghi rõ là lựa chọn khuyến nghị cộng lệnh cấm âm thầm dùng lại model của phiên, và ghi luật vào `components.md` để không tái phạm. **`fix.md` và `cook.md` VẪN còn lỗi**, cùng một dòng thiếu nhưng khác tính năng, cố ý để người dùng chuẩn thuận chứ không tự mở rộng phạm vi.
+
 **Chỗ CHƯA kiểm được, nói thẳng:** chưa chạy `/ccf:plan` thật lần nào với bước mới. Toàn bộ 044 là văn bản prompt cộng kiểm tra tĩnh; việc 5 analyzer set B có trả về báo cáo hữu ích và không trùng lặp hay không là CHƯA QUAN SÁT, cùng loại cửa kiểm với 038 tới 041. **Chi phí:** `/ccf:plan` giờ spawn tới 7 agent mỗi lượt (5 analyzer + researcher tuỳ chọn + spec-checker bắt buộc), so với 1 hoặc 2 trước đây.
 
 ## Task backlog — workflow-hardening

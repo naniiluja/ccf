@@ -1,7 +1,7 @@
 ---
 description: Create a strictly sequential (waterfall) implementation plan, grounded in best practices. Requires plan mode.
 argument-hint: "[feature or change to plan]"
-allowed-tools: Read, Glob, Grep, Skill, Task, WebFetch, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*
+allowed-tools: Read, Glob, Grep, Skill, Task, AskUserQuestion, WebFetch, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*
 model: opus
 ---
 
@@ -36,7 +36,10 @@ Give every one of the 5 the SAME context — the requested change (`$ARGUMENTS` 
 5. Blast radius & fragility (what depends on it, where it is weak)
 
 - **Skip ONLY on a greenfield project.** Check with Glob whether any source file exists outside `.claude/`, `CLAUDE.md` and docs. If there is no code to discover, skip this step and SAY SO in one line ("no source files yet, skipping codebase discovery"). Never skip silently, and never skip merely because the change looks small — "small" is a judgment the reports exist to check.
-- **Model:** the analyzer's frontmatter default is `haiku` + `effort: low`, which suits slices 2-4. Slices 1 and 5 need more inference (who calls this, what breaks). Use the default, but STATE in one line which model you used, and offer to re-run with `sonnet` if the codebase is large or the reports come back thin. If the user has already named a model for this session, that choice WINS over the default.
+- **Model — ASK, do not decide silently.** Before spawning, use `AskUserQuestion` ONCE to ask which model runs all 5 analyzers. **Recommend `haiku`** and label it as the recommendation: the slices are evidence-gathering over a bounded surface, `haiku` is the agent's frontmatter default paired with `effort: low`, and 5 spawns of a stronger model on every plan is a real cost for little gain. Offer `sonnet` as the step-up for a large or unfamiliar codebase (slices 1 and 5 need the most inference: who calls this, what breaks), and `opus` only if the user asks for it. Accept a model ALIAS only, never a dated model ID.
+  - Do NOT silently spawn `sonnet` (or anything else) just because it is the session's model — the analyzer's `model` frontmatter is a DEFAULT, and the call site overriding it without asking is exactly the behavior this bullet exists to stop.
+  - If `AskUserQuestion` is genuinely unavailable (non-interactive session), fall back to `haiku` and SAY in one line that the default was used because asking was blocked. Never proceed as if the user had chosen.
+  - If the user already named an analyzer model earlier in this session, reuse it without re-asking.
 - Reports are INPUT to the plan, not the plan. Do not copy them into the plan body; fold the relevant facts into the task files (files to touch, gate commands, predecessors) and cite the evidence paths the analyzers returned.
 
 ## 2. Interview
