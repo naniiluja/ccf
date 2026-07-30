@@ -39,17 +39,13 @@ CCF is a **Claude Code plugin** that imposes a context-first, spec-driven, stric
 ## Current plan
 Live queue: `.claude/plan/PLAN.md` — the CURRENT iteration only. Closed history + postmortems: `.claude/plan/ARCHIVE.md`, with their task files in `.claude/plan/archive/`. Those two files are the premortem anchor source; read them together. Do NOT let a closed row sit in `PLAN.md` — `lib/plan.mjs` counts it as live work.
 
-Lead iteration **cc-2.1.220-realign** (v0.8.0), tasks 036–041. **036 + 037 are `done`**; **038–041 stay `in-review`**, each blocked on an UNOBSERVED capture, not on missing code. Two releases shipped on top. **v0.8.1**: `context-usage.mjs#modelWindowSize` now reads the `fable`/`mythos` families and a bare family alias as a 1M window, fixing a premature `/compact` nag. **v0.8.2**: closed iterations retired out of `PLAN.md` into `.claude/plan/ARCHIVE.md`, this section cut from 21,056 to ~2,300 bytes, a bytes gate added beside the line gate, `TaskCreate`/`TaskUpdate`/`TaskList` wired into `cook.md` step 1b, and `plan.mjs#stripEmphasis` fixed a real misread where a `**done**` status cell counted as unfinished work.
+**`PLAN.md` is EMPTY as of v0.8.5 — no iteration is in flight.** Everything through task 044 was closed and retired into `ARCHIVE.md`. The next change starts a fresh iteration.
 
-**Outstanding observation gates** — the reason 038–041 are not `done`. None is waivable by reading code; each needs a real payload captured from a reloaded plugin:
-- the real `SubagentStop` payload. Both failure directions are live: an absent `stop_hook_active` blocks forever, a `true` one on the first stop never blocks at all.
-- the real `agent_type` inside a `SubagentStart` payload.
-- the post-reload `/compact` hint wording.
-- all FOUR opt-in toggles (`--hard-block`, `--auto-verify`, `--enforce-tests`, `--dual-channel-stop`). Not one has EVER been seen running.
-
-**All four toggles stay OFF in the shipped `hooks.json`.** After any observation, revert `hooks.json` — it is a released file.
+**Read `ARCHIVE.md`'s "Residual risk carried forward from the bulk-closes" section before planning anything.** Two bulk-closes happened by explicit user command, so a `done` row in the archive does NOT imply its gate was observed. What is genuinely verified across the last release: 227 `node --test` pass, `tsc` exit 0, `plugin validate` passed, hook smoke tests spawned as real child processes, and `scripts/archive-plan.mjs --apply` run for real against this repo's own plan (95379 → 95380 bytes, the +1 a normalized newline; 8 task files moved; newest-first preserved). Still **UN-OBSERVED**: the `SubagentStop` payload shape, the real `agent_type` in a `SubagentStart` payload, the post-reload `/compact` wording, all FOUR opt-in toggles (`--hard-block`, `--auto-verify`, `--enforce-tests`, `--dual-channel-stop` — none has ever been seen running, all stay OFF in the shipped `hooks.json`, which is a released file), and every part of task 044 (`/ccf:plan` step 1b, plus the repaired `AskUserQuestion` asking in all four asking commands). The plugin executes from its installed CACHE copy, not this repo, so any of these needs a reload to observe.
 
 **Deferred but already grounded**: task 042, an ack-vs-finished detector for a background spawn. A background-spawned agent returns an instant `"Async agent launched successfully."` ack instead of its report, and `is_error` is `undefined` in every observed case, so it cannot serve as a done-ness signal. Buildable; deliberately not built yet.
+
+**Standing debt**: `.claude/rules/hooks.md` is ~38KB, the largest per-session cost, and the proposal to split it by event is still open.
 
 **Task-status lifecycle**: `todo → in-progress → in-review → done`. `ccf-implementer` reaches `in-review`; only `/ccf:updatespec` writes `done`, after `/ccf:check` + `/code-review` pass. Counts: **6 cmd / 6 agent / 9 hook / 1 skill / 1 script** — the real files under `commands/`, `agents/`, `hooks/`, `skills/`, `scripts/` are the source of truth.
 
