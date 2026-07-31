@@ -1,7 +1,7 @@
 ---
 description: Execute the entire todo/in-progress backlog sequentially via ccf-implementer, then batch-verify (review + code-review in parallel, simplify, re-gate, updatespec).
 argument-hint: "[optional: task range]"
-allowed-tools: Read, Glob, Grep, Task, Skill, AskUserQuestion, TaskCreate, TaskUpdate, TaskList, Bash(npx:*), Bash(node:*), Bash(claude:*)
+allowed-tools: Read, Glob, Grep, Task, Skill, AskUserQuestion, TaskCreate, TaskUpdate, TaskList, Bash
 model: opus
 ---
 

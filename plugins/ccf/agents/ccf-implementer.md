@@ -41,7 +41,7 @@ Report, in this order: the files you changed (absolute paths), the tests you wro
 Then pin the LAST line of your response to exactly one of these two forms:
 
 <example>
-TEST-RESULT: node --test plugins/ccf/hooks/lib/*.test.mjs → 227 passed, 0 failed
+TEST-RESULT: node --test plugins/ccf/hooks/lib/*.test.mjs → N passed, 0 failed
 </example>
 
 <example>

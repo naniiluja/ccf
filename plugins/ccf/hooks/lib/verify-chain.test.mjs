@@ -58,6 +58,10 @@ test("buildVerifyReason: always names the ordered chain (check → code-review �
   // updatespec must come AFTER check + review in the ordered chain.
   assert.ok(r.indexOf("/ccf:check") < r.indexOf("/ccf:updatespec"));
   assert.ok(r.indexOf("/code-review") < r.indexOf("/ccf:updatespec"));
+  // The FAIL: token vocabulary is locked in here, at the single machine that builds this reason
+  // string, and the old icon markers must never come back (task 049).
+  assert.match(r, /FAIL:/);
+  assert.doesNotMatch(r, /[\u{274C}\u{2705}]/u);
 });
 
 test("buildVerifyReason: disciplineOn=false → NO test-suite step", () => {
@@ -72,6 +76,10 @@ test("buildVerifyReason: disciplineOn=true → includes the run-the-test-suite s
   const testStepIdx = r.search(/test discipline/i);
   assert.ok(r.indexOf("/code-review") < testStepIdx);
   assert.ok(testStepIdx < r.indexOf("/ccf:updatespec"));
+  // Same token-vocabulary lock as the discipline-off case above (task 049): the discipline-on
+  // branch must also read FAIL: and must never regress to an icon marker.
+  assert.match(r, /FAIL:/);
+  assert.doesNotMatch(r, /[\u{274C}\u{2705}]/u);
 });
 
 test("buildVerifyReason: garbage input → still a non-empty string, no test step", () => {

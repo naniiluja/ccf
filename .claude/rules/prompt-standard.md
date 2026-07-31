@@ -31,7 +31,11 @@ Apply every point when writing or revising a prompt. Each carries its reason, be
 13. **Tell the model how to think, do not script its reasoning.** "Weigh X against Y and say which wins" generalizes; a written-out chain of thought for one case does not, and it stops the model from reasoning about the case actually in front of it.
 14. **No icons.** Review markers come from the word tables below.
 
-**Tool pairing, generalized from `components.md`'s `AskUserQuestion` law:** every tool a command's BODY tells the model to use must appear in that command's `allowed-tools`, including `Bash` when the body says to run a shell command. The allowlist is a whitelist, so a missing tool silently disables the instruction that depends on it; the fix direction is always to ADD the tool (least-privilege scoped, e.g. `Bash(node:*)`), never to soften the instruction to match the missing tool. Point 11 covers deleted lines; this covers the missing-tool twin.
+**Tool pairing, generalized from `components.md`'s `AskUserQuestion` law:** every tool a command's BODY tells the model to use must appear in that command's `allowed-tools`, including `Bash` when the body says to run a shell command. The allowlist is a whitelist, so a missing tool silently disables the instruction that depends on it; the fix direction is always to ADD the tool, never to soften the instruction to match the missing tool. Point 11 covers deleted lines; this covers the missing-tool twin.
+
+**Scoping the `Bash` grant depends on whether the exact command is knowable when the prompt is written** (task 049 finding, replacing an earlier version of this paragraph that treated every case the same way):
+- **The command is fixed at authoring time** (`grill-me`'s `Bash(git log:*)`, a specific lookup the prompt names): scope the allowlist to that prefix, least-privilege in the literal sense.
+- **The command is a stand-in for whatever the TARGET project's own tooling turns out to be** (`cook.md`'s re-gate step and `check.md`'s test-evidence step both say "run the project's test command", meaning npm, pytest, cargo, go test, or anything else `/ccf:init` finds in that project): no fixed prefix set can name every target project's test runner in advance, so a prefix-scoped grant would silently drop most of them. Bare `Bash` is the minimum SUFFICIENT set here, not a least-privilege violation. `check.md` already carried bare `Bash`; `cook.md` carried three CCF-tooling prefixes (`Bash(npx:*)`, `Bash(node:*)`, `Bash(claude:*)`) that did not cover this second case, so task 049 widened it to bare `Bash` to match `check.md` — see `.claude/rules/components.md`'s decision record next to the `AskUserQuestion` law.
 
 ## Canonical style block for user-facing text
 
@@ -79,14 +83,28 @@ Verify the copies with `grep -rln "^- Write in the SAME language" plugins/ccf`, 
 
 **Excluded from every scan**: `.claude/plan/ARCHIVE.md` and `.claude/plan/archive/**`. Closed history is a verbatim record, so rewriting it would falsify what a past session actually wrote.
 
-Scan command:
+Scan command, a Node one-liner over the tracked files (not `grep -P`, see the warning below):
 
 ```
-grep -rlP '[\x{1F52E}\x{274C}\x{2705}\x{26A0}\x{FE0F}]' --include='*.md' --include='*.mjs' --include='*.tmpl' . \
-  | grep -v 'node_modules' | grep -Ev '\.claude/plan/(ARCHIVE\.md|archive/)'
+git ls-files '*.md' '*.mjs' '*.tmpl' | grep -Ev '\.claude/plan/(ARCHIVE\.md|archive/)' | node -e '
+const fs = require("fs");
+let buf = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (d) => (buf += d));
+process.stdin.on("end", () => {
+  let hit = false;
+  for (const f of buf.split("\n").filter(Boolean)) {
+    if (/[\u{1F52E}\u{274C}\u{2705}\u{26A0}\u{FE0F}]/u.test(fs.readFileSync(f, "utf8"))) {
+      console.log(f);
+      hit = true;
+    }
+  }
+  process.exit(hit ? 1 : 0);
+});
+'
 ```
 
-**This command needs a `-P`-capable grep, and its failure mode is a FALSE PASS.** macOS `/usr/bin/grep` has no `-P`: it exits 2 with an empty stdout and its usage text on stderr, which in a pipeline reads exactly like "no files matched". Hit for real in task 048, where the interactive shell resolved `grep` to a ugrep wrapper (which does support `-P`) while `/bin/sh -c` resolved it to BSD grep and reported clean. Before trusting a clean result, confirm the tool: `grep -P '' /dev/null; echo $?` must print 0, or use GNU grep (`ggrep`), ripgrep, or a Node one-liner over the tracked files with the regex `/[\u{1F52E}\u{274C}\u{2705}\u{26A0}\u{FE0F}]/u`.
+**Do NOT use `grep -rlP` for this scan — its failure mode is a FALSE PASS.** macOS `/usr/bin/grep` has no `-P`: it exits 2 with an empty stdout and its usage text on stderr, which in a pipeline reads exactly like "no files matched". Hit for real in task 048, where the interactive shell resolved `grep` to a ugrep wrapper (which does support `-P`) while `/bin/sh -c` resolved it to BSD grep and reported clean, and confirmed again in task 049's own acceptance criteria, which ban `grep -P` outright for this reason. The Node regex above runs the same everywhere `node` runs, with no grep-flavor dependency to get wrong.
 
 ## Review marker vocabulary
 
@@ -120,4 +138,8 @@ Both ends of this vocabulary must move together. `ccf-spec-checker.md` PRODUCES 
 
 The docs describe the two mechanisms separately and never state how they combine (`@path/to/import` is textual inclusion from `CLAUDE.md`; `paths:` gates the auto-discovery of `.claude/rules/*` — code.claude.com/docs/en/memory, /en/claude-directory, /en/glossary). The observation above resolves it: `@import` wins, so combining them is a way to pay for a scope you do not get. A `paths:`-scoped rule is referenced by PATH from prose, never imported.
 
-Consequence for the budget, stated in the order that matters: what a session actually PAYS is `CLAUDE.md` plus every `@import`ed rule, which at v0.8.7 (post-review fixes) is **96284** bytes (the `wc -c CLAUDE.md .claude/rules/*.md` total of 110480 minus this file's 14196, the only rule that is `paths:`-scoped AND not imported). The subtraction that also removes `hooks.md` gives 58524 bytes, but that is a hypothetical: `hooks.md` is `@import`ed, so its `paths:` is void and its 37760 bytes are paid every session. Quote 96284 as the real cost; 58524 is what deleting the `hooks.md` import would buy. Earlier notes carried 54474, 55591 and 95923 for this figure; all were superseded by re-measurement, three times in a row for the same reason (measured mid-task, then prose grew, then nobody re-measured), so re-run `wc -c` as the LAST step of any task that touches this set.
+Consequence for the budget, stated in the order that matters: what a session actually PAYS is `CLAUDE.md` plus every `@import`ed rule, i.e. the `wc -c CLAUDE.md .claude/rules/*.md` total minus this file's own bytes (the only rule that is `paths:`-scoped AND not imported). A subtraction that also removed `hooks.md` would be a hypothetical only: `hooks.md` is `@import`ed, so its `paths:` is void and its bytes are paid every session regardless of that frontmatter. Earlier notes carried four different figures in a row for this total (measured mid-task, then prose grew, then nobody re-measured), which is exactly the fixpoint this file must not repeat — so the paid figure is no longer restated in prose here. It lives in the single machine-readable claim below, which `.claude/tests/context-budget.test.mjs` (repo scope, see `.claude/rules/testing.md`) asserts against a real measurement on every run; re-run `wc -c` as the LAST step of any task that touches this set, then update the number in the label, not in a sentence.
+
+<!-- ccf-budget: paid=98259 -->
+
+This file is itself one of the bytes being measured, and it is the one file EXCLUDED from the paid total (it carries `paths:` and is deliberately not `@import`ed) — so editing the label above changes nothing about what it is checked against. Adding an `@import .claude/rules/prompt-standard.md` line to `CLAUDE.md` would break that: the file would re-enter the paid set it is labeling, closing the fixpoint loop this design exists to avoid. `.claude/tests/context-budget.test.mjs` asserts this file stays in the lazy (excluded) set for exactly that reason.
