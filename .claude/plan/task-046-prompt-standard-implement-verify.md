@@ -104,3 +104,6 @@ Khong description nao doi (test 7 o tren), nen khong co gi de dong bo. Da kiem t
 - Kiem SONG chua chay: mot luot `/ccf:check` di qua `check.md` (buoc 1 den 6 + spawn `ccf-spec-checker`) tren chinh repo nay.
 - `cook.md`: **UN-OBSERVED**, chap nhan boi nguoi dung (chay het mot backlog qua dat). Da ghi tuong minh vao `PLAN.md`.
 - Plugin chay tu ban CACHE da cai chu khong tu repo, nen ca 4 file viet lai o task nay chi thanh hanh vi that sau khi cai lai plugin va mo phien moi.
+
+### Kiem song da chay (2026-07-31, plugin 0.8.7 tu cache moi)
+Mot luot /ccf:check that da chay tron luong moi: check.md ban viet lai dieu khien phien chinh (khoi 0a, chon mode mot dong, uy quyen ccf-spec-checker voi run_in_background: false), agent tra bao cao dung dinh dang moi (### Conforms/Violations/Should-reconsider/Premortem/Tests voi PASS:/FAIL:/WARN:), hai dau hop dong ky hieu khop nhau ngoai doi. Dieu kien kiem song cua task 046 DA dat; cook.md van UN-OBSERVED nhu da ghi.
