@@ -161,3 +161,13 @@ Bo vo dieu kien (tru `prompt-standard.md` 16475, file lazy duy nhat): 114734 −
 5. `claude plugin validate plugins/ccf` → **Validation passed**.
 6. Quet codepoint node one-liner tren 14 file cham (them `.gitattributes`) → **0 hit**.
 7. `wc -lc CLAUDE.md` → **59 dong / 10930 byte**, duoi ca hai nguong (200 dong, 12288 byte).
+
+## Dong task (2026-08-01, /ccf:updatespec)
+
+Chuoi dong chay du, dung thu tu lifecycle:
+1. `/ccf:check` (ccf-spec-checker context sach): 2 FAIL + 8 WARN, premortem 4 muc. Ca 10 finding sua trong cung PR (xem "Vong sua sau /ccf:check" o tren), moi gate xanh lai.
+2. Nhanh `task-049-latch-hardening` + PR #2 (https://github.com/naniiluja/ccf/pull/2), 2 commit (task 049 + sync lockfile rieng). Day la lan dau chuoi dong task chay qua nhanh + PR dung nhu task-050 mo ta (thay doi tap quan co chu dich so voi 045-048).
+3. `/code-review` chay tren PR #2 (skill `review` chi nhan PR): khong finding chan, 3 nit khong chan ghi trong review comment (fence-skip cho findNestedImportLines, dem dong split-vs-wc, doc lap file hai lan trong measurePaidBytes). Reviewer tu do lai nhan (98259 = 98259) va tu chay lai suite thay vi tin bao cao.
+4. `/ccf:updatespec` ghi `done` vao PLAN.md row 049 (lan nay khong bulk-close: gate quan sat that).
+
+Chua lam trong luot nay: merge PR #2 (quyet dinh cua nguoi dung); 045-048 van `in-review` vi diff cua chung da len main khong qua PR nen /code-review chua tung doc.
