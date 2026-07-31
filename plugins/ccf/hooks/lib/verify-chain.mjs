@@ -64,7 +64,7 @@ export function readDisciplineOn(rulesDir) {
 /**
  * Build the verify-chain reason fed to the main loop via decision:"block". Names the ORDERED steps:
  *   /ccf:check → /code-review → (run the project's test suite only if disciplineOn) → /ccf:updatespec.
- * updatespec runs ONLY when check + review are clean (no ❌); any ❌ → STOP + tell the user, do NOT
+ * updatespec runs ONLY when check + review are clean (no `FAIL:` finding); any `FAIL:` → STOP + tell the user, do NOT
  * mark done; if /code-review cannot self-invoke, run the rest + ask the user to run it by hand.
  * Pure: garbage input coerces to disciplineOn=false; always returns a non-empty string.
  * @param {{ disciplineOn: boolean }} opts
@@ -81,8 +81,8 @@ export function buildVerifyReason(opts) {
     "1. Run /ccf:check (conformance + conventions review of the implementation).\n" +
     "2. Run /code-review on the current diff.\n" +
     testStep +
-    "Only when BOTH /ccf:check and /code-review come back CLEAN (no ❌ findings) run /ccf:updatespec to " +
-    "refresh the spec and mark the task done. If any step reports a ❌ failing finding, STOP, report it to the user, " +
+    "Only when BOTH /ccf:check and /code-review come back CLEAN (no FAIL: findings) run /ccf:updatespec to " +
+    "refresh the spec and mark the task done. If any step reports a FAIL: finding, STOP, report it to the user, " +
     "and do NOT mark the task done. If /code-review cannot be invoked automatically, run the remaining steps and " +
     "ask the user to run /code-review by hand.</ccf-auto-verify>"
   );

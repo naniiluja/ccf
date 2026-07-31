@@ -51,7 +51,7 @@ plugins/ccf/
 
 ## Agents — tool/MCP/skill inheritance
 
-The 6 subagents have **no `tools` allowlist**; they inherit the host project's full tool/MCP/skill set. `ccf-implementer` (the writer) OMITS `tools` → inherit-all (every project MCP + the Skill tool). The 5 read-only agents carry `disallowedTools: Write, Edit, NotebookEdit` → inherit-all-minus-file-writes. An allowlist would block unlisted project MCP + Skill (a plugin subagent can't list unknown-at-authoring-time MCP), so inheritance is the only mechanism; safety is the file-write denial + per-call permission prompts. An inherited MCP tool may be lazily loaded — use `ToolSearch` to load its schema before calling.
+The 6 subagents have **no `tools` allowlist**; they inherit the host project's full tool/MCP/skill set. `ccf-implementer` (the writer) carries `disallowedTools: Agent, Task` → inherit-all-minus-spawn (every project MCP + the Skill tool, but it cannot spawn a nested agent). The 5 read-only agents carry `disallowedTools: Write, Edit, NotebookEdit, Agent, Task` → inherit-all-minus-file-writes-minus-spawn. `Agent, Task` is what blocks nested spawning (the leaf-agent invariant); both names are listed because the harness surfaces the spawn tool under either. An allowlist would block unlisted project MCP + Skill (a plugin subagent can't list unknown-at-authoring-time MCP), so inheritance is the only mechanism; safety is the file-write denial + per-call permission prompts. An inherited MCP tool may be lazily loaded — use `ToolSearch` to load its schema before calling.
 
 ## Hooks
 

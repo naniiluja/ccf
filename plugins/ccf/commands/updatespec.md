@@ -5,66 +5,72 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 model: opus
 ---
 
-You are running CCF `/ccf:updatespec`. Goal: distill this session's lessons into **two places** — the project spec (`.claude/`) and Claude Code's system memory — so future sessions start with fresh context and Claude repeats fewer mistakes.
+You are running CCF `/ccf:updatespec`. Distill this session's lessons into **two places** — the project spec (`.claude/`) and Claude Code's system memory — so future sessions start with fresh context and repeat fewer mistakes.
 
-> **Why two places (important — decides what goes where):**
-> - **Spec** (`CLAUDE.md` + `.claude/rules/`) is loaded as a *user message*, tagged "may not be relevant" → lower weight. Good for **project rules**: conventions, architecture, tech-stack, tooling.
-> - **Memory** (`~/.claude/projects/<path>/memory/`) is loaded into the *system prompt*, **not down-weighted** → Claude follows it more strongly. Good for **anti-mistake feedback** and **user preferences** across sessions.
-> - **No duplication:** anything already in CLAUDE.md must NOT be copied into memory. If a rule in CLAUDE.md keeps getting forgotten/violated, write a `feedback` memory that *reinforces* it (stating why), rather than repeating its content.
+> **Why two places, and what goes where:**
+> - **Spec** (`CLAUDE.md` + `.claude/rules/`) is loaded as a *user message* tagged "may not be relevant", so it carries lower weight. It suits **project rules**: conventions, architecture, tech stack, tooling.
+> - **Memory** (`~/.claude/projects/<path>/memory/`) is loaded into the *system prompt* and is not down-weighted, so Claude follows it more strongly. It suits **anti-mistake feedback** and **user preferences** across sessions.
+> - **No duplication:** anything already in `CLAUDE.md` stays there. When a rule in `CLAUDE.md` keeps getting forgotten, write a `feedback` memory that reinforces it and states why, instead of copying its content.
 
-## Style for user-facing text
-**Scope boundary:** this rule governs CCF-generated text meant for the human reader (the diff explanation, the "why" line, the plan/task sync notes shown to the user). It does NOT apply to the CCF repo's own source, which stays English per `.claude/rules/components.md` (never translate the repo itself).
+## 0a. Style for user-facing text (applies to every step below that writes text for the user)
+**Scope boundary:** this rule governs CCF-generated text meant for the human reader (the diff explanation, the "why" line, the plan and task sync notes shown to the user). It does NOT apply to the CCF repo's own source, which stays English per `.claude/rules/components.md` (never translate the repo itself).
 - Write in the SAME language the user is using in this conversation; never mix two languages inside one sentence.
 - Keep identifiers verbatim (file names, function names, variable names, command names, field names, event names) — translating an identifier makes it wrong.
-- Translate every other concept into the user's language (do not leave English jargon untranslated when a plain equivalent exists, e.g. gate, fold, spike, toggle, fail-open, surface, drift, premortem).
+- Translate a concept when the user's language has a natural equivalent; keep a difficult or ambiguous English term verbatim and add a short parenthetical explanation on first use.
 - No em dash; use a comma, colon, or parentheses instead.
 - One idea per sentence; split a sentence longer than two lines.
 - A language that uses diacritics (e.g. Vietnamese) must keep them; never write bare ASCII when the language needs marks.
 - Do not invent abbreviations; if one is used, spell it out on first use.
+- Open with the point itself; never with generic filler. End when the content ends; never restate what was just said as a summary.
+- Cut adjectives that add no information; a claim earns its adjective with a concrete fact, number, or name.
+- Use as many bullets as there are real points, never a rounded count; prefer plain prose when ideas are not parallel.
+- Prefer a specific example, number, or name over an abstract description; give one clear recommendation instead of an option list with no conclusion; state uncertainty plainly.
+- Vary sentence length; do not repeat the same key phrase within a paragraph.
+- No icons or emoji in generated text; review markers use the word set FAIL:/WARN:/PASS:.
 
 ## Steps
 
 ### 1. Reflect & classify
 Review this session for lessons, then classify each as **spec** or **memory**:
-- → **Spec**: project conventions/patterns, architecture, tech-stack, new tooling (rules derivable from code or belonging to the repo).
-- → **Memory (`feedback`)** — the STRONGEST, most-followed memory type: mistakes you (Claude) made + their fixes, AND correct approaches the user confirmed. ALWAYS record both — a losses-only memory makes future sessions timid/over-cautious, so logging wins keeps confidence calibrated.
-- → **Memory (`user`)**: preferences/habits/working style the user expressed (e.g. "always use X", "don't refactor unprompted").
-- → **Memory (`project`)**: project constraints not derivable from code/git (deadlines, freezes...). Convert relative dates to absolute.
-- Do NOT put in memory: anything derivable from code, git history, or already in CLAUDE.md; transient task progress (use the plan).
+- → **Spec**: project conventions and patterns, architecture, tech stack, new tooling — anything derivable from the code or belonging to the repo.
+- → **Memory (`feedback`)** — the strongest, most-followed memory type: mistakes you (Claude) made plus their fixes, AND correct approaches the user confirmed. Record both: a losses-only memory makes future sessions timid, so logging the wins keeps confidence calibrated.
+- → **Memory (`user`)**: preferences, habits and working style the user expressed (e.g. "always use X", "don't refactor unprompted").
+- → **Memory (`project`)**: project constraints not derivable from code or git (deadlines, freezes). Convert relative dates to absolute ones.
+- Keep out of memory anything derivable from code, git history, or already in `CLAUDE.md`, and transient task progress — the latter belongs in the plan.
 
 ### 2. Locate the spec
-Find every `CLAUDE.md` + `.claude/rules/*` (root + nested). Each lesson belongs to the file closest to cwd; path-scoped lessons go in a rule with `paths:` frontmatter.
+Find every `CLAUDE.md` and `.claude/rules/*` (root + nested). Each lesson belongs to the file closest to cwd; a lesson that applies to one area of the tree goes in a rule with `paths:` frontmatter, which lazy-loads only when a matching file is touched.
 
 ### 3. Update modularly
 - Write lessons as **specific, verifiable rules**.
-- Each rule file < 50 lines, one topic; create a new `.claude/rules/<topic>.md` if none fits + add a `@.claude/rules/<topic>.md` import line to the relevant CLAUDE.md.
-- Keep every CLAUDE.md < 200 lines (you may delegate drafting to `ccf-spec-writer` via Task **with `run_in_background: false`**, since Claude Code v2.1.198 an omitted `run_in_background` defaults to background and this step needs the draft back before writing it).
-- **Show a diff + a one-line "why"** before writing, then Edit/Write.
+- Keep each rule file < 50 lines on one topic; create a new `.claude/rules/<topic>.md` when none fits, and add a `@.claude/rules/<topic>.md` import line to the relevant `CLAUDE.md`.
+- Keep every `CLAUDE.md` < 200 lines. You may delegate the drafting to `ccf-spec-writer` via Task **with `run_in_background: false`**, since Claude Code v2.1.198 an omitted `run_in_background` defaults to background and this step needs the draft back before it can write anything.
+- **Show a diff plus a one-line "why"** before writing, then Edit/Write.
 
-### 4. Record new tools (important)
-If this session added a new **skill / MCP server / subagent / tool** (e.g. the user installed the Supabase MCP, added a skill), record it in `.claude/rules/tooling.md` **with an explanation of WHEN TO USE it** — specific trigger, input/output, example — so a future session's agent knows when to call it. This is the core of context-first: the spec says not just what exists but **when to use it**.
+### 4. Record new tools (with when to use)
+If this session added a new **skill / MCP server / subagent / tool** (e.g. the user installed the Supabase MCP), record it in `.claude/rules/tooling.md` **with an explanation of WHEN TO USE it**: the specific trigger, input and output, one example. This is the core of context-first — the spec says not just what exists but when to reach for it.
 
 ### 5. Update system memory (cross-session anti-mistake)
-For the lessons classified as **memory** in step 1, write them to this project's memory directory: `~/.claude/projects/<sanitized-project-path>/memory/`.
-> **Auto Memory interplay:** Claude Code's `autoMemoryEnabled` (on by default, v2.1.59+) may already have auto-saved notes from this session; `/ccf:updatespec` is the *deliberate curation* pass — review/dedupe what's there, then write the high-signal lessons explicitly rather than relying on the auto-extractor.
-- Each memory is **one file** holding **one fact**, with frontmatter `name` (kebab-case), `description` (one line — used for recall), `metadata.type` (`feedback` | `user` | `project` | `reference`).
-- For `feedback`/`project`: the body is followed by `**Why:**` and `**How to apply:**` lines. The `**Why:**` is MANDATORY, not decoration: without it Claude obeys rigidly and stalls on edge cases; with it Claude grasps the intent and handles ambiguous cases on its own.
-- Before creating a new file, **check for an existing file** covering the same fact → update it instead of duplicating; delete memories that turn out to be wrong.
-- After writing the file, add **one line** pointing to it in `MEMORY.md` (`- [Title](file.md) — hook`). **MEMORY.md is a PURE INDEX loaded every session — only its first 200 lines OR 25KB (whichever comes first) are read, so keep it lean (one line per memory, < ~200 chars, no memory content) and curate/prune it as it nears that limit.** Link related memories by their `name:` slug — `[[name]]`, not the filename.
-- **Memory is point-in-time:** describe a memory by intent/behavior, NOT a code location (e.g. "auth via middleware in main.go", not "the check at line 42") — a recalled memory reflects what was true when written, so a reader must verify the file/function/flag still exists before asserting it as fact.
+Write the lessons classified as **memory** in step 1 into this project's memory directory: `~/.claude/projects/<sanitized-project-path>/memory/`.
+> **Auto Memory interplay:** Claude Code's `autoMemoryEnabled` (on by default, v2.1.59+) may already have auto-saved notes from this session. This step is the *deliberate curation* pass: review and dedupe what is there, then write the high-signal lessons explicitly rather than trusting the auto-extractor.
+- Each memory is **one file holding one fact**, with frontmatter `name` (kebab-case), `description` (one line, used for recall) and `metadata.type` (`feedback` | `user` | `project` | `reference`).
+- For `feedback` and `project`, follow the body with `**Why:**` and `**How to apply:**` lines. The `**Why:**` is mandatory, not decoration: without it Claude obeys rigidly and stalls on edge cases; with it Claude grasps the intent and handles ambiguous cases on its own.
+- Before creating a file, **look for an existing one** covering the same fact and update that instead; delete memories that turn out to be wrong.
+- After writing the file, add **one line** pointing to it in `MEMORY.md` (`- [Title](file.md) — hook`). **`MEMORY.md` is a pure index loaded every session, and only its first 200 lines OR 25KB (whichever comes first) are read**, so keep it to one line per memory, under ~200 characters, with no memory content in it, and prune as it nears the limit. Link related memories by their `name:` slug — `[[name]]`, not the filename.
+- **Memory is point-in-time:** describe a memory by intent or behavior, not by a code location ("auth via middleware in main.go", not "the check at line 42"). A recalled memory reflects what was true when it was written, so verify the file, function or flag still exists before asserting it as fact.
 
 ### 6. Sync the plan
-If `.claude/plan/` changed (tasks done, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:check` + `/code-review` cleanly → mark it `done` here. `ccf-implementer` only ever reaches `in-review`; `/ccf:check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` (or move back to `in-progress`) — do NOT mark `done`.
+If `.claude/plan/` changed (tasks finished, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:check` + `/code-review` cleanly becomes `done` here. `ccf-implementer` only ever reaches `in-review`, and `/ccf:check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` or move it back to `in-progress`.
 
-**Write the status as a BARE word** (`done`, `in-review`) with no markdown emphasis around it. `lib/plan.mjs` strips `**bold**`/`*italic*`/`` `code` `` before matching, so a decorated cell is tolerated — but keep the cells plain anyway; the decoration carries no information and it already caused one real misread (a `**done**` row counted as unfinished by the Stop nudge before that stripping existed).
+**Write the status as a BARE word** (`done`, `in-review`) with no markdown emphasis around it. `lib/plan.mjs` strips `**bold**`, `*italic*` and `` `code` `` before matching, so a decorated cell is tolerated — write it plain anyway, because the decoration carries no information and it already caused one real misread: a `**done**` row counted as unfinished by the Stop nudge before that stripping existed.
 
-**Retire a CLOSED iteration out of `PLAN.md` (do this as part of the same pass).** `PLAN.md` holds the CURRENT iteration only. When every task of an iteration is `done`:
-1. **Run the script — do not do steps 1–2 by hand.** `node "<plugin-root>/scripts/archive-plan.mjs"` previews (writes nothing, and names any row still holding an iteration open); add `--apply` to perform it. It moves the iteration's `## Origin` / `## Task backlog` / `## Closed` sections VERBATIM into `.claude/plan/ARCHIVE.md` newest-first, and `git mv`s its `task-NNN-*.md` files into `.claude/plan/archive/`. Verbatim is deliberate — the value of the archive is that it is an auditable record, so a heading that still says `OPEN` next to a `done` row is itself part of the history. Editing these two files by hand instead risks cutting the wrong section, because an iteration's headings do NOT share a common name (the script groups by position, from one `## Origin` to the next). If you cannot run the script (no shell access), say so plainly and do it by hand following that same positional rule.
-2. Then trim `CLAUDE.md`'s `## Current plan` to the iteration now in flight, and let the archive carry the rest. The script deliberately does NOT do this — picking the new lead iteration is judgment, not mechanics.
-3. Do NOT commit. The script stages the moved files and nothing more; committing is the user's call (`git-workflow.md`).
+**Retire a CLOSED iteration out of `PLAN.md` in this same pass.** `PLAN.md` holds the CURRENT iteration only. When every task of an iteration is `done`:
+1. **Run the script rather than editing the two files by hand.** `node "<plugin-root>/scripts/archive-plan.mjs"` previews (writes nothing, and names any row still holding an iteration open); add `--apply` to perform it. It moves the iteration's `## Origin` / `## Task backlog` / `## Closed` sections VERBATIM into `.claude/plan/ARCHIVE.md` newest-first, and `git mv`s its `task-NNN-*.md` files into `.claude/plan/archive/`. Verbatim is deliberate: the archive's value is being an auditable record, so a heading that still says `OPEN` next to a `done` row is itself part of the history. Hand-editing risks cutting the wrong section, because an iteration's headings do NOT share a common name — the script groups by position, from one `## Origin` heading to the next. With no shell access, say so plainly and do it by hand following that same positional rule.
+2. Then trim `CLAUDE.md`'s `## Current plan` to the iteration now in flight and let the archive carry the rest. The script deliberately leaves this to you: picking the new lead iteration is judgment, not mechanics.
+3. Leave committing to the user. The script stages the moved files and nothing more (`git-workflow.md`).
 
-Why this matters, both directions: a closed row left in `PLAN.md` is counted as LIVE work by `lib/plan.mjs` (`findActiveTask` / `findNonDoneTasks`) and by the Stop nudge, while DELETING the history instead of archiving it would degrade every future `ccf-spec-checker` premortem to `anchor: none`, since that lens anchors predicted failures to real past ones. Archive, never delete.
+Why this matters in both directions: a closed row left in `PLAN.md` is counted as LIVE work by `lib/plan.mjs` (`findActiveTask` / `findNonDoneTasks`) and by the Stop nudge, while deleting the history instead of archiving it would degrade every future `ccf-spec-checker` premortem to `anchor: none`, since that lens anchors predicted failures to real past ones. Archive, never delete.
 
-## Closing (mandatory, per output style)
-- **Check harness-level attribution:** confirm `.claude/settings.json` exists with an `attribution` key set (the deterministic, harness-enforced replacement for the deprecated `includeCoAuthoredBy` and for any "never add Co-Authored-By" narrative). If the file is missing or `attribution` is absent, **nudge the user** to set it (e.g. `attribution.commit`/`attribution.pr` = the desired trailer text, or `""` to suppress). Do NOT auto-write it and do NOT auto-commit.
-- ASK the user whether to commit and/or push. **Do NOT run any git command unless the user explicitly agrees.** If they agree: if on the default branch, create a branch first, and use a conventional commit message.
+## Closing (mandatory)
+- **Check harness-level attribution:** confirm `.claude/settings.json` exists with an `attribution` key set (the deterministic, harness-enforced replacement for the deprecated `includeCoAuthoredBy` and for any "never add Co-Authored-By" prose). If the file is missing or `attribution` is absent, **nudge the user** to set it (`attribution.commit` / `attribution.pr` = the trailer text they want, or `""` to suppress). Leave the writing to them, since it changes how every future commit in the repo is attributed.
+- ASK the user whether to commit and push, and run a git command only after they explicitly agree. If they agree: on the default branch, create a branch first, then use a conventional commit message.

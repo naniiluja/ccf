@@ -15,11 +15,13 @@ description: JS/Node and markdown conventions for the CCF plugin project.
 ## Markdown (command / agent / rule / template)
 - Valid YAML frontmatter, with the correct fields per type (see `components.md`).
 - Clear heading hierarchy; commands/agents use numbered step headings.
-- Instructions to Claude are written in the imperative, decisively (e.g. "STOP.", "Do NOT commit").
+- Instructions to Claude are written in the imperative, decisively. Prefer the affirmative form with its reason: "Spawn `ccf-codebase-analyzer` for discovery, because CCF does not own the built-in `Explore` agent's prompt" carries the same force as a bare prohibition and also tells the model what to do instead. A prohibition is still correct when there is no substitute action, but it never stands alone without a reason.
 - Keep it concise, each sentence adds new information — this is context Claude must load, longer = more tokens + dilution.
+- Prompts under `plugins/ccf/{commands,agents,skills}/` also follow `.claude/rules/prompt-standard.md`, which owns their prose (checklist, style block, codepoint policy, review markers). It is `paths:`-scoped, so read it by path if you are editing a prompt from elsewhere.
 
 ## Language
 - All prose (comments, prompts, rules) in **English**. Keep technical identifiers (tool names, fields, commands) in their original form.
+- **Terminology, in text generated FOR a user in another language** (the repo's own source is unaffected): translate a concept when that language has a natural equivalent, and keep a difficult or ambiguous English term verbatim with a short parenthetical explanation on its first use. Forcing a translation onto a term with no settled equivalent (fail-open, premortem, drift) produces a word the user has to translate back to understand.
 
 ## Design principles (apply to every change)
 - **KISS**: pick the simplest thing that works; hooks prefer lightweight heuristics over heavy analysis.
