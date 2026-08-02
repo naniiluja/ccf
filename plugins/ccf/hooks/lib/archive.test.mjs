@@ -18,6 +18,39 @@ import {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PLAN_PATH = join(HERE, "..", "..", "templates", "root", ".claude", "plan", "PLAN.md.tmpl");
+// One shared read: the template is a read-only fixture no test mutates, so the three
+// REAL-template tests below derive from this instead of each re-reading the file.
+const TEMPLATE_RAW = readFileSync(TEMPLATE_PLAN_PATH, "utf8");
+
+// The three guidance blocks that must always live in the template's preamble (task 050 FAIL A).
+const GUIDANCE_PATTERNS = [
+  [/Write the status as a \*\*bare word\*\*/, "the bare-word guidance"],
+  [/Status: `todo` \/ `in-progress` \/ `in-review` \/ `done` \/ `blocked`/, "the status legend line"],
+  [/\*\*Keep this file to the CURRENT iteration\.\*\*/, "the archive-vs-delete guidance"],
+];
+
+/**
+ * Assert every guidance block is present in the given text — shared by the preamble latch and
+ * the single-iteration retirement test so a future rewording is updated in exactly one place.
+ * @param {string} text the text to scan
+ * @param {string} where names the scanned text in assertion failures
+ * @returns {void}
+ */
+function assertGuidancePresent(text, where) {
+  for (const [re, what] of GUIDANCE_PATTERNS) {
+    assert.match(text, /** @type {RegExp} */ (re), `${what} must be present in ${where}`);
+  }
+}
+
+/**
+ * Flip the template's sample `| todo |` rows to `| done |` so its iteration reads as retirable —
+ * the one fixture transform both retirement tests share, in one shape instead of two.
+ * @param {string} text template text
+ * @returns {string}
+ */
+function flipTodoRowsToDone(text) {
+  return text.replace(/\| todo \|$/gm, "| done |");
+}
 
 /** Split a template block into lines the way the lib expects. */
 const L = (s) => s.split("\n");
@@ -219,48 +252,21 @@ test("REAL PLAN.md.tmpl: the status guidance sits in the PREAMBLE, before the fi
   // two-iteration document that duplicated the guidance into BOTH iterations, so retiring one iteration
   // always left a surviving copy and the assertion passed regardless of where the guidance really was —
   // see the round-2 review finding recorded in task-050's notes for the reproduction.
-  const rawText = readFileSync(TEMPLATE_PLAN_PATH, "utf8");
-  const originIdx = rawText.indexOf("## Origin:");
+  const originIdx = TEMPLATE_RAW.indexOf("## Origin:");
   assert.ok(originIdx > 0, "the template must carry a preamble before its first ## Origin heading");
-  const preamble = rawText.slice(0, originIdx);
-  assert.match(preamble, /Write the status as a \*\*bare word\*\*/, "bare-word guidance must be in the preamble");
-  assert.match(
-    preamble,
-    /Status: `todo` \/ `in-progress` \/ `in-review` \/ `done` \/ `blocked`/,
-    "the status legend line must be in the preamble",
-  );
-  assert.match(
-    preamble,
-    /\*\*Keep this file to the CURRENT iteration\.\*\*/,
-    "the archive-vs-delete guidance must be in the preamble",
-  );
+  assertGuidancePresent(TEMPLATE_RAW.slice(0, originIdx), "the preamble");
 });
 
 test("REAL PLAN.md.tmpl: retiring the template's OWN (only) iteration keeps the status guidance (task 050 FAIL A, case 2 — single-iteration retirement)", () => {
   // The real-world first retirement a generated project ever performs: ONE iteration, no sibling to
   // fall back on. This is the exact scenario the round-2 review reproduced the bug on — the previous
   // two-iteration test never exercised it at all.
-  const rawLines = readFileSync(TEMPLATE_PLAN_PATH, "utf8").split(/\r?\n/);
-  const lines = rawLines.map((line) => line.replace(/\| todo \|$/, "| done |"));
+  const lines = flipTodoRowsToDone(TEMPLATE_RAW).split(/\r?\n/);
   const its = parseIterations(lines);
   assert.equal(its.length, 1, "the shipped template carries exactly one Origin heading");
   assert.equal(isRetirable(its[0]), true, "both sample rows were flipped to done");
   const { planText } = retirePlan(lines, its[0]);
-  assert.match(
-    planText,
-    /Write the status as a \*\*bare word\*\*/,
-    "the bare-word guidance must survive because it sits ABOVE ## Origin, in the preamble, outside the retired iteration",
-  );
-  assert.match(
-    planText,
-    /Status: `todo` \/ `in-progress` \/ `in-review` \/ `done` \/ `blocked`/,
-    "the status legend line must survive the same way",
-  );
-  assert.match(
-    planText,
-    /\*\*Keep this file to the CURRENT iteration\.\*\*/,
-    "the archive-vs-delete guidance must survive the same way",
-  );
+  assertGuidancePresent(planText, "planText after retiring the template's only iteration (it survives because it sits ABOVE ## Origin, in the preamble)");
 });
 
 test("REAL PLAN.md.tmpl shape: a sibling iteration's header row survives retiring the OTHER iteration (sibling-iteration survival, not the FAIL A case)", () => {
@@ -269,11 +275,10 @@ test("REAL PLAN.md.tmpl shape: a sibling iteration's header row survives retirin
   // must not be read as guarding it. Kept because it documents a real, different property: a real
   // project's PLAN.md accumulates iterations the same way this repo's own PLAN.md does, each with its
   // own "## Task backlog" (and its own header row).
-  const rawText = readFileSync(TEMPLATE_PLAN_PATH, "utf8");
-  const originIdx = rawText.indexOf("## Origin:");
-  const preamble = rawText.slice(0, originIdx);
-  const shippedIteration = rawText.slice(originIdx);
-  const olderIteration = shippedIteration.replace("{{ITERATION_NAME}}", "older-iteration").replace(/\| todo \|$/gm, "| done |");
+  const originIdx = TEMPLATE_RAW.indexOf("## Origin:");
+  const preamble = TEMPLATE_RAW.slice(0, originIdx);
+  const shippedIteration = TEMPLATE_RAW.slice(originIdx);
+  const olderIteration = flipTodoRowsToDone(shippedIteration.replace("{{ITERATION_NAME}}", "older-iteration"));
   const twoIterationDoc = `${preamble}${shippedIteration}\n${olderIteration}`;
   const lines = twoIterationDoc.split(/\r?\n/);
   const its = parseIterations(lines);

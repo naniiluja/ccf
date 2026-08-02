@@ -14,10 +14,7 @@
 
 > **Keep this file to the CURRENT iteration.** When every task of an iteration is `done`, `/ccf:updatespec` moves its sections verbatim into `.claude/plan/ARCHIVE.md` and `git mv`s its `task-NNN-*.md` files into `.claude/plan/archive/`. Two reasons, pulling in opposite directions: a closed row left here is counted as live work by the session-start and Stop hooks, while DELETING the history would strip `ccf-spec-checker`'s premortem of the real past failures it anchors to. So archive, never delete.
 
-<!-- The status guidance above sits BEFORE the first "## Origin" heading on purpose: lib/archive.mjs#parseIterations
-     groups everything from one "## Origin" heading to the next as ONE retirable iteration, and content before the
-     FIRST such heading belongs to no iteration. Placing this guidance AFTER "## Origin" would make the very first
-     retirement cut it into ARCHIVE.md along with the closed iteration. Keep it here, never below "## Origin". -->
+<!-- Keep the status guidance ABOVE this line, never below "## Origin": archive retirement groups content from one "## Origin" heading to the next, and only text before the FIRST heading is never cut into ARCHIVE.md. -->
 
 ## Origin: {{ITERATION_NAME}}
 <!-- ITERATION_NAME: name of the first iteration /ccf:init plans -->
