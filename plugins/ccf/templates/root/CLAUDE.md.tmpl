@@ -1,7 +1,7 @@
 # {{PROJECT_NAME}}
 
 > Managed by **CCF (Claude Context First)**. Workflow: Explore → Plan → Implement → Commit.
-> **STRICTLY SEQUENTIAL**: one task at a time, no parallel feature development.
+> **STRICTLY SEQUENTIAL**: one task at a time, no parallel feature development — parallel edits to one codebase create merge conflicts and unreviewable interleaved changes.
 > Ground every design decision in Context7 + Microsoft Learn.
 > Keep this spec always fresh with `/ccf:updatespec`.
 
@@ -16,7 +16,8 @@
 - `fe/` — frontend (has its own CLAUDE.md + .claude/).
 -->
 
-## Rules (imported — keep this file < 200 lines; detail lives in .claude/rules/)
+## Rules (imported — detail lives in .claude/rules/)
+> Keep this file < 200 lines AND < 12KB, whichever binds first. Check both with `wc -lc CLAUDE.md`, not by eye: a low line count can still hide a heavy single line.
 @.claude/rules/tech-stack.md
 @.claude/rules/architecture.md
 @.claude/rules/coding-conventions.md

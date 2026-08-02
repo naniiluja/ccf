@@ -1,7 +1,7 @@
 # Git Workflow
 
 ## Most important rule
-- **Do NOT commit/push unless the user explicitly asks.** Every git operation must be confirmed first.
+- **Ask before every commit/push, and wait for the user's explicit go-ahead.** An unrequested commit or push rewrites the user's history irreversibly, so the confirmation is the cheap side of that asymmetry.
 
 ## Commit attribution (harness-enforced)
 - Attribution is enforced by `.claude/settings.json` `attribution` (`{ "commit": "...", "pr": "..." }`), per `code.claude.com/docs/en/settings`. Harness-level settings are deterministic and **supersede** this narrative — settings win over prose. (`attribution` replaces the deprecated `includeCoAuthoredBy`.)

@@ -14,5 +14,5 @@ paths: ["be/**"]
 - Avoid N+1; index hot queries.
 
 ## Rules
-- No business logic in the DB layer.
+- Keep business logic in the service layer, not the DB layer: that keeps it unit-testable without a database.
 - Use transactions for multi-step operations that must be atomic.
