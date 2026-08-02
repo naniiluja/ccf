@@ -1,0 +1,5 @@
+# Markdown files are read byte-for-byte by .claude/tests/context-budget.test.mjs (the ccf-budget
+# self-consistency check) and by prompt-standard.md's own byte-count invariant. On a Windows
+# checkout with the default core.autocrlf=true, git would rewrite LF to CRLF on checkout, changing
+# every Buffer.byteLength measurement without changing the content — normalize to LF instead.
+*.md text eol=lf
