@@ -18,4 +18,4 @@
 
 ## Verifiable rules
 - Each module has one clear responsibility (Single Responsibility).
-- No circular imports between layers.
+- No circular imports between layers: a cycle makes each side untestable in isolation and hides the true dependency direction.

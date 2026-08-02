@@ -2,7 +2,7 @@
 
 ## Taxonomy
 - Distinguish **expected business errors** (validation, not-found...) from **system errors** (bugs, downstream failures).
-- User-facing vs internal errors: different messages; never leak internal detail outward.
+- User-facing vs internal errors: different messages; never leak internal detail outward, since a stack trace or query string in a user-facing response hands an attacker a map of the system.
 
 ## Verifiable rules
 - **No silent catch.** A caught error must be logged (with the correlation ID) or re-thrown with context.

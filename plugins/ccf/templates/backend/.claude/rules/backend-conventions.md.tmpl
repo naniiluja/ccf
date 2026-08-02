@@ -10,5 +10,5 @@ paths: ["be/**"]
 
 ## Verifiable rules
 - Thin handlers, logic in service/domain.
-- Config via env vars, never hardcode secrets.
+- Config via env vars, never hardcode secrets: a committed secret outlives its own rotation and leaks through every clone/fork of the repo.
 - Every endpoint has a test (per `../.claude/rules/testing.md`).

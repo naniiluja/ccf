@@ -8,7 +8,7 @@ paths: ["fe/**"]
 - State library: {{STATE_LIBRARY}} (pick a stable, widely-supported option).
 - Separate server state from client state: {{SERVER_VS_CLIENT_STATE}}.
 - Data fetching: {{DATA_FETCHING}} (e.g. react-query); handle loading/error explicitly.
-- Don't put in global state something only one component uses.
+- Keep state that only one component uses in that component's own local state; promoting it to global state couples unrelated components and forces wider re-renders.
 
 ## Sync with the API
 - Data shapes match the backend contract; validate responses at the boundary.

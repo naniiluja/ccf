@@ -10,7 +10,7 @@ Goal: log structured enough that Claude can grep the **full trace** of a request
 
 ## Log levels
 - `error`: needs attention. `warn`: abnormal but handled. `info`: business milestones. `debug`: development detail.
-- Never log secrets/PII.
+- Never log secrets/PII: logs replicate to systems with weaker access control than the source data, so a secret written once is exposed everywhere the log travels.
 
 ## Tooling
 - Logging library: {{LOG_LIBRARY}}.

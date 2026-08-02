@@ -4,9 +4,10 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   parseIterations,
   isRetirable,
@@ -14,6 +15,9 @@ import {
   insertIntoArchive,
   findRetirableIterationsIn,
 } from "./archive.mjs";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const TEMPLATE_PLAN_PATH = join(HERE, "..", "..", "templates", "root", ".claude", "plan", "PLAN.md.tmpl");
 
 /** Split a template block into lines the way the lib expects. */
 const L = (s) => s.split("\n");
@@ -207,6 +211,82 @@ test("findRetirableIterationsIn: reads a real file and returns only the closed i
 test("findRetirableIterationsIn: a missing file yields [] instead of throwing", () => {
   // A Stop hook must never break a session over a nudge it could not compute.
   assert.deepEqual(findRetirableIterationsIn(join(tmpdir(), "ccf-does-not-exist-8f3a", "PLAN.md")), []);
+});
+
+test("REAL PLAN.md.tmpl: the status guidance sits in the PREAMBLE, before the first ## Origin (task 050 FAIL A, case 1 — the direct latch)", () => {
+  // This is the test that actually bites: it goes RED the instant the guidance is moved back below
+  // "## Origin", with no retirement machinery in between. A prior version of this file instead built a
+  // two-iteration document that duplicated the guidance into BOTH iterations, so retiring one iteration
+  // always left a surviving copy and the assertion passed regardless of where the guidance really was —
+  // see the round-2 review finding recorded in task-050's notes for the reproduction.
+  const rawText = readFileSync(TEMPLATE_PLAN_PATH, "utf8");
+  const originIdx = rawText.indexOf("## Origin:");
+  assert.ok(originIdx > 0, "the template must carry a preamble before its first ## Origin heading");
+  const preamble = rawText.slice(0, originIdx);
+  assert.match(preamble, /Write the status as a \*\*bare word\*\*/, "bare-word guidance must be in the preamble");
+  assert.match(
+    preamble,
+    /Status: `todo` \/ `in-progress` \/ `in-review` \/ `done` \/ `blocked`/,
+    "the status legend line must be in the preamble",
+  );
+  assert.match(
+    preamble,
+    /\*\*Keep this file to the CURRENT iteration\.\*\*/,
+    "the archive-vs-delete guidance must be in the preamble",
+  );
+});
+
+test("REAL PLAN.md.tmpl: retiring the template's OWN (only) iteration keeps the status guidance (task 050 FAIL A, case 2 — single-iteration retirement)", () => {
+  // The real-world first retirement a generated project ever performs: ONE iteration, no sibling to
+  // fall back on. This is the exact scenario the round-2 review reproduced the bug on — the previous
+  // two-iteration test never exercised it at all.
+  const rawLines = readFileSync(TEMPLATE_PLAN_PATH, "utf8").split(/\r?\n/);
+  const lines = rawLines.map((line) => line.replace(/\| todo \|$/, "| done |"));
+  const its = parseIterations(lines);
+  assert.equal(its.length, 1, "the shipped template carries exactly one Origin heading");
+  assert.equal(isRetirable(its[0]), true, "both sample rows were flipped to done");
+  const { planText } = retirePlan(lines, its[0]);
+  assert.match(
+    planText,
+    /Write the status as a \*\*bare word\*\*/,
+    "the bare-word guidance must survive because it sits ABOVE ## Origin, in the preamble, outside the retired iteration",
+  );
+  assert.match(
+    planText,
+    /Status: `todo` \/ `in-progress` \/ `in-review` \/ `done` \/ `blocked`/,
+    "the status legend line must survive the same way",
+  );
+  assert.match(
+    planText,
+    /\*\*Keep this file to the CURRENT iteration\.\*\*/,
+    "the archive-vs-delete guidance must survive the same way",
+  );
+});
+
+test("REAL PLAN.md.tmpl shape: a sibling iteration's header row survives retiring the OTHER iteration (sibling-iteration survival, not the FAIL A case)", () => {
+  // Renamed from its previous "FAIL 1 regression" name: this scenario (two iterations, retire one,
+  // the OTHER keeps its own Task backlog header) never exercised the single-iteration bug above and
+  // must not be read as guarding it. Kept because it documents a real, different property: a real
+  // project's PLAN.md accumulates iterations the same way this repo's own PLAN.md does, each with its
+  // own "## Task backlog" (and its own header row).
+  const rawText = readFileSync(TEMPLATE_PLAN_PATH, "utf8");
+  const originIdx = rawText.indexOf("## Origin:");
+  const preamble = rawText.slice(0, originIdx);
+  const shippedIteration = rawText.slice(originIdx);
+  const olderIteration = shippedIteration.replace("{{ITERATION_NAME}}", "older-iteration").replace(/\| todo \|$/gm, "| done |");
+  const twoIterationDoc = `${preamble}${shippedIteration}\n${olderIteration}`;
+  const lines = twoIterationDoc.split(/\r?\n/);
+  const its = parseIterations(lines);
+  assert.equal(its.length, 2, "the shipped template iteration plus the synthetic older one");
+  const older = its.find((it) => it.heading.includes("older-iteration"));
+  assert.ok(older, "the synthetic older iteration must be found by its Origin heading");
+  assert.equal(isRetirable(older), true, "both its sample rows were flipped to done");
+  const { planText } = retirePlan(lines, older);
+  assert.match(
+    planText,
+    /\| # \| Slice \| Layers \| Gate \(tests green\) \| Depends on \| Status \|/,
+    "the surviving (newer) iteration keeps its own Task backlog header row",
+  );
 });
 
 test("findRetirableIterationsIn: a directory in place of the file yields [] instead of throwing", () => {
