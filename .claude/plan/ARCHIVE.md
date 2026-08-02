@@ -21,11 +21,48 @@
 
 ## Residual risk carried forward from the bulk-closes
 
+> **BULK-CLOSE #3 (2026-08-02, by explicit user command "done toàn bộ và lưu trữ plan"):** tasks **045–048** (prompt-standard) marked `done` and the iteration retired by EXPLICIT user acceptance. Unlike the two closes below, MOST of this iteration's live gates WERE observed first: a full `/ccf:plan` run (045), a real `/ccf:check` pass (046), and the first-ever live `/ccf:cook` including the bare-`Bash` allowlist and the repaired `AskUserQuestion` model-question in `plan.md` step 1b (via the latch-hardening iteration, retired below with NO bulk-close). **What remains UN-OBSERVED and is the residual risk:** `/code-review` never ran on the 045–048 diff itself (committed straight to `main` in dc16fc5/c79a2a3, no PR; PRs #2/#3 cover only 049/050), and 047's narrow checks never ran (`/ccf:fix` up to the model question, `/ccf:init` up to A4 — init/fix asking behavior on a reinstalled build). **How to re-open:** if init/fix misbehaves at the model question in real use, open a new iteration with a fixture captured from that failing session; do not amend the closed sections.
+
 > **⚠️ BULK-CLOSE #2 (v0.8.5, by explicit user command "done toàn bộ, đưa tất cả vào archive"):** tasks **036–041** and **043–044** were all marked `done` and both iterations retired, by EXPLICIT user acceptance — NOT by each task's own `/ccf:check` + `/code-review` + live-verify. `/code-review` was never run on any of them (the harness `review` skill takes a GitHub PR only, so it could not read the working diff), and `/ccf:check` was not run either. **What is genuinely verified:** 227 `node --test` pass, `tsc --noEmit` exit 0, `claude plugin validate` passed, hook smoke tests spawned as real child processes, and — this one is a real live observation, not a claim — `scripts/archive-plan.mjs --apply` executed against this repo's ACTUAL `.claude/plan/`, taking the two files from 95379 to 95380 bytes (the +1 a normalized trailing newline, so nothing was lost) while moving all 8 task files and preserving newest-first order. That closes task 043's own live-verify gate for real. **What remains UN-OBSERVED and is the residual risk:** the `SubagentStop` payload shape (038 — both failure directions still live: an absent `stop_hook_active` blocks forever, a `true` one on the first stop never blocks), the real `agent_type` in a `SubagentStart` payload (039), the post-reload `/compact` hint wording (040), all FOUR opt-in toggles `--hard-block`/`--auto-verify`/`--enforce-tests`/`--dual-channel-stop` (041 — not one has ever been seen running; all stay OFF in the shipped `hooks.json`), and everything about task 044 (`/ccf:plan` step 1b's 5 set-B analyzers, plus the newly-repaired `AskUserQuestion` asking behavior in all four asking commands — no `/ccf:plan` run has exercised any of it, and the plugin executes from its installed cache copy, not this repo). **How to re-open:** capture a real payload or a real run transcript for the specific item, then open a new iteration citing it; do not amend these closed sections.
 
 > **⚠️ BULK-CLOSE #1 (by explicit user command "đánh done toàn bộ"):** every open task across ALL iterations (017–019, 022/023/022a, 025a, 028a, 029a, 030/030a, 031/032/032a, 034a) was marked `done` by EXPLICIT user acceptance — NOT by each task's own `/ccf:check` + `/code-review` + (where applicable) live-verify observation. Several were `in-review` (code written, final review NOT run) and several were hanging live-verifies whose real behavior remains **UN-OBSERVED** (they need a plugin reload). This mirrors the 024a/034a precedent but applied in bulk. **Residual risk & how to re-open:** any hook/behavior whose live effect was never observed (022a MCP-inheritance, 025a Explore-inject, 028a auto-verify, 029a effort, 030a Kiro, 032a cook, 034a SubagentStop-gate) rests on unit/smoke/grounding evidence only; if a real-harness behavior later differs, re-open the specific iteration with a captured fixture. Opt-in hooks (`--auto-verify`, `--enforce-tests`) stay default-OFF, so their unobserved close carries no live risk until enabled.
 
 ---
+## Origin: prompt-standard (task 045 den 048)
+
+Nguoi dung yeu cau chuan hoa toan bo 13 file prompt cua plugin theo tai lieu chinh thuc cua Anthropic va Claude Code (da tra cuu qua Context7 va code.claude.com), cong hai yeu cau rieng: dau ra phai theo bo quy tac anti-slop (khoi van phong v2, phu 9 file), va khong icon trong prompt lan tai lieu (chinh sach codepoint, bo ky hieu chu FAIL:/WARN:/PASS:). Duoc phep doi luong neu co trich dan; khong trich dan thi giu nguyen. Ke hoach chi tiet: `~/.claude/plans/c-i-thi-n-l-i-workflow-inherited-flame.md` (ban 6, sach sau 4 vong review ccf-spec-checker; disposition day du trong do). Nguoi dung chot: model opus ca 4 task, discipline off, chay khong diem lui (khong commit giua cac task), commit + push len main sau khi /ccf:cook xong.
+
+## Task backlog — prompt-standard (in execution order)
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 045 | Chuan viet + xuong song /ccf:plan + doi ky hieu nguyen khoi | 1 rule moi + 1 rule sua + 3 prompt viet lai + 3 file thay token + 4 README | grep baseline bang nhau + frontmatter assert + predicate status + md5 khoi v2 + khong sua assert + 227 test + 8 test template + tsc + validate + kiem song /ccf:plan (chua chay thi dung o in-review) | — | done |
+| 046 | Xuong song implement + verify | 4 cmd/agent + 4 README | predicate implementerReportedTests + predicate status + parseIterations cho Origin + grep discipline-on 4 file + md5 v2 + kiem song /ccf:check; cook.md ghi UN-OBSERVED | 045 | done |
+| 047 | Luong init + fix + 4 agent con lai | 2 cmd + 4 agent + 4 README | cau A4 nguyen van + AskUserQuestion init/fix + md5 v2 + kiem song hep: /ccf:fix toi cau hoi model, /ccf:init toi A4 dung | 046 | done |
+| 048 | Chot phat hanh + ra drift + quet emoji sot | 3 file version + CLAUDE.md + doi chieu 9 ban v2 | version 3 noi + prose CLAUDE.md + md5 9 ban khop rule + quet codepoint toan cuc + git diff --stat trong tren 2 file test-gate-core + dem artifact | 047 | done |
+
+> **UN-OBSERVED sau task 046 (ghi tuong minh, chap nhan boi nguoi dung):** ban viet lai cua
+> `plugins/ccf/commands/cook.md` CHUA duoc chay mot luot nao. Khong co `/ccf:cook` nao thuc thi tren
+> ban moi, vi chay het mot backlog qua dat; ca `check.md`, `updatespec.md` va `ccf-implementer.md`
+> cung chay tu ban CACHE da cai chu khong tu repo nay, nen moi thay doi prompt o task 046 chi thanh
+> hanh vi that sau khi cai lai plugin va mo phien moi. Dieu kien len `done` cua 046 la mot luot
+> `/ccf:check` (di qua `check.md` + spawn `ccf-spec-checker`); rieng `cook.md` van o trang thai
+> UN-OBSERVED sau khi 046 len `done`.
+> **Cap nhat 2026-08-02:** ve `cook.md` noi rieng, tinh trang tren da het — luot `/ccf:cook` dau tien
+> da chay that (iteration latch-hardening, xem ARCHIVE.md). Phan con thieu cua 045-048 gio chi la:
+> `/code-review` tren diff cua chung (len main khong qua PR) hoac chap nhan thieu ghi dich danh,
+> cong kiem hep 047 (`/ccf:fix` toi cau hoi model, `/ccf:init` toi A4).
+
+> **BULK-CLOSE #3 (2026-08-02, lenh dich danh cua nguoi dung "done toan bo va luu tru plan"):**
+> 045-048 len `done` bang CHAP NHAN cua nguoi dung, khong phai bang gate quan sat du. Chap nhan thieu,
+> neu DICH DANH theo dung dieu khoan thoat cua task-050: (1) **diff cua 045-048 KHONG duoc /code-review**
+> — chung duoc commit thang len main khong qua PR (dc16fc5, c79a2a3), PR #2/#3 chi phu 049/050;
+> (2) **kiem hep 047 chua chay** (`/ccf:fix` toi cau hoi model, `/ccf:init` toi A4 — hanh vi
+> AskUserQuestion cua init/fix tren ban cai lai van UN-OBSERVED). Da quan sat truoc do: kiem song
+> /ccf:plan (045), /ccf:check (046), /ccf:cook + allowlist Bash tran (qua latch-hardening). Cach mo lai:
+> neu init/fix loi thuc te o cau hoi model, mo iteration moi voi fixture chup tu phien loi do.
+
+> Status: `todo` / `in-progress` / `in-review` / `done` / `blocked`. Lifecycle: `todo → in-progress → in-review → done` — `ccf-implementer` reaches `in-review`; only `/ccf:updatespec` writes `done` after `/ccf:check` + `/code-review` pass.
+
 ## Origin: latch-hardening (task 049, 050)
 
 Luot /ccf:check song dau tien tren 0.8.7 de lai ba mon no (ghi trong task-048): hop dong ky hieu FAIL: khong co chot tu dong o dau may duy nhat (verify-chain.mjs), con so ngan sach context da bi noi sai bon lan lien tiep cung mot co che, va check.md/cook.md mang hai muc quyen Bash nguoc nhau du cung chay test cua du an dich. Ke hoach chi tiet: `~/.claude/plans/c-i-thi-n-l-i-workflow-inherited-flame.md` (ban 8, CLEAN sau 8 vong review ccf-spec-checker, disposition day du). Quyet dinh nguoi dung: Bash tran cho ca hai lenh, model sonnet, discipline off. Luot /ccf:plan lap ke hoach nay dong thoi la kiem song cua task 045 (di tron buoc 0, 1b voi 5 analyzer haiku chon qua AskUserQuestion, grill-me 0.8.7, 5b, 6, va plan-review-gate cho ExitPlanMode qua sau khi thay spec-checker spawn).
