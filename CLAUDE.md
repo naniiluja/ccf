@@ -48,7 +48,7 @@ Live queue: `.claude/plan/PLAN.md` — the CURRENT iteration only. Closed histor
 
 **Deferred but already grounded**: task 042, an ack-vs-finished detector for a background spawn. A background-spawned agent returns an instant `"Async agent launched successfully."` ack instead of its report, and `is_error` is `undefined` in every observed case, so it cannot serve as a done-ness signal. Buildable; deliberately not built yet.
 
-**Standing debt**: `.claude/rules/hooks.md` at ~37.8KB is the largest per-session cost, and the proposal to split it by event is still open. Note the `@import` finding above before "fixing" it with `paths:`: that frontmatter buys nothing while the import line stays.
+**Standing debt**: `.claude/rules/hooks.md` at ~38.5KB (measured 2026-08-10) is the largest per-session cost, and the proposal to split it by event is still open. Note the `@import` finding above before "fixing" it with `paths:`: that frontmatter buys nothing while the import line stays.
 
 **Task-status lifecycle**: `todo → in-progress → in-review → done`. `ccf-implementer` reaches `in-review`; only `/ccf:updatespec` writes `done`, after `/ccf:check` + `/code-review` pass. Counts: **6 cmd / 6 agent / 9 hook / 1 skill / 1 script** — the real files under `commands/`, `agents/`, `hooks/`, `skills/`, `scripts/` are the source of truth.
 

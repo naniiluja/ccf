@@ -58,7 +58,7 @@ claude plugin install ccf@ccf
 
 ## 6 个 agent
 
-专用子 agent **继承宿主项目的工具、MCP 服务器与 skill**——因此可以使用你项目提供的任意 MCP（Supabase、Oracle、chrome-devtools 等）并调用项目的 skill，无需为每个 agent 维护 allowlist。每个 CCF agent 都是 **leaf**——带有 `disallowedTools: Agent, Task`，因此不能 spawn 嵌套子 agent（默认仍允许嵌套 spawn，但上限因版本而异：默认 3 层，v2.1.172 到 v2.1.216 为 5，v2.1.217 和 v2.1.218 降为 1（等同禁用）；可通过环境变量 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 调整——设为 `1` 只会关闭**嵌套** spawn，即子 agent 不能再 spawn 自己的子 agent；宿主仍会正常 spawn 第 1 层子 agent。CCF 无论该默认值如何都会确定性地阻止嵌套 spawn）。只读 agent（除 `ccf-implementer` 外的全部）还额外列出 `Write, Edit, NotebookEdit`，因此拥有同样的 MCP/skill 访问范围但**不能写文件**。并行**仅用于只读研究**——写文件的 agent 绝不在同一功能上并行运行。
+专用子 agent **继承宿主项目的工具、MCP 服务器与 skill**——因此可以使用你项目提供的任意 MCP（Supabase、Oracle、chrome-devtools 等）并调用项目的 skill，无需为每个 agent 维护 allowlist。每个 CCF agent 都是 **leaf**——带有 `disallowedTools: Agent, Task`，因此不能 spawn 嵌套子 agent（默认仍允许嵌套 spawn，但上限因版本而异：v2.1.172 到 v2.1.216 为 5，v2.1.217 和 v2.1.218 降为 1（等同禁用），自 v2.1.219 起恢复为 3，即当前默认值；可通过环境变量 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 调整——设为 `1` 只会关闭**嵌套** spawn，即子 agent 不能再 spawn 自己的子 agent；宿主仍会正常 spawn 第 1 层子 agent。CCF 无论该默认值如何都会确定性地阻止嵌套 spawn）。只读 agent（除 `ccf-implementer` 外的全部）还额外列出 `Write, Edit, NotebookEdit`，因此拥有同样的 MCP/skill 访问范围但**不能写文件**。并行**仅用于只读研究**——写文件的 agent 绝不在同一功能上并行运行。
 
 | Agent | 角色 | 模式 |
 |---|---|---|

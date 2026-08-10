@@ -11,7 +11,7 @@ description: Git and distribution/versioning conventions for the CCF plugin.
 
 ## Commit attribution (harness-enforced)
 - The deterministic lever is `.claude/settings.json` → `attribution` (`{ "commit": "...", "pr": "..." }`), per `code.claude.com/docs/en/settings`; it replaces the deprecated `includeCoAuthoredBy`. Harness-level settings **supersede** any narrative rule here — settings win over prose.
-- **Current reality (verified cc-2.1.220-realign): `.claude/settings.json` DOES NOT EXIST in this repo** — `.claude/` holds only `plan/` and `rules/`. So there is NO harness-level enforcement right now and this prose is the ONLY layer. Do not describe attribution as "enforced" while the file is absent. To make it deterministic the user must create the file and set `attribution.commit`/`attribution.pr` (use `""` to suppress a trailer); CCF must NOT auto-write it, since it changes how every future commit in the repo is attributed.
+- **Current reality (re-verified 2026-08-10 on cc-2.1.226): `.claude/settings.json` DOES NOT EXIST in this repo** — `.claude/` holds `plan/`, `rules/` and `tests/` (the `tests/` directory arrived with task 050's `context-budget.test.mjs` and this line went stale the same day; re-run `ls .claude/` rather than trusting the enumeration). So there is NO harness-level enforcement right now and this prose is the ONLY layer. Do not describe attribution as "enforced" while the file is absent. To make it deterministic the user must create the file and set `attribution.commit`/`attribution.pr` (use `""` to suppress a trailer); CCF must NOT auto-write it, since it changes how every future commit in the repo is attributed.
 - Until then: do NOT add a Co-Authored-By trailer by hand.
 
 ## Versioning (synced in 3 places — easy to drift)
