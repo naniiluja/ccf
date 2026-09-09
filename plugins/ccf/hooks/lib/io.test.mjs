@@ -13,13 +13,13 @@
 // mkdtempSync + path.join — no `|` pipes, no single-quoted `echo` (POSIX-only), mirroring the
 // pattern already used by freshness.mjs's own git probe.
 //
-// SPEED NOTE (measured, task cc-2.1.220-realign): before this file existed, `hooks/lib`'s suite ran
-// ~170 tests in ~114ms. With this file it is ~190 tests in ~565-620ms — roughly 5x slower. The cause
-// is this file's own cost, not bloat elsewhere: ~23 real `node` child processes spawned here (each
-// pays ~20-30ms just to boot the runtime) plus one `cpSync` of the whole hooks/ tree for the
-// mutation-kill test. This is the INHERENT price of testing through real child processes rather than
-// importing io.mjs's functions directly — and it has to be paid, because every exported io.mjs
-// function ends its own process with `process.exit(...)`, so it cannot be exercised in-process
+// SPEED NOTE: this file spawns a real `node` child process per case (each pays ~20-30ms just to boot
+// the runtime) plus one `cpSync` of the whole hooks/ tree for the mutation-kill test, so `hooks/lib`'s
+// suite runs noticeably slower with this file than it would in-process. Re-measure with `node --test
+// plugins/ccf/hooks/lib/*.test.mjs` rather than trusting a remembered count (testing.md's own lesson
+// about hardcoded counts drifting). This is the INHERENT price of testing through real child processes
+// rather than importing io.mjs's functions directly — and it has to be paid, because every exported
+// io.mjs function ends its own process with `process.exit(...)`, so it cannot be exercised in-process
 // without either forking anyway or refactoring exit out of io.mjs entirely (out of scope here). This
 // slowness IS the point: it is what makes the suite a real safety net for io.mjs's actual stdout/exit
 // contract, not something to "optimize" away by dropping process-level spawning.
@@ -97,13 +97,6 @@ function writeTranscript(dir, records) {
 function transcriptA_highUsage(dir) {
   return writeTranscript(dir, [
     { type: "assistant", message: { model: "", usage: { input_tokens: 90000, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } },
-  ]);
-}
-
-// TRANSCRIPT B — plan-review-gate: a /ccf:plan user turn, NO ccf-spec-checker spawn yet.
-function transcriptB_planNoReview(dir) {
-  return writeTranscript(dir, [
-    { type: "user", message: { content: "/ccf:plan implement the widget" } },
   ]);
 }
 
@@ -211,7 +204,7 @@ test("plan-mode-guard: /ccf:plan outside plan mode → blockUserPrompt (stderr +
 });
 
 // =================================================================================================
-// 5-7. emitContext → session-start.mjs / agent-rules-inject.mjs / explore-guide-inject.mjs
+// 5-6. emitContext → session-start.mjs / explore-guide-inject.mjs
 // =================================================================================================
 
 /**
@@ -242,33 +235,6 @@ test("session-start (source=startup): CCF-managed project → emitContext non-em
     parsed.hookSpecificOutput.additionalContext.includes("Claude Context First"),
     "additionalContext must carry the CCF reminder, not be empty/generic",
   );
-});
-
-test("agent-rules-inject: writer agent spawn → emitContext non-empty additionalContext", () => {
-  const dir = makeTmpProject();
-  const agentType = "ccf-implementer";
-  const { stdout, status } = runHook("agent-rules-inject.mjs", { cwd: dir, agent_type: agentType });
-  assert.equal(status, 0);
-  const parsed = JSON.parse(stdout);
-  assertEmitContextShape(parsed, "SubagentStart");
-  assert.ok(
-    parsed.hookSpecificOutput.additionalContext.includes("coding rules"),
-    "additionalContext must carry the coding-rules directive, not be empty",
-  );
-});
-
-test("agent-rules-inject: real call-site prefixed agent_type (ccf:ccf-implementer) → still non-empty additionalContext", () => {
-  // lib/output-style.mjs#shouldInject was fixed (task cc-2.1.220-realign) to substring-match,
-  // case-insensitive, against WRITER_AGENTS — because a live call-site observation showed the
-  // agent name reaching hooks always carries a `ccf:` namespace prefix (39/39). This smoke test
-  // proves the real spawn shape is no longer a silent no-op. Routed through the shared
-  // assertEmitContextShape helper (task cc-2.1.220-realign) — previously this was the ONE case in
-  // the group that skipped the exact-key-set checks; it now gets the same strictness as its siblings.
-  const dir = makeTmpProject();
-  const { stdout, status } = runHook("agent-rules-inject.mjs", { cwd: dir, agent_type: "ccf:ccf-implementer" });
-  assert.equal(status, 0);
-  const parsed = JSON.parse(stdout);
-  assertEmitContextShape(parsed, "SubagentStart");
 });
 
 test("explore-guide-inject: any spawn (matcher-gated by hooks.json, not by this hook) → emitContext non-empty", () => {
@@ -398,56 +364,6 @@ test("auto-verify --auto-verify: in-review task + edited code + no review yet (t
 });
 
 // =================================================================================================
-// 11. implementer-verify-gate.mjs --enforce-tests → blockSubagentStop
-// =================================================================================================
-
-test("implementer-verify-gate --enforce-tests: ccf-implementer stop with no TEST-RESULT evidence → blockSubagentStop", () => {
-  const { stdout, status } = runHook(
-    "implementer-verify-gate.mjs",
-    {
-      agent_type: "ccf-implementer",
-      stop_hook_active: false,
-      last_assistant_message: "Done implementing the feature, no tests run.",
-    },
-    ["--enforce-tests"],
-  );
-  assert.equal(status, 0);
-  const parsed = JSON.parse(stdout);
-  assert.equal(parsed.decision, "block");
-  assert.ok(parsed.reason.length > 0, "reason must be non-empty — it drives the subagent's next turn");
-  assert.ok(parsed.reason.includes("TEST-RESULT"));
-  // Exact key-set: io.mjs's own JSDoc (io.mjs L83-90) pins blockSubagentStop's contract as
-  // decision+reason ONLY, deliberately WITHOUT additionalContext (discarded on a blocked
-  // SubagentStop turn per that comment). A future change silently adding additionalContext here
-  // would stay green under a "has decision, has reason" check — this exact key-set check catches it.
-  assert.deepEqual(Object.keys(parsed).sort(), ["decision", "reason"]);
-});
-
-// =================================================================================================
-// 12. plan-review-gate.mjs → denyTool
-// =================================================================================================
-
-test("plan-review-gate: /ccf:plan session, no ccf-spec-checker review yet → denyTool", () => {
-  const dir = makeTmpProject();
-  const transcript = transcriptB_planNoReview(dir);
-  const { stdout, status } = runHook("plan-review-gate.mjs", { cwd: dir, transcript_path: transcript });
-  assert.equal(status, 0); // PreToolUse blocks via JSON, not exit code
-  const parsed = JSON.parse(stdout);
-  assert.ok(parsed.hookSpecificOutput, "expected hookSpecificOutput");
-  assert.deepEqual(Object.keys(parsed).sort(), ["hookSpecificOutput"]);
-  assert.deepEqual(
-    Object.keys(parsed.hookSpecificOutput).sort(),
-    ["hookEventName", "permissionDecision", "permissionDecisionReason"],
-  );
-  assert.equal(parsed.hookSpecificOutput.hookEventName, "PreToolUse");
-  assert.equal(parsed.hookSpecificOutput.permissionDecision, "deny");
-  assert.ok(
-    parsed.hookSpecificOutput.permissionDecisionReason.length > 0,
-    "permissionDecisionReason must be non-empty",
-  );
-});
-
-// =================================================================================================
 // readStdinJson — never crash on empty/TTY/malformed input (testing.md's own stated invariant,
 // previously unexercised by any test in this file). Spawns a real hook with RAW stdin text
 // (bypassing runHook's JSON.stringify) so each of readStdinJson's three defensive branches is hit.
@@ -488,17 +404,6 @@ test("auto-verify WITHOUT --auto-verify: same conditions that would trigger bloc
     transcript_path: transcript,
     stop_hook_active: false,
   }); // no ["--auto-verify"] arg
-  assert.equal(status, 0);
-  assert.equal(stdout, "");
-  assert.equal(stderr, "");
-});
-
-test("implementer-verify-gate WITHOUT --enforce-tests: no TEST-RESULT evidence → silent exit 0, empty stdout", () => {
-  const { stdout, stderr, status } = runHook("implementer-verify-gate.mjs", {
-    agent_type: "ccf-implementer",
-    stop_hook_active: false,
-    last_assistant_message: "Done implementing the feature, no tests run.",
-  }); // no ["--enforce-tests"] arg
   assert.equal(status, 0);
   assert.equal(stdout, "");
   assert.equal(stderr, "");

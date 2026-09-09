@@ -1,7 +1,8 @@
 // Tests for lib/verify-chain.mjs — node --test, no dependency.
 // Covers the three pure helpers that drive the opt-in auto-verify Stop hook:
 //   shouldDriveVerify  — full 5-input decision table (each input toggled off blocks the drive).
-//   buildVerifyReason  — the ordered verify-chain reason; the run-the-test-suite step is present iff disciplineOn.
+//   buildVerifyReason  — the single-step verify reason (/ccf:check then /ccf:updatespec); the
+//                        matrix-test note is present iff disciplineOn.
 //   readDisciplineOn   — reads <rulesDir>/testing.md: discipline on / off / missing file.
 
 import { test } from "node:test";
@@ -50,39 +51,36 @@ test("shouldDriveVerify: undefined/garbage input → false, never throws", () =>
   assert.equal(shouldDriveVerify({}), false);
 });
 
-test("buildVerifyReason: always names the ordered chain (check → code-review → updatespec)", () => {
+test("buildVerifyReason: always names the single-step chain (check → updatespec)", () => {
   const r = buildVerifyReason({ disciplineOn: false });
   assert.match(r, /\/ccf:check/);
-  assert.match(r, /\/code-review/);
   assert.match(r, /\/ccf:updatespec/);
-  // updatespec must come AFTER check + review in the ordered chain.
+  // updatespec must come AFTER check in the ordered chain.
   assert.ok(r.indexOf("/ccf:check") < r.indexOf("/ccf:updatespec"));
-  assert.ok(r.indexOf("/code-review") < r.indexOf("/ccf:updatespec"));
+  // /code-review is no longer part of the mandatory chain (a single /ccf:check step replaces it).
+  assert.doesNotMatch(r, /\/code-review/);
   // The FAIL: token vocabulary is locked in here, at the single machine that builds this reason
   // string, and the old icon markers must never come back (task 049).
   assert.match(r, /FAIL:/);
   assert.doesNotMatch(r, /[\u{274C}\u{2705}]/u);
 });
 
-test("buildVerifyReason: disciplineOn=false → NO test-suite step", () => {
+test("buildVerifyReason: disciplineOn=false → no matrix-test note", () => {
   const r = buildVerifyReason({ disciplineOn: false });
   assert.doesNotMatch(r, /test discipline/i);
 });
 
-test("buildVerifyReason: disciplineOn=true → includes the run-the-test-suite step", () => {
+test("buildVerifyReason: disciplineOn=true → names the matrix-test requirement inside /ccf:check", () => {
   const r = buildVerifyReason({ disciplineOn: true });
   assert.match(r, /test discipline/i);
-  // the test-suite step sits between code-review and updatespec.
-  const testStepIdx = r.search(/test discipline/i);
-  assert.ok(r.indexOf("/code-review") < testStepIdx);
-  assert.ok(testStepIdx < r.indexOf("/ccf:updatespec"));
+  assert.match(r, /matrix/i);
   // Same token-vocabulary lock as the discipline-off case above (task 049): the discipline-on
   // branch must also read FAIL: and must never regress to an icon marker.
   assert.match(r, /FAIL:/);
   assert.doesNotMatch(r, /[\u{274C}\u{2705}]/u);
 });
 
-test("buildVerifyReason: garbage input → still a non-empty string, no test step", () => {
+test("buildVerifyReason: garbage input → still a non-empty string, no matrix-test note", () => {
   const r = buildVerifyReason(undefined);
   assert.equal(typeof r, "string");
   assert.ok(r.length > 0);

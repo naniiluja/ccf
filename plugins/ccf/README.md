@@ -8,58 +8,53 @@ The Claude Context First plugin. See the [root README](../../README.md) for inst
 plugins/ccf/
 ├─ .claude-plugin/plugin.json   # manifest
 ├─ .mcp.json                    # microsoft-learn + context7 (HTTP, key-less)
-├─ commands/                    # 6 slash commands (markdown prompts)
+├─ commands/                    # 5 slash commands (markdown prompts)
 │  ├─ init.md  plan.md  check.md
-│  ├─ fix.md   updatespec.md  cook.md
-├─ agents/                      # 6 subagents — inherit the project's tools/MCP/skills (see below)
+│  └─ updatespec.md  cook.md
+├─ agents/                      # 4 subagents, ALL read-only — inherit the project's tools/MCP/skills (see below)
 │  ├─ ccf-codebase-analyzer.md       # x5 in parallel: onboard (init) or scope a change (plan)
 │  ├─ ccf-best-practice-researcher.md# fetch best practices from Context7/MS Learn
-│  ├─ ccf-implementer.md             # implement 1 task (writer: omits tools → inherit-all)
 │  ├─ ccf-spec-writer.md             # draft the spec
-│  ├─ ccf-spec-checker.md            # fresh-context reviewer (+ premortem plan-review)
-│  └─ ccf-debugger.md                # investigate 1 root-cause branch
+│  └─ ccf-spec-checker.md            # fresh-context reviewer, used by /ccf:check
 ├─ skills/                      # 1 internal skill (invoked by commands; hidden from / menu)
-│  └─ grill-me/SKILL.md         # shared requirements-interview engine (plan/fix/init modes)
+│  └─ grill-me/SKILL.md         # shared requirements-interview engine (plan/init modes)
 ├─ hooks/
 │  ├─ hooks.json
 │  ├─ lib/io.mjs                # stdin/stdout JSON helpers
 │  ├─ lib/freshness.mjs         # shared spec-vs-code git-commit-time heuristic (mtime fallback)
 │  ├─ lib/plan.mjs              # read the in-progress task from PLAN.md
 │  ├─ lib/context-usage.mjs     # transcript token usage + compact-nudge logic
-│  ├─ lib/review-trace.mjs      # detect /ccf:plan session + ccf-spec-checker review in transcript
+│  ├─ lib/review-trace.mjs      # detect a ccf-spec-checker review in the transcript (auto-verify's cross-Stop guard)
 │  ├─ lib/verify-trace.mjs      # detect "edited code but ran no test" in the session transcript
 │  ├─ lib/git-trace.mjs         # detect a `git commit` ran this session (for the plan-status nudge)
-│  ├─ lib/verify-chain.mjs      # decide whether a Stop drives the verify chain + build its reason
-│  ├─ lib/output-style.mjs      # resolve active output style + build the SubagentStart rules directive
+│  ├─ lib/verify-chain.mjs      # decide whether a Stop drives the verify step + build its reason
 │  ├─ lib/explore-guide.mjs     # build the language-agnostic LSP/Grep/Glob directive for the Explore subagent
-│  ├─ lib/implementer-verify.mjs# decide whether a SubagentStop from ccf-implementer must be blocked
 │  ├─ lib/archive.mjs           # decide which PLAN.md iteration is fully closed + how to retire it
 │  ├─ plan-mode-guard.mjs       # UserPromptSubmit: block /ccf:plan outside plan mode
-│  ├─ plan-review-gate.mjs      # PreToolUse(ExitPlanMode): deny until plan is spec-checker reviewed
 │  ├─ session-start.mjs         # SessionStart: reminder + re-load task after compact
 │  ├─ updatespec-nudge.mjs      # Stop: advisory nudges (verify/updatespec/plan-status); opt-in --dual-channel-stop
-│  ├─ auto-verify.mjs           # Stop: opt-in (--auto-verify) block to drive the verify chain
+│  ├─ auto-verify.mjs           # Stop: opt-in (--auto-verify) block to drive the verify step
 │  ├─ context-guard.mjs         # UserPromptSubmit: warn (or opt-in --hard-block) for /compact in the dumb zone
-│  ├─ agent-rules-inject.mjs    # SubagentStart: inject coding rules + active style into spawned ccf-implementer
-│  ├─ explore-guide-inject.mjs  # SubagentStart(Explore): inject the LSP/Grep/Glob exploration directive
-│  └─ implementer-verify-gate.mjs # SubagentStop(ccf-implementer): opt-in (--enforce-tests) block on missing TEST-RESULT
+│  └─ explore-guide-inject.mjs  # SubagentStart(Explore): inject the LSP/Grep/Glob exploration directive
 ├─ scripts/                     # 1 human-run CLI — nothing invokes it automatically
 │  └─ archive-plan.mjs          # retire a fully-closed iteration: PLAN.md → ARCHIVE.md (--apply)
 └─ templates/                   # read by /ccf:init to generate files (not auto-loaded)
    ├─ root/      backend/      frontend/
 ```
 
+There is no writer agent and no `/ccf:fix` command: implementing a task, and debugging directly in conversation, both happen in the main session now, never in a spawned subagent. A spawned coding subagent means waiting on a separate context to boot, read the task and hand a result back, which is measurably slower than writing the code yourself with the plan and codebase already loaded.
+
 ## Agents — tool/MCP/skill inheritance
 
-The 6 subagents have **no `tools` allowlist**; they inherit the host project's full tool/MCP/skill set. `ccf-implementer` (the writer) carries `disallowedTools: Agent, Task` → inherit-all-minus-spawn (every project MCP + the Skill tool, but it cannot spawn a nested agent). The 5 read-only agents carry `disallowedTools: Write, Edit, NotebookEdit, Agent, Task` → inherit-all-minus-file-writes-minus-spawn. `Agent, Task` is what blocks nested spawning (the leaf-agent invariant); both names are listed because the harness surfaces the spawn tool under either. An allowlist would block unlisted project MCP + Skill (a plugin subagent can't list unknown-at-authoring-time MCP), so inheritance is the only mechanism; safety is the file-write denial + per-call permission prompts. An inherited MCP tool may be lazily loaded — use `ToolSearch` to load its schema before calling.
+All 4 subagents have **no `tools` allowlist**; they inherit the host project's full tool/MCP/skill set. Every one of them carries `disallowedTools: Write, Edit, NotebookEdit, Agent, Task` → inherit-all-minus-file-writes-minus-spawn (every project MCP + the Skill tool, but no file writes and no spawning a nested agent). `Agent, Task` is what blocks nested spawning (the leaf-agent invariant); both names are listed because the harness surfaces the spawn tool under either. An allowlist would block unlisted project MCP + Skill (a plugin subagent can't list unknown-at-authoring-time MCP), so inheritance is the only mechanism; safety is the file-write denial + per-call permission prompts. An inherited MCP tool may be lazily loaded — use `ToolSearch` to load its schema before calling.
 
 ## Hooks
 
-9 hooks, run directly with `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.mjs"`. No build, no dependency.
+6 hooks, run directly with `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.mjs"`. No build, no dependency.
 They use the `.mjs` extension (not `.sh`) so Claude Code on Windows doesn't auto-prepend `bash`.
-The `SubagentStart` array carries two hooks: `agent-rules-inject` (no matcher; gated by an internal `WRITER_AGENTS` allowlist) injects coding rules into the writer `ccf-implementer`, and `explore-guide-inject` (matcher `Explore`) injects a language-agnostic LSP/Grep/Glob exploration directive into the built-in `Explore` subagent.
-The `Stop` array also carries two hooks: `updatespec-nudge` (purely advisory; its default path is single-channel `systemMessage` only — opt into dual-channel by adding `--dual-channel-stop` to its `hooks.json` command, which also emits the same nudge as `additionalContext`; **not yet observed** on a real harness `Stop` payload, so it stays off in the shipped `hooks.json`) and `auto-verify` (opt-in via `--auto-verify`, the only CCF Stop hook that BLOCKS — it drives the verify chain via `decision:"block"`).
-The new `SubagentStop` array carries ONE hook (matcher `ccf-implementer`): `implementer-verify-gate`, opt-in via `--enforce-tests`, blocks a spawned implementer's stop (child-scoped `decision:"block"`) when its final message carries no `TEST-RESULT:` evidence.
+The `SubagentStart` array carries ONE hook: `explore-guide-inject` (matcher `Explore`), which injects a language-agnostic LSP/Grep/Glob exploration directive into the built-in `Explore` subagent — there is no writer subagent left to inject coding rules into.
+The `Stop` array carries two hooks: `updatespec-nudge` (purely advisory; its default path is single-channel `systemMessage` only — opt into dual-channel by adding `--dual-channel-stop` to its `hooks.json` command, which also emits the same nudge as `additionalContext`; **not yet observed** on a real harness `Stop` payload, so it stays off in the shipped `hooks.json`) and `auto-verify` (opt-in via `--auto-verify`, the only CCF Stop hook that BLOCKS — it drives a single verify step, `/ccf:check` then `/ccf:updatespec`, via `decision:"block"`).
+There is no `SubagentStop` array and no `PreToolUse` array: both hooks that used them (`implementer-verify-gate`, gating a spawned `ccf-implementer`'s stop; `plan-review-gate`, gating `ExitPlanMode` on a plan-time premortem review) were retired along with the writer agent and the mandatory plan-review loop.
 
 Manual test:
 ```bash

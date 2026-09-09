@@ -55,8 +55,7 @@ export async function readStdinJson() {
  * SubagentStart — the latter adds the string to the subagent's context before its first
  * prompt — and, per the Claude Code 2.1.163 changelog, Stop and SubagentStop as well; NOT YET
  * OBSERVED live on this project's harness, see project memory `subagentstop-shape-unconfirmed`).
- * PreToolUse exposes only permissionDecision via this helper's sibling `denyTool` (see below). The
- * body is event-agnostic; pass the matching event name. Print JSON to stdout then exit 0.
+ * The body is event-agnostic; pass the matching event name. Print JSON to stdout then exit 0.
  * @param {string} eventName the hook event name (e.g. "SessionStart", "PostToolUse")
  * @param {string} text the context to inject
  */
@@ -94,23 +93,6 @@ export function emitSystemMessage(text) {
  */
 export function blockStop(reason, systemMessage) {
   process.stdout.write(JSON.stringify({ decision: "block", reason, systemMessage }));
-  process.exit(0);
-}
-
-/**
- * BLOCK a SubagentStop: `decision: "block"` keeps the SUBAGENT running (scope is child-only — it does
- * NOT affect the main loop) and `reason` is fed back as the subagent's next instruction. Unlike
- * `blockStop` (the main-loop Stop event), this does NOT blindly reuse `blockStop`'s shape — it emits
- * only `decision`/`reason`, by design: per changelog/docs at authoring time (task 034), SubagentStop
- * may ALSO accept `additionalContext`, but whether a BLOCKED SubagentStop's `additionalContext` still
- * reaches the subagent for that turn is UNCONFIRMED, NOT YET OBSERVED on a real harness payload (see
- * project memory `subagentstop-shape-unconfirmed`) — so this helper deliberately stays narrow
- * (`decision`/`reason` only) rather than assume an unverified field behaves a particular way.
- * Then exit 0 (the block is carried by the JSON, not the exit code).
- * @param {string} reason the instruction fed back to the subagent (drives its next turn)
- */
-export function blockSubagentStop(reason) {
-  process.stdout.write(JSON.stringify({ decision: "block", reason }));
   process.exit(0);
 }
 
@@ -173,22 +155,4 @@ export function emitStopAdvisory(context, message) {
 export function blockUserPrompt(reason) {
   process.stderr.write(reason);
   process.exit(2);
-}
-
-/**
- * Deny a tool call at PreToolUse. Unlike UserPromptSubmit (exit 2), PreToolUse blocks via a JSON
- * permissionDecision — exit 0 with `permissionDecision: "deny"`; the reason is shown to Claude.
- * @param {string} reason why the tool call is denied (guidance for Claude)
- */
-export function denyTool(reason) {
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: "PreToolUse",
-        permissionDecision: "deny",
-        permissionDecisionReason: reason,
-      },
-    }),
-  );
-  process.exit(0);
 }

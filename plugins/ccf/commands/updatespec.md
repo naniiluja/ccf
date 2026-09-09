@@ -60,7 +60,7 @@ Write the lessons classified as **memory** in step 1 into this project's memory 
 - **Memory is point-in-time:** describe a memory by intent or behavior, not by a code location ("auth via middleware in main.go", not "the check at line 42"). A recalled memory reflects what was true when it was written, so verify the file, function or flag still exists before asserting it as fact.
 
 ### 6. Sync the plan
-If `.claude/plan/` changed (tasks finished, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:check` + `/code-review` cleanly becomes `done` here. `ccf-implementer` only ever reaches `in-review`, and `/ccf:check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` or move it back to `in-progress`.
+If `.claude/plan/` changed (tasks finished, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:check` cleanly becomes `done` here. Every task is implemented directly in the main session and only ever reaches `in-review` there; `/ccf:check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` or move it back to `in-progress`.
 
 **Write the status as a BARE word** (`done`, `in-review`) with no markdown emphasis around it. `lib/plan.mjs` strips `**bold**`, `*italic*` and `` `code` `` before matching, so a decorated cell is tolerated — write it plain anyway, because the decoration carries no information and it already caused one real misread: a `**done**` row counted as unfinished by the Stop nudge before that stripping existed.
 
@@ -69,7 +69,7 @@ If `.claude/plan/` changed (tasks finished, reordered, added), update `PLAN.md` 
 2. Then trim `CLAUDE.md`'s `## Current plan` to the iteration now in flight and let the archive carry the rest. The script deliberately leaves this to you: picking the new lead iteration is judgment, not mechanics.
 3. Leave committing to the user. The script stages the moved files and nothing more (`git-workflow.md`).
 
-Why this matters in both directions: a closed row left in `PLAN.md` is counted as LIVE work by `lib/plan.mjs` (`findActiveTask` / `findNonDoneTasks`) and by the Stop nudge, while deleting the history instead of archiving it would degrade every future `ccf-spec-checker` premortem to `anchor: none`, since that lens anchors predicted failures to real past ones. Archive, never delete.
+Why this matters in both directions: a closed row left in `PLAN.md` is counted as LIVE work by `lib/plan.mjs` (`findActiveTask` / `findNonDoneTasks`) and by the Stop nudge, while deleting the history instead of archiving it would lose a real, auditable record of what shipped and why. Archive, never delete.
 
 ## Closing (mandatory)
 - **Check harness-level attribution:** confirm `.claude/settings.json` exists with an `attribution` key set (the deterministic, harness-enforced replacement for the deprecated `includeCoAuthoredBy` and for any "never add Co-Authored-By" prose). If the file is missing or `attribution` is absent, **nudge the user** to set it (`attribution.commit` / `attribution.pr` = the trailer text they want, or `""` to suppress). Leave the writing to them, since it changes how every future commit in the repo is attributed.

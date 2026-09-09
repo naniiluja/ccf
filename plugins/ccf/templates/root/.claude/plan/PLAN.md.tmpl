@@ -8,11 +8,11 @@
 ## Milestones
 {{MILESTONE_LIST}}
 
-> Status: `todo` / `in-progress` / `in-review` / `done` / `blocked`. Lifecycle: `todo → in-progress → in-review → done`. `ccf-implementer` marks `in-review` when code+test are complete; only `/ccf:updatespec` writes `done` after `/ccf:check` + `/code-review` pass.
+> Status: `todo` / `in-progress` / `in-review` / `done` / `blocked`. Lifecycle: `todo → in-progress → in-review → done`. Each task is implemented directly in the session (never by a spawned coding subagent), which marks it `in-review` when code+test are complete; only `/ccf:updatespec` writes `done` after `/ccf:check` passes.
 > Write the status as a **bare word** — no `**bold**` around it. Emphasis carries no information and the status is matched as a whole word.
 > Per-task detail in `task-NNN-*.md`.
 
-> **Keep this file to the CURRENT iteration.** When every task of an iteration is `done`, `/ccf:updatespec` moves its sections verbatim into `.claude/plan/ARCHIVE.md` and `git mv`s its `task-NNN-*.md` files into `.claude/plan/archive/`. Two reasons, pulling in opposite directions: a closed row left here is counted as live work by the session-start and Stop hooks, while DELETING the history would strip `ccf-spec-checker`'s premortem of the real past failures it anchors to. So archive, never delete.
+> **Keep this file to the CURRENT iteration.** When every task of an iteration is `done`, `/ccf:updatespec` moves its sections verbatim into `.claude/plan/ARCHIVE.md` and `git mv`s its `task-NNN-*.md` files into `.claude/plan/archive/`. A closed row left here is counted as live work by the session-start and Stop hooks, while DELETING the history would lose a real record of what shipped and why. So archive, never delete.
 
 <!-- Keep the status guidance ABOVE this line, never below "## Origin": archive retirement groups content from one "## Origin" heading to the next, and only text before the FIRST heading is never cut into ARCHIVE.md. -->
 

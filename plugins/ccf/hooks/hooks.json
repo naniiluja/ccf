@@ -1,18 +1,6 @@
 {
-  "description": "CCF: enforce plan mode for /ccf:plan, gate ExitPlanMode on a ccf-spec-checker plan review, inject the context-first reminder + re-load the task after compact, nudge spec updates (single-channel systemMessage by default; opt-in via --dual-channel-stop to also inject additionalContext for the model), optionally (opt-in via --auto-verify) block a Stop to drive the verify chain when a task is in-review and code changed this session, warn about a proactive compact (systemMessage + additionalContext) when context enters the degrade zone, inject the project coding rules (+ active output style's coding rules, persona excluded) into spawned ccf-implementer subagents, inject a language-agnostic LSP/ripgrep/Glob exploration directive into the built-in Explore subagent, and optionally (opt-in via --enforce-tests) block a spawned ccf-implementer's SubagentStop when its final message carries no TEST-RESULT evidence.",
+  "description": "CCF: enforce plan mode for /ccf:plan, inject the context-first reminder + re-load the task after compact, nudge spec updates (single-channel systemMessage by default; opt-in via --dual-channel-stop to also inject additionalContext for the model), optionally (opt-in via --auto-verify) block a Stop to drive the verify chain (/ccf:check then /ccf:updatespec) when a task is in-review and code changed this session, warn about a proactive compact (systemMessage + additionalContext) when context enters the degrade zone, and inject a language-agnostic LSP/ripgrep/Glob exploration directive into the built-in Explore subagent.",
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "ExitPlanMode",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plan-review-gate.mjs\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
     "UserPromptSubmit": [
       {
         "hooks": [
@@ -67,32 +55,11 @@
     ],
     "SubagentStart": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-rules-inject.mjs\"",
-            "timeout": 10
-          }
-        ]
-      },
-      {
         "matcher": "Explore",
         "hooks": [
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/explore-guide-inject.mjs\"",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "matcher": "ccf-implementer",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/implementer-verify-gate.mjs\"",
             "timeout": 10
           }
         ]

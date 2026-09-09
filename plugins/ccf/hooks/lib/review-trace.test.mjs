@@ -1,15 +1,10 @@
 // Tests for lib/review-trace.mjs — node --test, no dependency.
-// Guards the plan-review-gate decision: detect a /ccf:plan session and a ccf-spec-checker review.
+// Guards the auto-verify Stop hook's cross-Stop guard: detect a ccf-spec-checker review this session.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseJsonl, hasCcfPlanCommand, hasSpecCheckerSpawn } from "./review-trace.mjs";
+import { parseJsonl, hasSpecCheckerSpawn } from "./review-trace.mjs";
 
-const userPlan = JSON.stringify({ type: "user", message: { content: "please run /ccf:plan now" } });
-// Bare `/plan` is Claude Code's BUILT-IN plan command (NOT CCF's `/ccf:plan`) — must NOT match.
-const userBuiltinPlan = JSON.stringify({ type: "user", message: { content: [{ type: "text", text: "/plan add auth" }] } });
-// Namespaced form inside a content-block array (harness shape) — must match.
-const userPlanBlock = JSON.stringify({ type: "user", message: { content: [{ type: "text", text: "/ccf:plan add auth" }] } });
 const userOther = JSON.stringify({ type: "user", message: { content: "just chatting" } });
 const specCheckerTask = JSON.stringify({
   type: "assistant",
@@ -29,17 +24,13 @@ const specCheckerAgentLower = JSON.stringify({
   type: "assistant",
   message: { content: [{ type: "tool_use", name: "agent", input: { subagent_type: "ccf-spec-checker" } }] },
 });
-const implementerAgent = JSON.stringify({
-  type: "assistant",
-  message: { content: [{ type: "tool_use", name: "Agent", input: { subagent_type: "ccf-implementer" } }] },
-});
 const namelessBlock = JSON.stringify({
   type: "assistant",
   message: { content: [{ type: "tool_use", input: { subagent_type: "ccf-spec-checker" } }] },
 });
 
 test("parseJsonl: parses lines and skips blank/corrupt ones", () => {
-  const raw = [userPlan, "", "{ not json", specCheckerTask].join("\n");
+  const raw = [userOther, "", "{ not json", specCheckerTask].join("\n");
   const records = parseJsonl(raw);
   assert.equal(records.length, 2);
 });
@@ -50,55 +41,28 @@ test("parseJsonl: empty/garbage input → empty array, never throws", () => {
   assert.deepEqual(parseJsonl(null), []);
 });
 
-test("hasCcfPlanCommand: true for the namespaced /ccf:plan form (string + block shapes)", () => {
-  assert.equal(hasCcfPlanCommand(parseJsonl(userPlan)), true);
-  assert.equal(hasCcfPlanCommand(parseJsonl(userPlanBlock)), true);
-});
-
-test("hasCcfPlanCommand: false for the built-in bare /plan (not CCF's command)", () => {
-  assert.equal(hasCcfPlanCommand(parseJsonl(userBuiltinPlan)), false);
-});
-
-test("hasCcfPlanCommand: false when no /ccf:plan in any user line", () => {
-  assert.equal(hasCcfPlanCommand(parseJsonl([userOther, specCheckerTask].join("\n"))), false);
-});
-
 test("hasSpecCheckerSpawn: true when a Task delegates to ccf-spec-checker", () => {
-  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, specCheckerTask].join("\n"))), true);
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userOther, specCheckerTask].join("\n"))), true);
 });
 
 test("hasSpecCheckerSpawn: true when an Agent-named tool delegates to ccf-spec-checker (the deadlock bug)", () => {
-  // Failing-first: before the fix this returns false because name !== "Task",
-  // deadlocking the plan-review-gate in harnesses that spawn via "Agent".
-  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, specCheckerAgent].join("\n"))), true);
+  // Failing-first: before the fix this returns false because name !== "Task", which would
+  // silently disable the auto-verify cross-Stop guard in harnesses that spawn via "Agent".
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userOther, specCheckerAgent].join("\n"))), true);
 });
 
 test("hasSpecCheckerSpawn: case-insensitive on the spawn tool name (lowercase 'agent')", () => {
-  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, specCheckerAgentLower].join("\n"))), true);
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userOther, specCheckerAgentLower].join("\n"))), true);
 });
 
 test("hasSpecCheckerSpawn: false for a different subagent", () => {
-  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, otherTask].join("\n"))), false);
-});
-
-test("hasSpecCheckerSpawn: false for an Agent spawning a non-spec-checker subagent", () => {
-  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, implementerAgent].join("\n"))), false);
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userOther, otherTask].join("\n"))), false);
 });
 
 test("hasSpecCheckerSpawn: false (no throw) when a tool_use block has no name", () => {
-  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, namelessBlock].join("\n"))), false);
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userOther, namelessBlock].join("\n"))), false);
 });
 
 test("hasSpecCheckerSpawn: false when there is no Task tool_use at all", () => {
-  assert.equal(hasSpecCheckerSpawn(parseJsonl([userPlan, userOther].join("\n"))), false);
-});
-
-test("gate logic: plan session without review → should deny (command true, review false)", () => {
-  const records = parseJsonl([userPlan, userOther].join("\n"));
-  assert.equal(hasCcfPlanCommand(records) && !hasSpecCheckerSpawn(records), true);
-});
-
-test("gate logic: plan session with review → should allow", () => {
-  const records = parseJsonl([userPlan, specCheckerTask].join("\n"));
-  assert.equal(hasCcfPlanCommand(records) && !hasSpecCheckerSpawn(records), false);
+  assert.equal(hasSpecCheckerSpawn(parseJsonl([userOther, userOther].join("\n"))), false);
 });

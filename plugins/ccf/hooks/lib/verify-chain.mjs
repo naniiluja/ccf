@@ -63,27 +63,27 @@ export function readDisciplineOn(rulesDir) {
 
 /**
  * Build the verify-chain reason fed to the main loop via decision:"block". Names the ORDERED steps:
- *   /ccf:check → /code-review → (run the project's test suite only if disciplineOn) → /ccf:updatespec.
- * updatespec runs ONLY when check + review are clean (no `FAIL:` finding); any `FAIL:` → STOP + tell the user, do NOT
- * mark done; if /code-review cannot self-invoke, run the rest + ask the user to run it by hand.
+ *   /ccf:check (which itself runs the tests, incl. the contract-level matrix if disciplineOn) → /ccf:updatespec.
+ * The chain is deliberately a SINGLE review step, not a multi-gate pipeline: the implement work already
+ * happened directly in this session (no separate subagent to re-verify), so one fresh-context check is
+ * enough before the spec is updated. updatespec runs ONLY when check comes back clean (no `FAIL:`
+ * finding); any `FAIL:` → STOP + tell the user, do NOT mark done. `/code-review` stays a good optional
+ * extra the user can run by hand, but it is not part of this mandatory chain.
  * Pure: garbage input coerces to disciplineOn=false; always returns a non-empty string.
  * @param {{ disciplineOn: boolean }} opts
  * @returns {string}
  */
 export function buildVerifyReason(opts) {
   const disciplineOn = Boolean(opts && opts.disciplineOn);
-  const testStep = disciplineOn
-    ? "3. Then run the project's test command to confirm the contract-level matrix tests pass (this project opted into the test discipline).\n"
+  const disciplineNote = disciplineOn
+    ? " This project opted into the test discipline, so /ccf:check must also confirm the contract-level matrix tests pass."
     : "";
   return (
-    "<ccf-auto-verify>This task is in-review and you changed code this session. Drive the verify chain IN ORDER " +
-    "before stopping — do not stop early:\n" +
-    "1. Run /ccf:check (conformance + conventions review of the implementation).\n" +
-    "2. Run /code-review on the current diff.\n" +
-    testStep +
-    "Only when BOTH /ccf:check and /code-review come back CLEAN (no FAIL: findings) run /ccf:updatespec to " +
-    "refresh the spec and mark the task done. If any step reports a FAIL: finding, STOP, report it to the user, " +
-    "and do NOT mark the task done. If /code-review cannot be invoked automatically, run the remaining steps and " +
-    "ask the user to run /code-review by hand.</ccf-auto-verify>"
+    "<ccf-auto-verify>This task is in-review and you changed code this session. Before stopping, run /ccf:check " +
+    "(conformance + conventions review of the implementation, including running the tests)." +
+    disciplineNote +
+    " When it comes back CLEAN (no FAIL: finding), run /ccf:updatespec to refresh the spec and mark the task done. " +
+    "If it reports a FAIL: finding, STOP, report it to the user, and do NOT mark the task done." +
+    "</ccf-auto-verify>"
   );
 }

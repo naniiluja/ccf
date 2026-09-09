@@ -18,9 +18,9 @@ A catalog of this project's tools, with **when to use** each, so future-session 
 <!-- Each skill: name — WHEN TO USE — example trigger -->
 
 ## Subagents (CCF)
-- **ccf-implementer** — implement one task from the plan (has MCP). **Use when:** executing a task after /ccf:plan.
+Every CCF subagent is READ-ONLY: discovery, review or best-practice grounding, never coding. Implementing a task happens directly in the main session (after /ccf:plan), never through a spawned coding subagent — a spawn adds a wait for a separate context and result, which is slower than writing the code directly with the plan already loaded.
+- **ccf-codebase-analyzer** — map or scope the codebase. **Use when:** onboarding (/ccf:init) or before planning a change (/ccf:plan).
 - **ccf-spec-checker** — review conformance/SOLID. **Use when:** /ccf:check.
-- **ccf-debugger** — investigate one root-cause branch. **Use when:** /ccf:fix needs isolation.
 - **ccf-best-practice-researcher** — fetch best practices. **Use when:** grounding a decision.
 
 ## System memory vs Spec (WHEN TO write where)

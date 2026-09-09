@@ -77,8 +77,8 @@ if (committedThisSession(transcriptPath)) {
   if (pending.length > 0) {
     const ids = pending.map((t) => t.id).join(", ");
     advisories.push({
-      directive: `<ccf>You committed code this session but PLAN.md still has ${pending.length} task(s) not 'done' (ids ${ids}). Tell the user, ${RELAY_IN_USER_LANGUAGE}, to mark each 'done' only after its /ccf:check + /code-review pass, or to fix its status.</ccf>`,
-      userNote: `PLAN.md still has ${pending.length} task(s) not 'done' (ids ${ids}) — mark each done only after its /ccf:check + /code-review pass, or fix its status`,
+      directive: `<ccf>You committed code this session but PLAN.md still has ${pending.length} task(s) not 'done' (ids ${ids}). Tell the user, ${RELAY_IN_USER_LANGUAGE}, to mark each 'done' only after its /ccf:check passes, or to fix its status.</ccf>`,
+      userNote: `PLAN.md still has ${pending.length} task(s) not 'done' (ids ${ids}) — mark each done only after its /ccf:check passes, or fix its status`,
     });
   }
 }

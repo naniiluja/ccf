@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // CCF auto-verify — Stop event, OPT-IN (default no-op), the only CCF Stop hook that can BLOCK.
 // Mechanism: the "ralph loop" — when a task is in-review and this session changed code, return
-// decision:"block" + a reason that drives the main loop through the verify chain
-// (/ccf:check → /code-review → run the project's test suite if discipline → /ccf:updatespec when clean).
+// decision:"block" + a reason that drives the main loop through the (single-step) verify chain:
+// /ccf:check (which runs the tests itself) → /ccf:updatespec when clean. There is no separate
+// implementer subagent to re-verify: all coding happens directly in this session, so one
+// fresh-context check is the whole gate.
 // Opt-in: only fires when its hooks.json command carries `--auto-verify` (no arg → exit 0 silently),
 // the same toggle pattern as context-guard's `--hard-block`.
 // Best-effort: any error → exit 0 (we MUST never break a session). The sibling updatespec-nudge.mjs
@@ -50,7 +52,7 @@ try {
     const disciplineOn = readDisciplineOn(rulesDir);
     blockStop(
       buildVerifyReason({ disciplineOn }),
-      "CCF auto-verify: blocking stop to run the verify chain (/ccf:check → /code-review → /ccf:updatespec).",
+      "CCF auto-verify: blocking stop to run /ccf:check, then /ccf:updatespec once it is clean.",
     );
   }
 } catch {

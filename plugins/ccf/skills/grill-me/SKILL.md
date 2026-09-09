@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Internal requirements-interview engine for the CCF commands plan, fix and init. Invoked only by those commands through the Skill tool with a mode argument (plan / fix / init); it interrogates the user one question at a time, exploring the code to self-answer first, and returns a summary of the decisions. Not a standalone command, and never triggered from ordinary conversation.
+description: Internal requirements-interview engine for the CCF commands plan and init. Invoked only by those commands through the Skill tool with a mode argument (plan / init); it interrogates the user one question at a time, exploring the code to self-answer first, and returns a summary of the decisions. Not a standalone command, and never triggered from ordinary conversation.
 user-invocable: false
 allowed-tools: Read, Glob, Grep, AskUserQuestion, Bash(git log:*), Bash(git branch:*), Bash(git status:*)
 ---
@@ -10,7 +10,6 @@ allowed-tools: Read, Glob, Grep, AskUserQuestion, Bash(git log:*), Bash(git bran
 A CCF command invoked you through the Skill tool. `$ARGUMENTS` carries the **mode** that selects which topics to cover:
 
 - `plan` — interrogate one feature/change before writing a sequential plan.
-- `fix` — reconstruct a bug before debugging.
 - `init` — elicit project decisions before bootstrapping CCF.
 
 Run a focused interview under the discipline below, then hand a concise **summary of the answers** back to the calling command so it can continue.
@@ -43,17 +42,6 @@ Probe, in order, only the points still unclear after exploring the code:
 3. **Data shape** — inputs/outputs, types, persistence, schema touched.
 4. **Failure modes** — what can go wrong, and the expected handling.
 5. **Test cases** — the concrete cases that must be green (the failing test comes first).
-6. **Implementer model (default for the WHOLE plan)** — ask ONCE which model implements this plan's tasks by default, as an alias such as `sonnet`/`opus`/`haiku`, never a dated model ID. It is asked here, at plan step 2, before any task exists, so it must stay a single plan-wide default rather than a per-task question; the calling command's step 5 is where a per-task OVERRIDE can be offered once the task list is known. Recommend `sonnet` for a task that is already clear and well-scoped, `opus` for a hard task or one with many constraints, `haiku` for a simple mechanical text edit — as guidance for that later override, not as a batch of questions asked now. If `AskUserQuestion` is unavailable (a non-interactive session), skip asking, use the `sonnet` default, and say explicitly that the default was used instead of a real answer. Never proceed silently as if the user had chosen.
-
-### `fix`
-Reconstruct the bug, probing only what you cannot determine from the code and logs:
-1. **Exact symptom** — observed vs expected behavior.
-2. **Triggering input** — the input or action that provokes it.
-3. **Environment** — OS, runtime, prod/dev, version.
-4. **Frequency** — always or intermittent.
-5. **Error message / stack trace** — the verbatim text, if any.
-6. **Last known-good state** — is this a regression? what changed since?
-7. **Reproduction steps** — the minimal sequence that makes it happen.
 
 ### `init`
 Walk this decision tree to elicit project decisions. Recommend an answer for each, and prefer confirming what the repo plus `git log` / `git branch` already reveal over asking blind:
