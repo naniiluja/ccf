@@ -14,8 +14,7 @@
 // pattern already used by freshness.mjs's own git probe.
 //
 // SPEED NOTE: this file spawns a real `node` child process per case (each pays ~20-30ms just to boot
-// the runtime) plus one `cpSync` of the whole hooks/ tree for the mutation-kill test, so `hooks/lib`'s
-// suite runs noticeably slower with this file than it would in-process. Re-measure with `node --test
+// the runtime), so `hooks/lib`'s suite runs noticeably slower with this file than it would in-process. Re-measure with `node --test
 // plugins/ccf/hooks/lib/*.test.mjs` rather than trusting a remembered count (testing.md's own lesson
 // about hardcoded counts drifting). This is the INHERENT price of testing through real child processes
 // rather than importing io.mjs's functions directly — and it has to be paid, because every exported
@@ -27,7 +26,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, utimesSync, cpSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, utimesSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,10 +34,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HOOKS_DIR = join(__dirname, "..");
 
-// Every tmp dir this file creates (via makeTmpProject or a direct mkdtempSync for the mutation-kill
-// copy) is tracked here and removed once, after all tests, by the test.after hook below — otherwise
-// each run leaves 14 "ccf-io-test-*"/"ccf-io-mutate-*" directories behind permanently (a real dogfood
-// finding: 215 accumulated on this machine before this fix). `force: true` so a cleanup failure (e.g.
+// Every tmp dir this file creates (via makeTmpProject) is tracked here and removed once, after all
+// tests, by the test.after hook below — otherwise each run leaves its "ccf-io-test-*" directories
+// behind permanently (a real dogfood finding: 215 accumulated on this machine before this fix). `force: true` so a cleanup failure (e.g.
 // a file already gone) can never itself turn a passing test suite red.
 /** @type {string[]} */
 const tmpDirsToClean = [];
@@ -57,16 +55,15 @@ test.after(() => {
  * Run a real hook .mjs as a child process, Windows-clean (no shell, no pipes). `input` is either a
  * plain object (JSON-stringified, the common case) or a raw string passed through verbatim — used by
  * the readStdinJson tests below to feed empty/malformed stdin text directly.
- * @param {string} hookFile hook filename under hooks/ (e.g. "context-guard.mjs")
+ * @param {string} hookFile hook filename under hooks/ (e.g. "plan-mode-guard.mjs")
  * @param {Record<string, any> | string} input the stdin payload — an object (stringified) or a raw string
- * @param {string[]} [argv] extra CLI args (e.g. ["--hard-block"])
- * @param {string} [hooksDir] override the hooks/ directory to spawn from (defaults to the real repo HOOKS_DIR) — used by the mutation-kill test to spawn from an isolated tmp copy instead of the shipped source.
+ * @param {string[]} [argv] extra CLI args (e.g. ["--auto-verify"])
  * @returns {{ stdout: string, stderr: string, status: number | null }}
  */
-function runHook(hookFile, input, argv = [], hooksDir = HOOKS_DIR) {
+function runHook(hookFile, input, argv = []) {
   const res = spawnSync(
     process.execPath,
-    [join(hooksDir, hookFile), ...argv],
+    [join(HOOKS_DIR, hookFile), ...argv],
     { input: typeof input === "string" ? input : JSON.stringify(input), encoding: "utf8", shell: false },
   );
   return { stdout: res.stdout ?? "", stderr: res.stderr ?? "", status: res.status };
@@ -92,14 +89,6 @@ function writeTranscript(dir, records) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// TRANSCRIPT A — context-guard: one assistant line with usage tokens above the nudge threshold.
-// modelWindowSize("") = 200_000; shouldNudgeCompact(90_000, 200_000) = 90_000 >= min(80_000, 300_000) → true.
-function transcriptA_highUsage(dir) {
-  return writeTranscript(dir, [
-    { type: "assistant", message: { model: "", usage: { input_tokens: 90000, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } },
-  ]);
-}
-
 // TRANSCRIPT C — auto-verify: this session edited a code file, ran no test command, no review spawn.
 function transcriptC_editedCodeNoReview(dir) {
   return writeTranscript(dir, [
@@ -126,71 +115,7 @@ function writePlanWithOpenTask(dir) {
 }
 
 // =================================================================================================
-// 1-3. context-guard.mjs → emitPromptWarning (warn/escape) + blockUserPrompt (hard-block)
-// =================================================================================================
-
-test("context-guard WARN (default): over threshold → emitPromptWarning, BOTH channels non-empty", () => {
-  const dir = makeTmpProject();
-  const transcript = transcriptA_highUsage(dir);
-  const { stdout, stderr, status } = runHook("context-guard.mjs", {
-    cwd: dir,
-    transcript_path: transcript,
-    prompt: "please continue",
-  });
-  assert.equal(status, 0);
-  assert.equal(stderr, "");
-  const parsed = JSON.parse(stdout);
-  // Explicit non-empty-payload check (not just "stdout is truthy") — the anti-green-empty guard.
-  assert.ok(parsed.hookSpecificOutput, "expected hookSpecificOutput to be present");
-  // Exact key-set at BOTH levels: catches a future change that silently adds/drops a field on the
-  // shared buildDualChannelPayload helper (task cc-2.1.220-realign — this was previously only checked
-  // for presence, not for the exact shape, on the two most-recently-refactored callers).
-  assert.deepEqual(Object.keys(parsed).sort(), ["hookSpecificOutput", "systemMessage"]);
-  assert.deepEqual(Object.keys(parsed.hookSpecificOutput).sort(), ["additionalContext", "hookEventName"]);
-  assert.equal(parsed.hookSpecificOutput.hookEventName, "UserPromptSubmit");
-  assert.ok(parsed.hookSpecificOutput.additionalContext.length > 0, "additionalContext must be non-empty");
-  assert.ok(parsed.systemMessage.length > 0, "systemMessage must be non-empty");
-});
-
-test("context-guard --hard-block: over threshold, not an escape → blockUserPrompt (stderr + exit 2)", () => {
-  const dir = makeTmpProject();
-  const transcript = transcriptA_highUsage(dir);
-  const { stdout, stderr, status } = runHook(
-    "context-guard.mjs",
-    { cwd: dir, transcript_path: transcript, prompt: "please continue" },
-    ["--hard-block"],
-  );
-  // blockUserPrompt writes to STDERR and exits 2 — it prints NO hookSpecificOutput/systemMessage/
-  // decision/permissionDecision key at all (io.mjs L122-125), so stdout must NOT be inspected here.
-  assert.equal(status, 2);
-  assert.ok(stderr.length > 0, "stderr must be non-empty — this is the only signal blockUserPrompt gives");
-  assert.equal(stdout, "");
-  // Regression guard (cc-2.1.220-realign correctness fix): a BLOCKED UserPromptSubmit means NO
-  // assistant turn ran, so a model-facing instruction like "compose it YOURSELF" has no actor left
-  // to execute it. The block reason must speak directly to the USER (tell them to run /compact
-  // themselves), not reuse the warn-mode model instruction.
-  assert.ok(stderr.includes("/compact"), "block reason must tell the user to run /compact");
-  assert.ok(!/YOURSELF/.test(stderr), "block reason must not reuse the model-facing 'compose it YOURSELF' instruction");
-});
-
-test("context-guard --hard-block escape hatch: a /compact prompt downgrades block → warn", () => {
-  const dir = makeTmpProject();
-  const transcript = transcriptA_highUsage(dir);
-  const { stdout, stderr, status } = runHook(
-    "context-guard.mjs",
-    { cwd: dir, transcript_path: transcript, prompt: "/compact focus on the hooks" },
-    ["--hard-block"],
-  );
-  assert.equal(status, 0);
-  assert.equal(stderr, "");
-  const parsed = JSON.parse(stdout);
-  assert.ok(parsed.hookSpecificOutput, "escape hatch must still warn, not silently exit empty");
-  assert.ok(parsed.hookSpecificOutput.additionalContext.length > 0);
-  assert.ok(parsed.systemMessage.length > 0);
-});
-
-// =================================================================================================
-// 4. plan-mode-guard.mjs → blockUserPrompt
+// 1. plan-mode-guard.mjs → blockUserPrompt (the only remaining UserPromptSubmit hook)
 // =================================================================================================
 
 test("plan-mode-guard: /ccf:plan outside plan mode → blockUserPrompt (stderr + exit 2)", () => {
@@ -198,13 +123,14 @@ test("plan-mode-guard: /ccf:plan outside plan mode → blockUserPrompt (stderr +
     prompt: "/ccf:plan add a feature",
     permission_mode: "default",
   });
+  // blockUserPrompt writes to STDERR and exits 2 — it prints no JSON at all, so stdout stays empty.
   assert.equal(status, 2);
   assert.ok(stderr.length > 0, "stderr must carry the blocking reason");
   assert.equal(stdout, "");
 });
 
 // =================================================================================================
-// 5-6. emitContext → session-start.mjs / explore-guide-inject.mjs
+// 2-3. emitContext → session-start.mjs / explore-guide-inject.mjs
 // =================================================================================================
 
 /**
@@ -245,7 +171,7 @@ test("explore-guide-inject: any spawn (matcher-gated by hooks.json, not by this 
 });
 
 // =================================================================================================
-// 8. updatespec-nudge.mjs, NO flag → emitSystemMessage (single-channel path, must stay INVARIANT)
+// 4. updatespec-nudge.mjs, NO flag → emitSystemMessage (single-channel path, must stay INVARIANT)
 // =================================================================================================
 
 test("updatespec-nudge (no flag), clause B (spec older than code, deliberate mtime order, non-git tmp dir): emitSystemMessage ONLY", () => {
@@ -305,7 +231,7 @@ test("updatespec-nudge (no flag), clause C (git commit + PLAN.md pending task, t
 });
 
 // =================================================================================================
-// 9. updatespec-nudge.mjs --dual-channel-stop → emitStopAdvisory (BOTH channels)
+// 5. updatespec-nudge.mjs --dual-channel-stop → emitStopAdvisory (BOTH channels)
 // =================================================================================================
 
 test("updatespec-nudge --dual-channel-stop: same clause-C trigger → BOTH additionalContext AND systemMessage", () => {
@@ -322,7 +248,8 @@ test("updatespec-nudge --dual-channel-stop: same clause-C trigger → BOTH addit
   assert.equal(status, 0);
   const parsed = JSON.parse(stdout);
   assert.ok(parsed.hookSpecificOutput, "dual-channel path must carry hookSpecificOutput");
-  // Exact key-set at BOTH levels — same anti-drift guard as the emitPromptWarning test above.
+  // Exact key-set at BOTH levels: catches a future change that silently adds/drops a field on
+  // emitStopAdvisory's payload, not just checks that the two channels are present.
   assert.deepEqual(Object.keys(parsed).sort(), ["hookSpecificOutput", "systemMessage"]);
   assert.deepEqual(Object.keys(parsed.hookSpecificOutput).sort(), ["additionalContext", "hookEventName"]);
   assert.equal(parsed.hookSpecificOutput.hookEventName, "Stop");
@@ -338,7 +265,7 @@ test("updatespec-nudge --dual-channel-stop: same clause-C trigger → BOTH addit
 });
 
 // =================================================================================================
-// 10. auto-verify.mjs --auto-verify → blockStop
+// 6. auto-verify.mjs --auto-verify → blockStop
 // =================================================================================================
 
 test("auto-verify --auto-verify: in-review task + edited code + no review yet (tmp dir, NOT the live repo) → blockStop", () => {
@@ -407,71 +334,4 @@ test("auto-verify WITHOUT --auto-verify: same conditions that would trigger bloc
   assert.equal(status, 0);
   assert.equal(stdout, "");
   assert.equal(stderr, "");
-});
-
-// =================================================================================================
-// MUTATION-KILL TEST (precedent: task 024 / 028) — proves emitPromptWarning + emitStopAdvisory
-// really exercise the shared `buildDualChannelPayload` helper, not two independently-guessable
-// literals that happen to look right. Kept deliberately (task cc-2.1.220-realign considered and
-// REJECTED removing it) despite depending on an exact source-text match (`target`, below) that
-// breaks if io.mjs's formatting changes — that fragility is the tradeoff for being the only test
-// that actually proves both callers share the same code path, not just a similar-looking shape.
-//
-// SAFETY (task cc-2.1.220-realign, fixing a real hazard): the ACTUAL shipped `io.mjs` (a git-tracked,
-// packaged file) must NEVER be mutated on disk, not even inside a try/finally — a SIGINT/SIGTERM/CI
-// timeout skips `finally`'s write-back and leaves `MUTATION-KILL-MARKER` in the file a later commit
-// could ship. Instead: copy the WHOLE hooks/ dir (hooks + hooks/lib, so relative imports still
-// resolve) into a fresh mkdtempSync tmp dir, mutate ONLY the copy, spawn the hooks from the copy.
-// The real plugins/ccf/hooks/io.mjs is never opened for writing by this test.
-// =================================================================================================
-
-test("mutation-kill: breaking the shared buildDualChannelPayload turns emitPromptWarning + emitStopAdvisory red", () => {
-  const tmpHooksDir = mkdtempSync(join(tmpdir(), "ccf-io-mutate-"));
-  tmpDirsToClean.push(tmpHooksDir);
-  cpSync(HOOKS_DIR, tmpHooksDir, { recursive: true });
-  const copiedIoPath = join(tmpHooksDir, "lib", "io.mjs");
-
-  const original = readFileSync(copiedIoPath, "utf8");
-  const target = "additionalContext: context,\n    },\n    systemMessage: message,";
-  assert.ok(
-    original.includes(target),
-    "mutation target string not found in io.mjs — update this test's target string to match the current source",
-  );
-  const mutated = original.replace(target, 'additionalContext: "MUTATION-KILL-MARKER",\n    },\n    systemMessage: message,');
-  assert.notEqual(mutated, original);
-  writeFileSync(copiedIoPath, mutated);
-
-  // emitPromptWarning caller (context-guard, WARN mode) — spawned from the mutated COPY.
-  const dirA = makeTmpProject();
-  const transcriptA = transcriptA_highUsage(dirA);
-  const resA = runHook(
-    "context-guard.mjs",
-    { cwd: dirA, transcript_path: transcriptA, prompt: "continue" },
-    [],
-    tmpHooksDir,
-  );
-  const parsedA = JSON.parse(resA.stdout);
-  assert.equal(
-    parsedA.hookSpecificOutput.additionalContext,
-    "MUTATION-KILL-MARKER",
-    "context-guard's WARN path did not observe the mutation — the test does not really exercise the shared helper",
-  );
-
-  // emitStopAdvisory caller (updatespec-nudge --dual-channel-stop) — spawned from the mutated COPY.
-  const dirB = makeTmpProject();
-  mkdirSync(join(dirB, ".claude", "rules"), { recursive: true });
-  writePlanWithOpenTask(dirB);
-  const transcriptB = transcriptD_gitCommit(dirB);
-  const resB = runHook(
-    "updatespec-nudge.mjs",
-    { cwd: dirB, transcript_path: transcriptB, stop_hook_active: false },
-    ["--dual-channel-stop"],
-    tmpHooksDir,
-  );
-  const parsedB = JSON.parse(resB.stdout);
-  assert.equal(
-    parsedB.hookSpecificOutput.additionalContext,
-    "MUTATION-KILL-MARKER",
-    "updatespec-nudge's --dual-channel-stop path did not observe the mutation",
-  );
 });

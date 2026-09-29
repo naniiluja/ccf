@@ -79,7 +79,6 @@ claude plugin install ccf@ccf
 | **session-start** | `SessionStart`（`startup\|clear\|compact`） | 注入上下文优先提醒，让模型醒来就已处于 CCF 模式。若**受 CCF 管理**，当代码看起来比规格新时它会加上*新鲜度信号*，并在 `compact`/`clear` 后从 `.claude/plan/PLAN.md` **重新加载进行中的任务**，让你精确地从中断处继续。 |
 | **updatespec-nudge** | `Stop` | 纯**建议性**，从不阻止。四个独立子句：**(A)** 若本次会话改了代码却没跑测试，提醒你*验证工作*（运行测试 / 类型检查）；**(B)** 若代码变了但规格没变，提示 `/ccf:check` 然后 `/ccf:updatespec`；**(C)** 若本次会话跑了 `git commit` 但 `PLAN.md` 仍有任务未 `done`，提醒你把每个任务标为 `done`（仅在其 `/ccf:check` 通过后）或修正其状态；**(D)** 若 `PLAN.md` 中某个迭代的每一行任务都已关闭，打印出用于退役它的确切 `scripts/archive-plan.mjs` 命令。通过 `stop_hook_active` 防止重复触发循环。默认路径是单通道（仅 `systemMessage`）。**可选开启**（默认关闭）：在 `hooks.json` 的 `updatespec-nudge.mjs` 命令后加上 `--dual-channel-stop`，即可同时发出面向模型的 `additionalContext` 与面向用户的 `systemMessage`——该行为**尚未在真实 harness 的 `Stop` payload 上被观察到**，因此在随包 `hooks.json` 中保持关闭。 |
 | **auto-verify** | `Stop` | **可选开启**（默认关闭），且是 CCF 唯一能**阻止**停止的 Stop 钩子。在 `hooks.json` 的 `auto-verify.mjs` 命令后加上 `--auto-verify` 即可启用。当某任务处于 **in-review**、本次会话**改了代码**、且尚无 `ccf-spec-checker` 评审运行时，它返回 `decision: "block"`（「ralph loop」），其 reason 驱动一个单一验证步骤——`/ccf:check`，通过后再 `/ccf:updatespec`。通过 `stop_hook_active` 防止循环；尽力而为，任何错误都静默退出。 |
-| **context-guard** | `UserPromptSubmit` | 当 transcript 显示上下文已超过模型上下文窗口的约 40%——并设置 ~300k token 的绝对上限，因为 40% 的 1M-native 窗口（Opus/Sonnet 4.x）在自动 compact 前不可能达到——即「变笨区」，它会提示执行**主动 `/compact`**（附上从当前任务预填好的 hint）。**默认 = 警告**，不阻止：建议会同时送达你（`systemMessage`）和模型（`additionalContext`），每轮触发。**启用硬阻止**：在 `hooks.json` 的 `context-guard.mjs` 命令后加上 `--hard-block`——届时它会**阻止**（exit 2）任何超阈值的 prompt 直到你 compact，并带有逃生舱（在 prompt 前缀 `/compact`，或包含 `ccf:override`）。尽力而为：读不到 transcript 时保持沉默。 |
 | **explore-guide-inject** | `SubagentStart`（`Explore`） | CCF 不拥有内置 `Explore` 子 agent 的提示词，因此在 spawn 时此钩子**注入**（通过 `additionalContext`）一条简短、**与语言无关、按 LSP 条件**的探索指令：优先语义导航（`LSP` 工具——`workspaceSymbol`/`goToDefinition`/`findReferences`/`documentSymbol`，无 language server 时回退）以及 `Grep`（ripgrep）和 `Glob`，仅在定位到相关区域后才读取整个文件。尽力而为，绝不阻止 spawn。现在是唯一的 `SubagentStart` 钩子——CCF 已经没有写文件的 subagent 需要注入编码规则了。 |
 
 **新鲜度启发式（共享，单一事实来源位于 `hooks/lib/freshness.mjs`）：** 两个具备新鲜度感知的钩子都比较*代码*文件与*规格*文件（`.claude/rules` 下的 `.md` 加 `CLAUDE.md`）的最后一次 **git 提交时间**（`git log -1 --format=%ct`）——采用 committer time，因此反映真实的内容变更，并**不受 `checkout`/`pull`/`clone` 造成的 `mtime` 扰动影响**。当 git 无法回答时（不是 git 仓库，或某路径尚无提交——例如刚 `/ccf:init` 的项目），它会**回退到有限深度的 `mtime` 遍历**，适用于*任何*布局（`src/`、`server/`、`packages/x/src`、插件式的 `plugins/x/hooks`，或位于根目录的代码）。这是轻量提示，绝非硬性结论——内容层面「规格是否仍然准确？」的判断留给 `/ccf:updatespec`。
@@ -107,7 +106,7 @@ claude plugin install ccf@ccf
 
 ## 压缩感知机制
 
-主动的 `/compact <hint>` 优于让 auto-compact 自动触发（当上下文已「腐化」时，模型处于最不清醒的状态）。在你压缩之后，CCF 的 `session-start` 钩子（匹配器 `compact`）会自动从 `.claude/plan/PLAN.md` 重新加载进行中的任务，恢复正确的工作上下文，无需你重新粘贴。
+每次 `/compact` 之后（无论手动还是自动），CCF 的 `session-start` 钩子（匹配器 `compact`）会自动从 `.claude/plan/PLAN.md` 重新加载进行中的任务，恢复正确的工作上下文，无需你重新粘贴。
 
 ## 计划 = 垂直切片的瀑布式
 
@@ -122,7 +121,7 @@ claude plugin install ccf@ccf
 - **命令** = 5 个在会话中驱动 Claude 的 markdown 提示（不是脚本）：init、plan、check、updatespec、cook。
 - **Agent** = 4 个专用子 agent，全部只读（分析器、研究员、规格撰写者、规格检查者）。没有写文件的 agent——实现代码直接在主会话里完成。
 - **Skill** = 1 个内部 skill（`grill-me`）——各命令通过 Skill 工具调用的共享需求访谈引擎；从 `/` 菜单隐藏（`user-invocable: false`）。
-- **钩子** = 6 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、context-usage、review-trace、git-trace、verify-trace、verify-chain、explore-guide、archive）位于 `hooks/lib/`。
+- **钩子** = 5 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、review-trace、git-trace、verify-trace、verify-chain、explore-guide、archive）位于 `hooks/lib/`。
 - **脚本** = 1 个由人手动运行的 CLI（`scripts/archive-plan.mjs`）—— 与钩子遵循同样的无构建、无依赖规则，但没有任何机制会自动调用它。**会改写你的文件**的操作就应该放在这里，这样影响范围始终由你主动运行来界定。
 - **模板** = 带 `{{...}}` 占位符的文件（`root/` 始终使用，`backend/` + `frontend/` 在全栈时使用），由 `/ccf:init` 实例化。
 

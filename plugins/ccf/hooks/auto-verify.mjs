@@ -6,7 +6,7 @@
 // implementer subagent to re-verify: all coding happens directly in this session, so one
 // fresh-context check is the whole gate.
 // Opt-in: only fires when its hooks.json command carries `--auto-verify` (no arg → exit 0 silently),
-// the same toggle pattern as context-guard's `--hard-block`.
+// the same toggle pattern as updatespec-nudge's `--dual-channel-stop`.
 // Best-effort: any error → exit 0 (we MUST never break a session). The sibling updatespec-nudge.mjs
 // stays purely advisory; this hook is the opt-in blocking driver.
 

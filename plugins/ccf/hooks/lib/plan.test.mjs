@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { findActiveTask, findNonDoneTasks, findHintTask } from "./plan.mjs";
+import { findActiveTask, findNonDoneTasks } from "./plan.mjs";
 
 /** Write `content` to a fresh temp file and return its path. */
 function tmpFile(content) {
@@ -272,57 +272,6 @@ test("findNonDoneTasks: ignores the header + separator rows (not counted as non-
     assert.deepEqual(findNonDoneTasks(file), [
       { id: "005", title: "Build it", status: "in-progress" },
     ]);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-// --- findHintTask ------------------------------------------------------------
-
-test("findHintTask: prefers the active (in-progress/in-review) task over any todo task", () => {
-  const { file, dir } = tmpFile(
-    [
-      "| # | Task | Status | Predecessor |",
-      "| --- | --- | --- | --- |",
-      "| 001 | Not started | todo | — |",
-      "| 002 | Being built | in-progress | 001 |",
-    ].join("\n"),
-  );
-  try {
-    assert.deepEqual(findHintTask(file), { id: "002", title: "Being built" });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test("findHintTask: falls back to the first 'todo' task when nothing is active (the compact-hint bug fix — was generic-only)", () => {
-  const { file, dir } = tmpFile(
-    [
-      "| # | Task | Status | Predecessor |",
-      "| --- | --- | --- | --- |",
-      "| 001 | Just finished | done | — |",
-      "| 002 | Next up | todo | 001 |",
-      "| 003 | Later | todo | 002 |",
-    ].join("\n"),
-  );
-  try {
-    assert.deepEqual(findHintTask(file), { id: "002", title: "Next up" });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test("findHintTask: returns null when every task is done or blocked (nothing left to hint)", () => {
-  const { file, dir } = tmpFile(
-    [
-      "| # | Task | Status | Predecessor |",
-      "| --- | --- | --- | --- |",
-      "| 001 | Done one | done | — |",
-      "| 002 | Stuck one | blocked | 001 |",
-    ].join("\n"),
-  );
-  try {
-    assert.equal(findHintTask(file), null);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

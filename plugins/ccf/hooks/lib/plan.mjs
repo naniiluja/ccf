@@ -1,5 +1,5 @@
-// CCF plan helpers — shared by session-start.mjs and context-guard.mjs.
-// Reads the active task (in-progress OR in-review) from PLAN.md so both hooks can resume / hint the same task. DRY.
+// CCF plan helpers — shared by every hook, lib and script that reads PLAN.md.
+// Parses PLAN.md's task tables in one place, so all of them read task status the same way. DRY.
 
 import { existsSync, readFileSync } from "node:fs";
 
@@ -131,22 +131,6 @@ export function collectTaskRows(lines) {
     rows.push({ id: cells[0], title: cells[1], status: stripEmphasis(rawStatus) });
   }
   return rows;
-}
-
-/**
- * Pick the task to reference in a /compact hint (context-guard). Prefers the truly ACTIVE task
- * (in-progress or in-review — same definition as findActiveTask) so the hint names concrete work
- * whenever such work exists; falls back to the first not-yet-started ("todo") task so the hint
- * stays task-specific even in the gap between finishing one task and starting the next, rather
- * than silently degrading to the generic wording just because nothing is currently in-progress.
- * @param {string} file path to PLAN.md
- * @returns {{ id: string, title: string } | null}
- */
-export function findHintTask(file) {
-  const active = findActiveTask(file);
-  if (active) return active;
-  const nextTodo = findNonDoneTasks(file).find((t) => /^todo$/i.test(t.status));
-  return nextTodo ? { id: nextTodo.id, title: nextTodo.title } : null;
 }
 
 /**

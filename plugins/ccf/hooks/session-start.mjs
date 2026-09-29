@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // CCF session-start hook — inject the context-first reminder + a freshness signal.
 // Matcher: startup|clear|compact (re-inject after compact/clear).
-// The recovery half of the compact-aware mechanism: after compact, re-load the in-progress task from PLAN.md.
+// Compact recovery: after a compact (manual or auto), re-load the in-progress task from PLAN.md.
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";

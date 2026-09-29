@@ -50,7 +50,6 @@ For EACH task, in order:
 6. **Check the slice gate**, meaning the command the task file names:
    - **GREEN** → self-check the diff against `.claude/rules/*` and fix any violation, `TaskUpdate` the session entry to `completed`, write `in-review` (never `done`) into the `PLAN.md` status column, then move to the next task.
    - **RED** → **STOP immediately.** Tell the user which task failed and why, implement no further task, and do not run step 5's verify. **Leave the session entry `in_progress`**, because a red gate is unfinished work and marking it `completed` would erase the only signal that the run stopped here. The sequential law is absolute: never touch two tasks' files at once, and never move past a red gate.
-7. Recommend `/compact` between slices once the transcript grows large (step 7).
 
 ## 3. Verify: a single `/ccf:check`, not a multi-gate pipeline
 Once every selected task is `in-review`, run **`/ccf:check`** once over the whole batch (Skill tool, or instruct the user to run it). This is the ONE verify step CCF requires: since every task was implemented directly in this session rather than by a separate subagent, one fresh-context review is enough, and there is no separate implementer output to re-check.
@@ -71,7 +70,7 @@ Not every harness exposes the Skill tool, or a SlashCommand tool for `/ccf:check
 - In the **manual-fallback branch** (step 5, where no such spawn happened because Skill was unavailable), that guard does not fire, since there is no `ccf-spec-checker` entry to detect. The hook re-driving the step at Stop is correct there: it picks up exactly the work `/ccf:cook` could not finish itself.
 
 ## 7. Context management
-Suggest `/compact` between implement slices (step 2) once the transcript grows large, since a long sequential backlog accumulates context fast. Recommend invoking `/ccf:cook` over a **small backlog** each time, a handful of tasks rather than a whole multi-iteration plan, so one session stays inside a manageable context budget and a red gate stops the loop early instead of deep in a long queue.
+A long sequential backlog accumulates context fast, so recommend invoking `/ccf:cook` over a **small backlog** each time, a handful of tasks rather than a whole multi-iteration plan, so one session stays inside a manageable context budget and a red gate stops the loop early instead of deep in a long queue.
 
 **Optional secondary stop condition:** if the official `/goal` command is available (it may be absent on an older Claude Code build), the user may set a condition such as `/goal all selected tasks are in-review` to keep the session working across the implement loop. That is a convenience only: a RED gate still stops the loop immediately (step 2.6), whatever any `/goal` condition says.
 

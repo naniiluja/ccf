@@ -9,7 +9,7 @@
 // Channel: default is emitSystemMessage (user-facing only, SINGLE channel — must stay INVARIANT).
 // Opt-in via a `--dual-channel-stop` argv flag → emitStopAdvisory (BOTH additionalContext + systemMessage,
 // per Claude Code 2.1.163's Stop additionalContext support). Same toggle pattern as auto-verify's
-// --auto-verify / context-guard's --hard-block: the hooks.json command line IS the toggle. Default OFF —
+// --auto-verify: the hooks.json command line IS the toggle. Default OFF —
 // hooks.json does NOT carry this flag, so the single-channel path stays the shipped behavior.
 
 import { existsSync } from "node:fs";
@@ -37,7 +37,7 @@ if (!existsSync(rulesDir)) {
   process.exit(0);
 }
 
-// Two-channel model (matching context-guard.mjs, task cc-2.1.220-realign): each clause pushes ONE
+// Two-channel model (task cc-2.1.220-realign): each clause pushes ONE
 // { directive, userNote } pair into `advisories`, instead of two hand-synced parallel arrays
 // (`directiveParts`/`userParts`, pre-cc-2.1.220-realign) — a future clause D can no longer push to
 // one array and silently forget the other. `directive` is an INSTRUCTION for the model (composed
@@ -86,8 +86,8 @@ if (committedThisSession(transcriptPath)) {
 // (D) Archive-plan — PLAN.md holds an iteration whose every task row is CLOSED (independent of A/B/C).
 // Detection is deterministic and harmless here; the actual retirement REWRITES two files and moves
 // task files, so it is deliberately NOT done by this hook — it is left to `scripts/archive-plan.mjs`,
-// which a human runs. Same detection-vs-action split as context-guard (task 040): the hook is certain
-// about the fact, the human owns the mutation.
+// which a human runs. Detection-vs-action split: the hook is certain about the fact, the human owns
+// the mutation.
 // The script path is resolved from import.meta.url rather than from `cwd`, because the plugin runs
 // from its installed cache copy, not from this repo — a cwd-relative path would not exist there.
 const retirable = findRetirableIterationsIn(planFile);

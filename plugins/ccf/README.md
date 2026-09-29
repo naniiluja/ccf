@@ -23,7 +23,6 @@ plugins/ccf/
 │  ├─ lib/io.mjs                # stdin/stdout JSON helpers
 │  ├─ lib/freshness.mjs         # shared spec-vs-code git-commit-time heuristic (mtime fallback)
 │  ├─ lib/plan.mjs              # read the in-progress task from PLAN.md
-│  ├─ lib/context-usage.mjs     # transcript token usage + compact-nudge logic
 │  ├─ lib/review-trace.mjs      # detect a ccf-spec-checker review in the transcript (auto-verify's cross-Stop guard)
 │  ├─ lib/verify-trace.mjs      # detect "edited code but ran no test" in the session transcript
 │  ├─ lib/git-trace.mjs         # detect a `git commit` ran this session (for the plan-status nudge)
@@ -34,7 +33,6 @@ plugins/ccf/
 │  ├─ session-start.mjs         # SessionStart: reminder + re-load task after compact
 │  ├─ updatespec-nudge.mjs      # Stop: advisory nudges (verify/updatespec/plan-status); opt-in --dual-channel-stop
 │  ├─ auto-verify.mjs           # Stop: opt-in (--auto-verify) block to drive the verify step
-│  ├─ context-guard.mjs         # UserPromptSubmit: warn (or opt-in --hard-block) for /compact in the dumb zone
 │  └─ explore-guide-inject.mjs  # SubagentStart(Explore): inject the LSP/Grep/Glob exploration directive
 ├─ scripts/                     # 1 human-run CLI — nothing invokes it automatically
 │  └─ archive-plan.mjs          # retire a fully-closed iteration: PLAN.md → ARCHIVE.md (--apply)
@@ -50,8 +48,9 @@ All 4 subagents have **no `tools` allowlist**; they inherit the host project's f
 
 ## Hooks
 
-6 hooks, run directly with `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.mjs"`. No build, no dependency.
+5 hooks, run directly with `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.mjs"`. No build, no dependency.
 They use the `.mjs` extension (not `.sh`) so Claude Code on Windows doesn't auto-prepend `bash`.
+The `UserPromptSubmit` array carries ONE hook: `plan-mode-guard`. The old `/compact` nudge (`context-guard`) was retired; CCF no longer measures context usage.
 The `SubagentStart` array carries ONE hook: `explore-guide-inject` (matcher `Explore`), which injects a language-agnostic LSP/Grep/Glob exploration directive into the built-in `Explore` subagent — there is no writer subagent left to inject coding rules into.
 The `Stop` array carries two hooks: `updatespec-nudge` (purely advisory; its default path is single-channel `systemMessage` only — opt into dual-channel by adding `--dual-channel-stop` to its `hooks.json` command, which also emits the same nudge as `additionalContext`; **not yet observed** on a real harness `Stop` payload, so it stays off in the shipped `hooks.json`) and `auto-verify` (opt-in via `--auto-verify`, the only CCF Stop hook that BLOCKS — it drives a single verify step, `/ccf:check` then `/ccf:updatespec`, via `decision:"block"`).
 There is no `SubagentStop` array and no `PreToolUse` array: both hooks that used them (`implementer-verify-gate`, gating a spawned `ccf-implementer`'s stop; `plan-review-gate`, gating `ExitPlanMode` on a plan-time premortem review) were retired along with the writer agent and the mandatory plan-review loop.

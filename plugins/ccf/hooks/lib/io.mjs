@@ -2,12 +2,12 @@
 // Claude Code hook contract: receive JSON on stdin, return JSON on stdout / use exit codes.
 
 /**
- * Shared clause reused by every advisory hook that tells the model to relay a message to the user
- * (context-guard.mjs, updatespec-nudge.mjs): a hook can never know what language the user is typing
+ * Shared clause reused by every advisory directive that tells the model to relay a message to the
+ * user (updatespec-nudge.mjs's four clauses): a hook can never know what language the user is typing
  * in, so the model must be told to relay IN THE USER'S OWN LANGUAGE rather than a hardcoded-English
  * string handed straight to the user. Factored here (task cc-2.1.220-realign) because it had been
- * copy-typed four times across two files, drifting slightly each time. Lives in io.mjs, the shared
- * infrastructure layer every hook already imports, rather than in either hook file.
+ * copy-typed four times, drifting slightly each time. Lives in io.mjs, the shared infrastructure
+ * layer every hook already imports, so a future relaying hook reuses it instead of re-typing it.
  * @type {string}
  */
 export const RELAY_IN_USER_LANGUAGE = "IN THE LANGUAGE THEY ARE USING";
@@ -97,42 +97,6 @@ export function blockStop(reason, systemMessage) {
 }
 
 /**
- * Build the combined `{ hookSpecificOutput: { hookEventName, additionalContext }, systemMessage }`
- * payload shared by `emitPromptWarning` (UserPromptSubmit) and `emitStopAdvisory` (Stop) — both
- * reach the model via `additionalContext` AND the user via `systemMessage` in one non-blocking emit.
- * Module-private: not exported. NOTE (task cc-2.1.220-realign, correcting a stale claim): `emitContext`
- * ALSO builds the same inner `{ hookSpecificOutput: { hookEventName, additionalContext } }` shape —
- * it is not one of some independent set of "other" shapes, it genuinely overlaps this helper. Folding
- * it in was deliberately NOT done here: a code-review pass scoped this cleanup to leave `emitContext`
- * untouched, so that fold is intentionally deferred, not an oversight.
- * @param {string} eventName the hook event name (e.g. "UserPromptSubmit", "Stop")
- * @param {string} context the model-facing context to inject
- * @param {string} message the user-facing message to display
- * @returns {string} the JSON-stringified payload
- */
-function buildDualChannelPayload(eventName, context, message) {
-  return JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: eventName,
-      additionalContext: context,
-    },
-    systemMessage: message,
-  });
-}
-
-/**
- * Surface a non-blocking warning at UserPromptSubmit through BOTH channels: `additionalContext`
- * (model-facing, enters Claude's context) and `systemMessage` (the universal user-facing field).
- * Lets the prompt proceed (exit 0) while the user actually SEES the message. Print JSON then exit 0.
- * @param {string} context the model-facing context to inject
- * @param {string} message the user-facing warning to display
- */
-export function emitPromptWarning(context, message) {
-  process.stdout.write(buildDualChannelPayload("UserPromptSubmit", context, message));
-  process.exit(0);
-}
-
-/**
  * Surface a non-blocking advisory at Stop through BOTH channels: `additionalContext` (model-facing,
  * per the Claude Code 2.1.163 changelog's Stop additionalContext support — NOT YET OBSERVED live on
  * this project's harness) and `systemMessage` (user-facing). Lets
@@ -143,7 +107,15 @@ export function emitPromptWarning(context, message) {
  * @param {string} message the user-facing advisory to display
  */
 export function emitStopAdvisory(context, message) {
-  process.stdout.write(buildDualChannelPayload("Stop", context, message));
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: "Stop",
+        additionalContext: context,
+      },
+      systemMessage: message,
+    }),
+  );
   process.exit(0);
 }
 
