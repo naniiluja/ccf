@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: Internal requirements-interview engine for the CCF commands plan and init. Invoked only by those commands through the Skill tool with a mode argument (plan / init); it interrogates the user one question at a time, exploring the code to self-answer first, and returns a summary of the decisions. Not a standalone command, and never triggered from ordinary conversation.
+description: Internal requirements-interview engine for the CCF workflows plan (a skill) and init (a command). Invoked only by those two through the Skill tool with a mode argument (plan / init); it interrogates the user one question at a time, exploring the code to self-answer first, and returns a summary of the decisions. Not a standalone command, and never triggered from ordinary conversation.
 user-invocable: false
 allowed-tools: Read, Glob, Grep, AskUserQuestion, Bash(git log:*), Bash(git branch:*), Bash(git status:*)
 ---

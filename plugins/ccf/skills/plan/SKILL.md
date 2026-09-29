@@ -1,7 +1,8 @@
 ---
-description: Create a strictly sequential (waterfall) implementation plan, grounded in best practices. Requires plan mode.
+name: plan
+description: "Use when a CCF-initialized project is in plan mode, after the user types /plan, or when they ask to plan a feature or change (lên kế hoạch, plan a change). Creates a strictly sequential (waterfall) implementation plan, grounded in best practices, with an interview, parallel codebase discovery and one task file per slice. Requires plan mode. Not for answering a plain question about the code."
 argument-hint: "[feature or change to plan]"
-allowed-tools: Read, Glob, Grep, Skill, Task, AskUserQuestion, WebFetch, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*
+allowed-tools: Read, Glob, Grep, Skill, Task, AskUserQuestion, WebFetch, Bash(node:*), mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*
 model: opus
 ---
 
@@ -66,6 +67,7 @@ Before finalizing, raise the plan to best-practice quality: call Context7 (`reso
 ## 5. Plan output
 Write/append task files `.claude/plan/task-NNN-*.md` (using the task-template). Each task is one right-sized, PR-sized vertical slice, cohesive, with its doc/spec-sync folded in by default per step 4: goal, spec refs, files to touch, test written first, acceptance criteria, and **exactly ONE predecessor**. Name any MCP the task will need (e.g. a project DB MCP), since that is still a real per-task decision; there is no per-task model or agent choice to record, because every task is implemented directly in this session (step 6). In plan mode, the writing is presented as the plan for approval.
 - **Each slice is a gate:** name the test types that must be GREEN before the next slice starts (unit always; integration when it crosses a boundary; e2e/automation for the user-visible path). The next task does not begin until its predecessor's gate passes. State the gate explicitly in the task file.
+- **Optional Jev slice check.** Once the task files exist on disk (after the plan is approved, before the first task is implemented) and `TYPESAFE_API_KEY` is set, run `node "${CLAUDE_PLUGIN_ROOT}/scripts/jev-slice-check.mjs"`; if the variable reaches you unexpanded, locate `scripts/jev-slice-check.mjs` in the plugin directory with Glob instead. It is read-only and sends only task ids, titles, `Files to touch` and criteria to api.typesafe.ai, never source code. Weigh its JSON: `edges` are ordering constraints (`file-overlap` is certain because code computed it; `dependency` and `contract` are Jev's judgment), `fragments` are tasks worth folding into a neighbour, `skipped` are batches that got no answer. The script never edits the plan: propose any change to the task files with `AskUserQuestion` and edit only on a yes. A `reason` of `no-key`, `no-plan`, `not-enough-tasks`, `too-large` or `error` means carry on without it.
 
 ### 5b. Test-discipline opt-in
 Ask the user ONE question: **adopt the contract-level test discipline for THIS plan?** If the project's `.claude/rules/testing.md` already carries the "Test design discipline" block or `Matrix required: yes`, default to ON and just confirm; otherwise default OFF.

@@ -27,6 +27,25 @@ export function findActiveTask(file) {
   return null;
 }
 
+/**
+ * Find THE task whose status is exactly "in-review" (NOT in-progress). Used by the opt-in
+ * completion-evidence hook, which judges a task at the moment it claims to be finished. With more than
+ * one in-review row the diff cannot be tied to a task, so this returns null rather than guessing.
+ * @param {string} file path to PLAN.md
+ * @returns {{ id: string, title: string } | null}
+ */
+export function findInReviewTask(file) {
+  if (!existsSync(file)) return null;
+  let content;
+  try {
+    content = readFileSync(file, "utf8");
+  } catch {
+    return null;
+  }
+  const rows = collectTaskRows(content.split(/\r?\n/)).filter((row) => /^in[-\s]?review$/i.test(row.status));
+  return rows.length === 1 ? { id: rows[0].id, title: rows[0].title } : null;
+}
+
 // Terminal statuses: a task in one of these is CLOSED — no further action needed, so it must not
 // nag the not-done nudge forever. "done" is CCF's own lifecycle terminus; "dropped" (and common
 // synonyms) is a real-world addition seen in production PLAN.md files for a task deliberately

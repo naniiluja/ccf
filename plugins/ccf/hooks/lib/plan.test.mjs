@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { findActiveTask, findNonDoneTasks } from "./plan.mjs";
+import { findActiveTask, findNonDoneTasks, findInReviewTask } from "./plan.mjs";
 
 /** Write `content` to a fresh temp file and return its path. */
 function tmpFile(content) {
@@ -353,4 +353,48 @@ test("findActiveTask: stripping emphasis must NOT swallow a real status word —
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("findInReviewTask: returns the in-review row and skips an earlier in-progress one", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| ID | Slice | Layers | Gate | Pred | Status |",
+      "| 001 | Still working | api | unit | — | in-progress |",
+      "| 002 | Awaiting check | api | unit | 001 | in-review |",
+    ].join("\n"),
+  );
+  try {
+    assert.deepEqual(findInReviewTask(file), { id: "002", title: "Awaiting check" });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findInReviewTask: tolerates 'in review' and bold status, null for in-progress/todo/done only", () => {
+  const spaced = tmpFile(["| ID | Slice | Status |", "| 004 | Spaced | **in review** |"].join("\n"));
+  const none = tmpFile(
+    ["| ID | Slice | Status |", "| 001 | A | in-progress |", "| 002 | B | todo |", "| 003 | C | done |"].join("\n"),
+  );
+  try {
+    assert.deepEqual(findInReviewTask(spaced.file), { id: "004", title: "Spaced" });
+    assert.equal(findInReviewTask(none.file), null);
+  } finally {
+    rmSync(spaced.dir, { recursive: true, force: true });
+    rmSync(none.dir, { recursive: true, force: true });
+  }
+});
+
+test("findInReviewTask: more than one in-review row is ambiguous → null (never guess which task the diff belongs to)", () => {
+  const { file, dir } = tmpFile(
+    ["| ID | Slice | Status |", "| 001 | A | in-review |", "| 002 | B | done |", "| 003 | C | in-review |"].join("\n"),
+  );
+  try {
+    assert.equal(findInReviewTask(file), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findInReviewTask: missing file → null", () => {
+  assert.equal(findInReviewTask(join(tmpdir(), "no-such-plan-xyz.md")), null);
 });

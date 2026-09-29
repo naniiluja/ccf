@@ -1,5 +1,5 @@
 {
-  "description": "CCF: enforce plan mode for /ccf:plan, inject the context-first reminder + re-load the task after compact, nudge spec updates (single-channel systemMessage by default; opt-in via --dual-channel-stop to also inject additionalContext for the model), optionally (opt-in via --auto-verify) block a Stop to drive the verify chain (/ccf:check then /ccf:updatespec) when a task is in-review and code changed this session, and inject a language-agnostic LSP/ripgrep/Glob exploration directive into the built-in Explore subagent.",
+  "description": "CCF: enforce plan mode for /ccf:plan, nudge the model toward the ccf:plan skill once per session when a CCF project is in plan mode, inject the context-first reminder + re-load the task after compact, nudge spec updates (single-channel systemMessage by default; opt-in via --dual-channel-stop to also inject additionalContext for the model), optionally (opt-in via --auto-verify) block a Stop to drive the verify chain (/ccf:check then /ccf:updatespec) when a task is in-review and code changed this session, optionally (opt-in via --completion-evidence plus TYPESAFE_API_KEY) ask Jev whether the diff and test output meet the in-review task's acceptance criteria and print the unmet ones as an advisory (the diff is sent to api.typesafe.ai), and inject a language-agnostic LSP/ripgrep/Glob exploration directive into the built-in Explore subagent.",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -7,6 +7,15 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plan-mode-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plan-skill-inject.mjs\"",
             "timeout": 10
           }
         ]
@@ -39,6 +48,15 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/auto-verify.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/completion-evidence.mjs\"",
             "timeout": 10
           }
         ]

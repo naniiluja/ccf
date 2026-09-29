@@ -44,7 +44,7 @@ claude plugin install ccf@ccf
 
 Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:init`.
 
-## 5 lệnh
+## 5 lệnh (`/ccf:plan` được đóng gói dạng skill)
 
 | Lệnh | Tác dụng |
 |------|----------|
@@ -76,8 +76,10 @@ Command và agent là *prompt* (model có thể chọn lờ một prompt đi). *
 | Hook | Sự kiện | Đảm bảo điều gì |
 |---|---|---|
 | **plan-mode-guard** | `UserPromptSubmit` | Nếu prompt chứa `/ccf:plan` nhưng session **không ở plan mode**, nó **chặn** (exit 2) và bảo bạn vào plan mode. Mọi prompt khác đi qua nguyên vẹn. Đây là nửa *được cưỡng chế* của "planning là read-only và review trước khi execute". |
+| **plan-skill-inject** | `UserPromptSubmit` | `/plan` trần là lệnh built-in của Claude Code nên skill của plugin không thể chiếm tên đó. Thay vào đó, khi một dự án đã khởi tạo CCF **đang ở plan mode**, hook này nhắc model (qua `additionalContext`) chạy skill `ccf:plan`, tối đa một lần mỗi session. Câu hỏi thuần về code thì được trả lời thẳng. Không bao giờ chặn; mọi lỗi đều im lặng. Xoá entry của nó khỏi `hooks.json` để tắt. |
 | **session-start** | `SessionStart` (`startup\|clear\|compact`) | Inject lời nhắc context-first để model tỉnh dậy đã ở chế độ CCF. Nếu **CCF-managed**, nó thêm *freshness signal* khi code có vẻ mới hơn spec, và sau `compact`/`clear` nó **re-load task in-progress** từ `.claude/plan/PLAN.md` để bạn resume đúng chỗ. |
 | **updatespec-nudge** | `Stop` | Thuần **advisory**, không bao giờ chặn. Bốn clause độc lập: **(A)** nếu bạn sửa code trong session mà chưa chạy test, nhắc *verify your work* (chạy test / type-check); **(B)** nếu code đã đổi nhưng spec thì chưa, nudge `/ccf:check` rồi `/ccf:updatespec`; **(C)** nếu bạn đã chạy `git commit` trong session mà `PLAN.md` vẫn còn task chưa `done`, nhắc bạn đánh dấu mỗi task `done` (chỉ sau khi `/ccf:check` của nó pass) hoặc sửa lại status; **(D)** nếu một iteration trong `PLAN.md` đã đóng hết mọi row task, hook in ra đúng câu lệnh `scripts/archive-plan.mjs` để archive nó. Chống loop re-trigger qua `stop_hook_active`. Đường mặc định là đơn kênh (chỉ `systemMessage`). **Opt-in** (mặc định tắt): thêm `--dual-channel-stop` vào lệnh `updatespec-nudge.mjs` trong `hooks.json` để phát cùng lúc `additionalContext` (dành cho model) và `systemMessage` (dành cho người dùng) — **chưa được quan sát** trên payload `Stop` thật của harness, nên vẫn tắt trong `hooks.json` được ship. |
+| **completion-evidence** | `Stop` | **Tuỳ chọn** (mặc định tắt), **chỉ khuyến nghị**, không bao giờ chặn. Bật bằng cách thêm `--completion-evidence` vào lệnh `completion-evidence.mjs` trong `hooks.json` **và** đặt `TYPESAFE_API_KEY` trong môi trường. Khi một task đang **in-review** và phiên này đã sửa code, hook gửi tiêu chí nghiệm thu của task, diff hiện tại (`git diff HEAD` cùng file mới) và kết quả test gần nhất tới Jev (TypeSafe System One, `api.typesafe.ai`), rồi in các tiêu chí Jev không thấy được thoả. **Diff rời khỏi máy bạn.** File có tên giống bí mật (`.env*`, `*.pem`, `*.key`, `id_rsa*`, `*credential*`, `*secret*`) bị loại và được nêu tên trong thông báo; diff trên 80KB (API từ chối request quá khoảng 33K token đầu vào) không được gửi, không bị cắt, và hook báo cho bạn biết là chưa kiểm tra. Mỗi cặp task + diff chỉ hỏi một lần; mọi lỗi (thiếu key, 401, 429, 529, quá hạn khoảng 6,5 giây) đều thoát im lặng. |
 | **auto-verify** | `Stop` | **Opt-in** (mặc định tắt) và là hook Stop DUY NHẤT của CCF có thể **chặn**. Bật bằng cách thêm `--auto-verify` vào lệnh `auto-verify.mjs` trong `hooks.json`. Khi một task đang **in-review**, session này đã **sửa code**, và chưa có review `ccf-spec-checker` nào chạy, nó trả về `decision: "block"` ("ralph loop") kèm reason lái main loop chạy một bước verify duy nhất — `/ccf:check`, rồi `/ccf:updatespec` ngay khi nó sạch. Chống loop qua `stop_hook_active`; best-effort, mọi lỗi đều thoát im lặng. |
 | **explore-guide-inject** | `SubagentStart` (`Explore`) | CCF không sở hữu prompt của subagent `Explore` built-in, nên lúc spawn hook này **inject** (qua `additionalContext`) một directive khám phá ngắn, **không phụ thuộc ngôn ngữ, có điều kiện LSP**: ưu tiên điều hướng ngữ nghĩa (công cụ `LSP` — `workspaceSymbol`/`goToDefinition`/`findReferences`/`documentSymbol`, fall back khi không có language server) cùng `Grep` (ripgrep) và `Glob`, chỉ đọc cả file sau khi đã định vị vùng cần. Best-effort, không bao giờ chặn việc spawn. Đây giờ là hook `SubagentStart` DUY NHẤT — CCF không còn subagent viết code nào để inject coding rule vào nữa. |
 
@@ -118,11 +120,11 @@ Việc archive được **phát hiện tự động, nhưng thi hành có chủ 
 
 ## Kiến trúc
 
-- **Command** = 5 file markdown prompt điều khiển Claude trong session (không phải script): init, plan, check, updatespec, cook.
+- **Command** = 4 file markdown prompt điều khiển Claude trong session (không phải script): init, check, updatespec, cook. `/ccf:plan` là slash command thứ 5 theo tên, được đóng gói dạng skill (xem mục Skill).
 - **Agent** = 4 subagent chuyên biệt, TẤT CẢ đều read-only (analyzer, researcher, spec-writer, spec-checker). Không còn agent nào ghi file — implement luôn diễn ra trực tiếp trong main session.
-- **Skill** = 1 skill nội bộ (`grill-me`) — engine phỏng vấn dùng chung mà các command gọi qua Skill tool; ẩn khỏi menu `/` (`user-invocable: false`).
-- **Hook** = 5 `.mjs` chạy trực tiếp bằng `node` — không build step, không dependency, Windows-clean; các helper dùng chung (freshness, đọc plan, review-trace, git-trace, verify-trace, verify-chain, explore-guide, archive) nằm ở `hooks/lib/`.
-- **Script** = 1 CLI do người chạy (`scripts/archive-plan.mjs`) — cùng luật no-build/no-dependency như hook, nhưng không có gì gọi nó tự động. Đây là chỗ dành cho hành động **ghi vào file của bạn**, để phạm vi ảnh hưởng luôn bị giới hạn bởi việc bạn chủ động chạy nó.
+- **Skill** = 2 skill. `plan` là quy trình đứng sau `/ccf:plan` (bạn gõ như một command, model cũng có thể tự nạp nó theo `description`). `grill-me` là skill nội bộ: engine phỏng vấn dùng chung mà các command gọi qua Skill tool, ẩn khỏi menu `/` (`user-invocable: false`).
+- **Hook** = 7 `.mjs` chạy trực tiếp bằng `node` — không build step, không dependency, Windows-clean; các helper dùng chung (freshness, đọc plan, review-trace, git-trace, verify-trace, verify-chain, explore-guide, archive, plan-trigger, jev-client, completion-evidence, slice-check) nằm ở `hooks/lib/`.
+- **Script** = 2 CLI do người chạy (`scripts/archive-plan.mjs`, `scripts/jev-slice-check.mjs`) — cùng luật no-build/no-dependency như hook, nhưng không có gì gọi chúng tự động. Đây là chỗ dành cho hành động **ghi vào file của bạn**, để phạm vi ảnh hưởng luôn bị giới hạn bởi việc bạn chủ động chạy; `jev-slice-check` không ghi gì nhưng tốn tiền và cần `TYPESAFE_API_KEY`, nên cũng do bạn quyết: nó chỉ gửi id, tiêu đề, `Files to touch` và tiêu chí của task tới `api.typesafe.ai`, rồi in ra task nào phụ thuộc nhau hoặc quá vụn.
 - **Template** = file placeholder `{{...}}` (`root/` luôn dùng, `backend/` + `frontend/` khi fullstack) mà `/ccf:init` instantiate.
 
 Xem `plugins/ccf/` cho chi tiết. Yêu cầu Node ≥ 18 cho hook.

@@ -8,7 +8,7 @@ import { readStdinJson, blockUserPrompt } from "./lib/io.mjs";
 const input = await readStdinJson();
 const prompt = String(input.prompt ?? "");
 
-// Only intervene on the plan command (both namespaced and bare forms). Ignore every other prompt.
+// Only intervene on the namespaced plan command. Ignore every other prompt.
 // Match ONLY the namespaced `/ccf:plan`: after dropping the `ccf-` prefix, bare `/plan` is Claude
 // Code's BUILT-IN plan command (not CCF's), so matching it would block an unrelated built-in call.
 const isCcfPlan = /(^|\s)\/ccf:plan(\s|$)/.test(prompt);

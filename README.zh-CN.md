@@ -44,7 +44,7 @@ claude plugin install ccf@ccf
 
 安装后，在你的项目文件夹中打开 Claude Code 并运行 `/ccf:init`。
 
-## 5 个命令
+## 5 个命令（`/ccf:plan` 以 skill 形式打包）
 
 | 命令 | 作用 |
 |------|------|
@@ -76,8 +76,10 @@ claude plugin install ccf@ccf
 | 钩子 | 事件 | 它保证什么 |
 |---|---|---|
 | **plan-mode-guard** | `UserPromptSubmit` | 若提示词含 `/ccf:plan` 但会话**不在 plan mode**，它会**阻止**（exit 2）并让你进入 plan mode。其他提示词原样通过。这是「规划只读且执行前经审查」中*被强制执行*的那一半。 |
+| **plan-skill-inject** | `UserPromptSubmit` | 裸 `/plan` 是 Claude Code 的内置命令，插件的 skill 无法占用这个名字。因此当已初始化 CCF 的项目**处于 plan mode** 时，此 hook 会（通过 `additionalContext`）提示模型运行 `ccf:plan` skill，每个会话最多一次。纯粹的代码问题会被直接回答。从不阻止；任何错误都静默退出。从 `hooks.json` 删除其条目即可关闭。 |
 | **session-start** | `SessionStart`（`startup\|clear\|compact`） | 注入上下文优先提醒，让模型醒来就已处于 CCF 模式。若**受 CCF 管理**，当代码看起来比规格新时它会加上*新鲜度信号*，并在 `compact`/`clear` 后从 `.claude/plan/PLAN.md` **重新加载进行中的任务**，让你精确地从中断处继续。 |
 | **updatespec-nudge** | `Stop` | 纯**建议性**，从不阻止。四个独立子句：**(A)** 若本次会话改了代码却没跑测试，提醒你*验证工作*（运行测试 / 类型检查）；**(B)** 若代码变了但规格没变，提示 `/ccf:check` 然后 `/ccf:updatespec`；**(C)** 若本次会话跑了 `git commit` 但 `PLAN.md` 仍有任务未 `done`，提醒你把每个任务标为 `done`（仅在其 `/ccf:check` 通过后）或修正其状态；**(D)** 若 `PLAN.md` 中某个迭代的每一行任务都已关闭，打印出用于退役它的确切 `scripts/archive-plan.mjs` 命令。通过 `stop_hook_active` 防止重复触发循环。默认路径是单通道（仅 `systemMessage`）。**可选开启**（默认关闭）：在 `hooks.json` 的 `updatespec-nudge.mjs` 命令后加上 `--dual-channel-stop`，即可同时发出面向模型的 `additionalContext` 与面向用户的 `systemMessage`——该行为**尚未在真实 harness 的 `Stop` payload 上被观察到**，因此在随包 `hooks.json` 中保持关闭。 |
+| **completion-evidence** | `Stop` | **可选开启**（默认关闭），**仅提示**，绝不阻止。在 `hooks.json` 的 `completion-evidence.mjs` 命令后加上 `--completion-evidence`，**并**在环境中设置 `TYPESAFE_API_KEY` 即可启用。当某任务处于 **in-review** 且本次会话改了代码时，它把任务的验收标准、当前 diff（`git diff HEAD` 加新文件）和最近一次测试输出发给 Jev（TypeSafe System One，`api.typesafe.ai`），并打印 Jev 认为未满足的标准。**diff 会离开你的机器。** 名称像密钥的文件（`.env*`、`*.pem`、`*.key`、`id_rsa*`、`*credential*`、`*secret*`）会被剔除并在消息中点名；超过 80KB 的 diff（API 会拒绝超过约 33K 输入 token 的请求）不会被发送、也不会被截断，并会告诉你未检查。同一任务 + diff 只询问一次；任何失败（无 key、401、429、529、约 6.5 秒超时）都静默退出。 |
 | **auto-verify** | `Stop` | **可选开启**（默认关闭），且是 CCF 唯一能**阻止**停止的 Stop 钩子。在 `hooks.json` 的 `auto-verify.mjs` 命令后加上 `--auto-verify` 即可启用。当某任务处于 **in-review**、本次会话**改了代码**、且尚无 `ccf-spec-checker` 评审运行时，它返回 `decision: "block"`（「ralph loop」），其 reason 驱动一个单一验证步骤——`/ccf:check`，通过后再 `/ccf:updatespec`。通过 `stop_hook_active` 防止循环；尽力而为，任何错误都静默退出。 |
 | **explore-guide-inject** | `SubagentStart`（`Explore`） | CCF 不拥有内置 `Explore` 子 agent 的提示词，因此在 spawn 时此钩子**注入**（通过 `additionalContext`）一条简短、**与语言无关、按 LSP 条件**的探索指令：优先语义导航（`LSP` 工具——`workspaceSymbol`/`goToDefinition`/`findReferences`/`documentSymbol`，无 language server 时回退）以及 `Grep`（ripgrep）和 `Glob`，仅在定位到相关区域后才读取整个文件。尽力而为，绝不阻止 spawn。现在是唯一的 `SubagentStart` 钩子——CCF 已经没有写文件的 subagent 需要注入编码规则了。 |
 
@@ -118,11 +120,11 @@ claude plugin install ccf@ccf
 
 ## 架构
 
-- **命令** = 5 个在会话中驱动 Claude 的 markdown 提示（不是脚本）：init、plan、check、updatespec、cook。
+- **命令** = 4 个在会话中驱动 Claude 的 markdown 提示（不是脚本）：init、check、updatespec、cook。`/ccf:plan` 按名称是第 5 个斜杠命令，以 skill 形式打包（见 Skill）。
 - **Agent** = 4 个专用子 agent，全部只读（分析器、研究员、规格撰写者、规格检查者）。没有写文件的 agent——实现代码直接在主会话里完成。
-- **Skill** = 1 个内部 skill（`grill-me`）——各命令通过 Skill 工具调用的共享需求访谈引擎；从 `/` 菜单隐藏（`user-invocable: false`）。
-- **钩子** = 5 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、review-trace、git-trace、verify-trace、verify-chain、explore-guide、archive）位于 `hooks/lib/`。
-- **脚本** = 1 个由人手动运行的 CLI（`scripts/archive-plan.mjs`）—— 与钩子遵循同样的无构建、无依赖规则，但没有任何机制会自动调用它。**会改写你的文件**的操作就应该放在这里，这样影响范围始终由你主动运行来界定。
+- **Skill** = 2 个 skill。`plan` 是 `/ccf:plan` 背后的工作流（你像命令一样输入它，模型也可以按其 `description` 自行加载）。`grill-me` 是内部 skill：各命令通过 Skill 工具调用的共享需求访谈引擎，从 `/` 菜单隐藏（`user-invocable: false`）。
+- **钩子** = 7 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、review-trace、git-trace、verify-trace、verify-chain、explore-guide、archive、plan-trigger、jev-client、completion-evidence、slice-check）位于 `hooks/lib/`。
+- **脚本** = 2 个由人手动运行的 CLI（`scripts/archive-plan.mjs`、`scripts/jev-slice-check.mjs`）—— 与钩子遵循同样的无构建、无依赖规则，但没有任何机制会自动调用它们。**会改写你的文件**的操作就应该放在这里，这样影响范围始终由你主动运行来界定；`jev-slice-check` 不改写任何文件，但要花钱并需要 `TYPESAFE_API_KEY`，因此同样由你决定：它只把任务 id、标题、`Files to touch` 和验收标准发给 `api.typesafe.ai`，并打印哪些未完成任务相互依赖或过于零碎。
 - **模板** = 带 `{{...}}` 占位符的文件（`root/` 始终使用，`backend/` + `frontend/` 在全栈时使用），由 `/ccf:init` 实例化。
 
 详见 `plugins/ccf/`。钩子需要 Node ≥ 18。
