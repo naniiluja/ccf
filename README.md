@@ -56,7 +56,7 @@ After installing, open Claude Code in your project folder and run `/ccf:init`.
 
 Typical flow: `/ccf:init` → (plan mode) `/ccf:plan` → implement directly (per task, or the whole backlog via `/ccf:cook`) → `/ccf:check` → `/ccf:updatespec`. When the test discipline is ON, the contract-level matrix tests are written during implement and `/ccf:check` confirms they pass. `/code-review` remains a good optional extra, never a required step.
 
-## The 4 agents — all read-only
+## The 5 agents — all read-only
 
 There is no coding subagent: every task is implemented **directly in the main session**. Spawning a coding subagent means waiting on a separate context to boot, read the task, and hand a result back, which is measurably slower than writing the code yourself with the plan already loaded — so CCF's subagents exist only for discovery, review and best-practice grounding.
 
@@ -68,6 +68,7 @@ Specialized subagents that **inherit the host project's tools, MCP servers and s
 | `ccf-best-practice-researcher` | Fetches cited best practices from Context7 / MS Learn in an isolated context. | read-only |
 | `ccf-spec-writer` | Drafts CLAUDE.md / rules content from a decisions summary, for `/ccf:init` and `/ccf:updatespec`; the main thread writes the files. | drafts |
 | `ccf-spec-checker` | Fresh-context reviewer — checks an implementation against the spec (conformance, conventions, SOLID/OOP, drift). | read-only |
+| `ccf-scope-checker` | Second reviewer `/ccf:check` runs in parallel (Sonnet): does the diff stay inside the task's files and criteria, and cover all of them. Findings are merged by `file:line`. | read-only |
 
 ## Hooks — the deterministic layer
 
@@ -121,10 +122,10 @@ Retirement is **detected automatically, applied deliberately**. The Stop hook no
 ## Architecture
 
 - **Commands** = 4 markdown prompts that drive Claude in-session (not scripts): init, check, updatespec, cook. `/ccf:plan` is the 5th slash command by name, packaged as a skill (see Skills).
-- **Agents** = 4 specialized subagents, ALL read-only (analyzer, researcher, spec-writer, spec-checker). No writer agent — implementing happens directly in the main session.
+- **Agents** = 5 specialized subagents, ALL read-only (analyzer, researcher, spec-writer, spec-checker, scope-checker). No writer agent — implementing happens directly in the main session.
 - **Skills** = 2 skills. `plan` is the workflow behind `/ccf:plan` (you type it like a command, and the model can also load it by its `description`). `grill-me` is internal: the shared requirements-interview engine the commands invoke via the Skill tool, hidden from the `/` menu (`user-invocable: false`).
 - **Hooks** = 7 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, review-trace, git-trace, verify-trace, verify-chain, explore-guide, archive, plan-trigger, jev-client, completion-evidence, slice-check) live in `hooks/lib/`.
-- **Scripts** = 3 human-run CLIs (`scripts/archive-plan.mjs`, `scripts/jev-slice-check.mjs`, `scripts/jev-verify-findings.mjs`) — same no-build/no-dependency rules as a hook, but nothing invokes them automatically. This is where an action that **mutates your files** belongs, so its blast radius stays bounded by you choosing to run it; `jev-slice-check` mutates nothing but costs money and needs `TYPESAFE_API_KEY`, so it is also your call: it sends only task ids, titles, `Files to touch` and criteria to `api.typesafe.ai` and prints which open tasks depend on each other or look like fragments. `jev-verify-findings` reads a `/ccf:check` report on stdin and asks Jev, for each `FAIL:` finding, whether the diff really contains that defect; it sends the diff (minus sensitive files) and only annotates, never removes a finding.
+- **Scripts** = 4 human-run CLIs (`scripts/archive-plan.mjs`, `scripts/jev-slice-check.mjs`, `scripts/jev-verify-findings.mjs`, `scripts/worktree-preflight.mjs`) — same no-build/no-dependency rules as a hook, but nothing invokes them automatically. This is where an action that **mutates your files** belongs, so its blast radius stays bounded by you choosing to run it; `jev-slice-check` mutates nothing but costs money and needs `TYPESAFE_API_KEY`, so it is also your call: it sends only task ids, titles, `Files to touch` and criteria to `api.typesafe.ai` and prints which open tasks depend on each other or look like fragments. `jev-verify-findings` reads a `/ccf:check` report on stdin and asks Jev, for each `FAIL:` finding, whether the diff really contains that defect; it sends the diff (minus sensitive files) and only annotates, never removes a finding. `worktree-preflight` is read-only and offline: before you merge the branches of a parallel wave (one `claude -w ccf-<iteration>-<taskid>` session per task), it checks in code that each branch's real changed files stay inside its task's `Files to touch`, that no two branches changed the same file, and that `git merge-tree` finds no conflict.
 - **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:init` instantiates.
 
 See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.

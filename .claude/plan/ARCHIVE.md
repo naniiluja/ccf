@@ -28,6 +28,39 @@
 > **⚠️ BULK-CLOSE #1 (by explicit user command "đánh done toàn bộ"):** every open task across ALL iterations (017–019, 022/023/022a, 025a, 028a, 029a, 030/030a, 031/032/032a, 034a) was marked `done` by EXPLICIT user acceptance — NOT by each task's own `/ccf:check` + `/code-review` + (where applicable) live-verify observation. Several were `in-review` (code written, final review NOT run) and several were hanging live-verifies whose real behavior remains **UN-OBSERVED** (they need a plugin reload). This mirrors the 024a/034a precedent but applied in bulk. **Residual risk & how to re-open:** any hook/behavior whose live effect was never observed (022a MCP-inheritance, 025a Explore-inject, 028a auto-verify, 029a effort, 030a Kiro, 032a cook, 034a SubagentStop-gate) rests on unit/smoke/grounding evidence only; if a real-harness behavior later differs, re-open the specific iteration with a captured fixture. Opt-in hooks (`--auto-verify`, `--enforce-tests`) stay default-OFF, so their unobserved close carries no live risk until enabled.
 
 ---
+## Origin: second-review-scope + worktree-safety (task 063 đến 066)
+
+Tiếp nối review-quality (đã archive). Phạm vi do người dùng duyệt tối 2026-09-29, được triển khai trực tiếp trong session (không qua `/ccf:plan`, không commit): (1) `/ccf:check` chạy thêm một checker thứ hai với phạm vi riêng (scope của diff so với task), model Sonnet effort medium, song song với `ccf-spec-checker`, gộp finding theo `file:line`, hiểu `PARTIAL:`, Jev chú thích trên báo cáo đã gộp; dùng hai lần spawn Task bình thường, không dùng tính năng agent teams chính thức; thêm một eval fixture mà chỉ checker scope mới bắt được. (2) Bước 1 và 3 của đề xuất 064 (`task-064-worktree-parallel-research.md`): đồ thị phụ thuộc tất định là nguồn chính, Jev chỉ được thêm cạnh, Jev không trả lời thì fail-closed về tuần tự; script preflight chỉ đọc. Bước 2 (backtest Jev), 4 (`integrate-wave --apply`) và 5 (câu hỏi opt-in ở bước plan) chưa làm.
+
+## Task backlog — second-review-scope + worktree-safety (in execution order)
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 063 | Checker scope thứ hai song song + gộp finding | agent `ccf-scope-checker` + check.md + eval 07 + đồng bộ số agent 4 sang 5 | ba bộ test + tsc + validate + md5 khối văn phong + eval chạy hoặc ghi "chưa chạy" | — | done |
+| 064 | Nghiên cứu worktree song song (chỉ tài liệu) | `task-064-worktree-parallel-research.md` | tài liệu có nguồn | — | done |
+| 065 | `slice-check` fail-closed: bung ngoặc/glob, hotspot, thiếu câu trả lời là phụ thuộc | lib slice-check + test + script jev-slice-check + tooling.md | test RED rồi xanh + tsc + chạy thử trên plan đã archive | 064 | done |
+| 066 | Script preflight worktree chỉ đọc | lib worktree-preflight + script + test với repo git tạm + đồng bộ số script 3 sang 4 | test RED rồi xanh + tsc + validate + ccf-budget | 065 | done |
+
+> 063, 065, 066 đóng 2026-09-29 sau `/ccf:check` chạy theo cách mới của 063: hai checker song song (stand-in `general-purpose`, opus cho spec và sonnet cho scope, vì plugin chưa cài trên VM). Lần một: spec 1 `FAIL:` (preflight đi theo rename, đã tái hiện) + 4 `WARN:`, scope sạch; gộp theo `file:line` không có khóa trùng. Sửa cả 5 với test RED rồi xanh, rồi chạy lại spec checker: 0 `FAIL:`, 0 `PARTIAL:`, 2 `WARN:` nhỏ, đã sửa luôn. Gate cuối: lib 270, template 8, repo 10 (+1 skip có chủ đích), `tsc` 0, validate passed. Chưa quan sát: `claude plugin eval` (chưa chạy, có phí), `maxTurns`/`effort` của hai agent (stand-in không áp frontmatter), Jev thật (proxy treo khoảng 20s), worktree thật tạo bằng `claude -w`. Version đã bump 0.11.0; chưa commit, chưa merge, chưa push.
+
+## Origin: review-quality (task 058 đến 062)
+
+Người dùng muốn nâng khả năng review của CCF. Plan cũ mất khi máy chủ bị thay, nên plan này làm lại với phạm vi đã duyệt gồm 4 mục: báo cáo checker (confidence và ngưỡng, danh sách không flag, quote rule trước FAIL, mục Declined to judge), eval harness bằng `claude plugin eval`, `maxTurns` cùng partial result không bao giờ là PASS, và đồng bộ changelog Claude Code 2.1.215 đến 2.1.284 vào spec. Quyết định của người dùng: eval trước để có baseline, suite 6 case x 3 runs, Jev xác minh từng FAIL (chỉ chú thích, không hạ mức), discipline off. Không commit, không tạo branch, không bump version khi chưa được yêu cầu. Kế hoạch chi tiết và nguồn: `~/.claude/plans/plan-t-i-mu-n-c-i-lucky-lerdorf.md`. Đính chính phạm vi gốc: `omitClaudeMd` ra ở 2.1.271, `background: false` cho skill `context: fork` ra ở 2.1.218.
+
+## Task backlog — review-quality (in execution order)
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 058 | Eval harness 6 case + đo baseline checker hiện tại | `plugins/ccf/evals/` + `.gitignore` + tooling.md + testing.md | smoke case trả lời 4 unknown + grader thấy RED + baseline recall/false positive ghi lại + đo lại ccf-budget | — | done |
+| 059 | Báo cáo checker: rubric tin cậy, không flag, quote rule, Declined to judge | ccf-spec-checker.md + check.md + prompt-standard.md | eval không tụt so với baseline + grader mới RED trên checker cũ + md5 khối văn phong + validate | 058 | done |
+| 060 | `maxTurns` + `PARTIAL:` không bao giờ là PASS | checker + check.md + cook.md + updatespec.md + verify-chain lib/test + components.md + prompt-standard.md | quan sát partial thật + test RED rồi xanh + ba bộ test + tsc + validate + ccf-budget | 059 | done |
+| 061 | Jev xác minh từng FAIL (chú thích, không hạ mức) | lib finding-verify + script jev-verify-findings + test + check.md + đồng bộ số script 2 sang 3 | ba bộ test + tsc + validate + lần chạy có key hoặc ghi "chưa quan sát" | 060 | done |
+| 062 | Đồng bộ changelog còn lại vào spec | tooling.md + components.md + architecture.md + CLAUDE.md | mỗi câu có số phiên bản + grep hết câu sai + ccf-budget | 061 | done |
+
+> 058 và 059 đóng theo lệnh người dùng (không qua `/ccf:check`); phần gate chưa quan sát ghi trong task file của từng task. 059: eval bị confound vì git hỏng trong sandbox host.
+
+> 060 đến 062 đóng sau một lần `/ccf:check` trên `main...HEAD` (2026-09-29, session mới sau khi thay VM): không có `FAIL:`, không có `PARTIAL:`, 4 `WARN:` và cả 4 đã sửa trong cùng pass (`parseFailFindings` lấy nhầm quote, có test RED rồi xanh; 3 câu spec cũ về `PARTIAL:`, agent id và opt-in của Jev). Plugin chưa cài trên VM mới nên checker chạy bằng agent `general-purpose` model opus, đọc nguyên văn `ccf-spec-checker.md` làm prompt. `maxTurns: 40` vì vậy không được áp, và bước `SendMessage` tiếp tục vẫn chưa quan sát.
+
+> Status: `todo` / `in-progress` / `in-review` / `done` / `blocked`. Lifecycle: `todo → in-progress → in-review → done`. Chỉ `/ccf:updatespec` ghi `done`, sau `/ccf:check`.
+
 ## Origin: plan-skill (task 051 den 053)
 
 Nguoi dung muon go `/plan` (built-in, bat plan mode) la kich hoat luong `ccf:plan`, va muon `ccf:plan` la skill thay vi command. Docs (Context7) xac nhan: command va skill da gop, cung nang luc; ten `/plan` la built-in bi giu rieng nen skill plugin khong chiem duoc, plugin skill luon la `/ccf:plan`. Vi vay plan mode chinh la tin hieu kich hoat: mot hook `UserPromptSubmit` moi nhac model goi skill `ccf:plan`, description cua skill la du phong. Ke hoach chi tiet: `~/.claude/plans/t-ch-h-p-jev-typesafe-curried-goblet.md`. Quyet dinh nguoi dung: hook + description, chuyen file that sang `skills/plan/SKILL.md`. Tich hop Jev dang gac (bao cao analyzer nam trong ke hoach do), khong bo.

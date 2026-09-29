@@ -56,7 +56,7 @@ Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:init`.
 
 Luồng điển hình: `/ccf:init` → (plan mode) `/ccf:plan` → implement trực tiếp (từng task, hoặc cả backlog qua `/ccf:cook`) → `/ccf:check` → `/ccf:updatespec`. Khi test discipline bật, ma trận test mức contract được viết ngay trong lúc implement và `/ccf:check` xác nhận chúng pass. `/code-review` vẫn là gợi ý tùy chọn tốt, không còn là bước bắt buộc.
 
-## 4 agent — tất cả đều read-only
+## 5 agent — tất cả đều read-only
 
 Không còn subagent nào viết code: mọi task đều được implement **trực tiếp trong main session**. Spawn một subagent để viết code nghĩa là phải chờ một context riêng khởi động, đọc task, rồi trả kết quả về — chậm hơn hẳn so với tự viết code khi plan và codebase đã sẵn có trong context, nên subagent của CCF chỉ còn dùng để khám phá, review và tra cứu best practice.
 
@@ -68,6 +68,7 @@ Các subagent chuyên biệt **kế thừa tool, MCP server và skill của dự
 | `ccf-best-practice-researcher` | Lấy best practice có trích dẫn từ Context7 / MS Learn trong context tách biệt. | read-only |
 | `ccf-spec-writer` | Soạn nội dung CLAUDE.md / rules từ bản tóm tắt quyết định, dùng cho `/ccf:init` và `/ccf:updatespec`; luồng chính mới là nơi ghi file. | soạn |
 | `ccf-spec-checker` | Reviewer context tươi — kiểm implementation so với spec (conformance, convention, SOLID/OOP, drift). | read-only |
+| `ccf-scope-checker` | Reviewer thứ hai `/ccf:check` chạy song song (Sonnet): diff có nằm trong file và tiêu chí của task không, và có phủ hết chúng không. Finding được gộp theo `file:line`. | read-only |
 
 ## Hook — tầng deterministic
 
@@ -121,10 +122,10 @@ Việc archive được **phát hiện tự động, nhưng thi hành có chủ 
 ## Kiến trúc
 
 - **Command** = 4 file markdown prompt điều khiển Claude trong session (không phải script): init, check, updatespec, cook. `/ccf:plan` là slash command thứ 5 theo tên, được đóng gói dạng skill (xem mục Skill).
-- **Agent** = 4 subagent chuyên biệt, TẤT CẢ đều read-only (analyzer, researcher, spec-writer, spec-checker). Không còn agent nào ghi file — implement luôn diễn ra trực tiếp trong main session.
+- **Agent** = 5 subagent chuyên biệt, TẤT CẢ đều read-only (analyzer, researcher, spec-writer, spec-checker, scope-checker). Không còn agent nào ghi file — implement luôn diễn ra trực tiếp trong main session.
 - **Skill** = 2 skill. `plan` là quy trình đứng sau `/ccf:plan` (bạn gõ như một command, model cũng có thể tự nạp nó theo `description`). `grill-me` là skill nội bộ: engine phỏng vấn dùng chung mà các command gọi qua Skill tool, ẩn khỏi menu `/` (`user-invocable: false`).
 - **Hook** = 7 `.mjs` chạy trực tiếp bằng `node` — không build step, không dependency, Windows-clean; các helper dùng chung (freshness, đọc plan, review-trace, git-trace, verify-trace, verify-chain, explore-guide, archive, plan-trigger, jev-client, completion-evidence, slice-check) nằm ở `hooks/lib/`.
-- **Script** = 3 CLI do người chạy (`scripts/archive-plan.mjs`, `scripts/jev-slice-check.mjs`, `scripts/jev-verify-findings.mjs`) — cùng luật no-build/no-dependency như hook, nhưng không có gì gọi chúng tự động. Đây là chỗ dành cho hành động **ghi vào file của bạn**, để phạm vi ảnh hưởng luôn bị giới hạn bởi việc bạn chủ động chạy; `jev-slice-check` không ghi gì nhưng tốn tiền và cần `TYPESAFE_API_KEY`, nên cũng do bạn quyết: nó chỉ gửi id, tiêu đề, `Files to touch` và tiêu chí của task tới `api.typesafe.ai`, rồi in ra task nào phụ thuộc nhau hoặc quá vụn. `jev-verify-findings` đọc báo cáo `/ccf:check` từ stdin và hỏi Jev, với từng finding `FAIL:`, diff có thật sự chứa lỗi đó không; nó gửi diff (đã bỏ file nhạy cảm) và chỉ chú thích, không bao giờ xóa finding.
+- **Script** = 4 CLI do người chạy (`scripts/archive-plan.mjs`, `scripts/jev-slice-check.mjs`, `scripts/jev-verify-findings.mjs`, `scripts/worktree-preflight.mjs`) — cùng luật no-build/no-dependency như hook, nhưng không có gì gọi chúng tự động. Đây là chỗ dành cho hành động **ghi vào file của bạn**, để phạm vi ảnh hưởng luôn bị giới hạn bởi việc bạn chủ động chạy; `jev-slice-check` không ghi gì nhưng tốn tiền và cần `TYPESAFE_API_KEY`, nên cũng do bạn quyết: nó chỉ gửi id, tiêu đề, `Files to touch` và tiêu chí của task tới `api.typesafe.ai`, rồi in ra task nào phụ thuộc nhau hoặc quá vụn. `jev-verify-findings` đọc báo cáo `/ccf:check` từ stdin và hỏi Jev, với từng finding `FAIL:`, diff có thật sự chứa lỗi đó không; nó gửi diff (đã bỏ file nhạy cảm) và chỉ chú thích, không bao giờ xóa finding.
 - **Template** = file placeholder `{{...}}` (`root/` luôn dùng, `backend/` + `frontend/` khi fullstack) mà `/ccf:init` instantiate.
 
 Xem `plugins/ccf/` cho chi tiết. Yêu cầu Node ≥ 18 cho hook.

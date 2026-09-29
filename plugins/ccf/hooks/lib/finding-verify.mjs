@@ -13,8 +13,9 @@ import { DEFAULT_CAP_BYTES, DEFAULT_THRESHOLD, filterDiffSections, noulValue, wi
 
 /**
  * Every `- FAIL:` / `* FAIL:` line of a report, outside fenced code blocks (a fence holds a format
- * example, not a finding). The first `path:NN` token is the location; the first double-quoted span is
- * the quoted rule or criterion that 059's checker format puts on every FAIL.
+ * example, not a finding). The first `path:NN` token is the location. The quoted rule is the span after
+ * the `rule:` label that 059's checker format puts on every FAIL; a description may quote other text
+ * earlier on the line, so the first double-quoted span is only the fallback for a line without the label.
  * @param {any} reportText
  * @returns {FailFinding[]}
  */
@@ -33,7 +34,7 @@ export function parseFailFindings(reportText) {
     if (!m) continue;
     const text = m[1].trim();
     const loc = /`?([\w@./\\-]+\.\w+):(\d+)`?/.exec(text);
-    const quote = /"([^"]+)"/.exec(text);
+    const quote = /\brule:\s*"([^"]+)"/.exec(text) ?? /"([^"]+)"/.exec(text);
     out.push({
       index: out.length,
       text,

@@ -75,4 +75,4 @@ A long sequential backlog accumulates context fast, so recommend invoking `/ccf:
 **Optional secondary stop condition:** if the official `/goal` command is available (it may be absent on an older Claude Code build), the user may set a condition such as `/goal all selected tasks are in-review` to keep the session working across the implement loop. That is a convenience only: a RED gate still stops the loop immediately (step 2.6), whatever any `/goal` condition says.
 
 ## Notes
-- Never touch two tasks' files at once. Implementation always happens directly in this session; the only agents CCF ever spawns are read-only (`ccf-codebase-analyzer`, `ccf-best-practice-researcher`, `ccf-spec-checker`, `ccf-spec-writer`), used for discovery, review or grounding, never for writing code.
+- Never touch two tasks' files at once. Implementation always happens directly in this session; the only agents CCF ever spawns are read-only (`ccf-codebase-analyzer`, `ccf-best-practice-researcher`, `ccf-spec-checker`, `ccf-scope-checker`, `ccf-spec-writer`), used for discovery, review or grounding, never for writing code.

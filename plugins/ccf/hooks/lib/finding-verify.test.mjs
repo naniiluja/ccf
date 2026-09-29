@@ -37,6 +37,12 @@ test("parseFailFindings: one entry per FAIL: line, with location and quoted rule
   assert.equal(f[1].quote, null);
 });
 
+test("parseFailFindings: the `rule:` label wins over an earlier quoted span in the description", () => {
+  const line = '- FAIL: drift — `src/a.js:4` — prints "hi" to stdout — rule: "Never use `console.log` in src/." (`.claude/rules/logging.md:2`) — confidence 90 — use logger';
+  assert.equal(parseFailFindings(line)[0].quote, "Never use `console.log` in src/.");
+  assert.equal(parseFailFindings('- FAIL: x — `a.js:1` — says "only quote"')[0].quote, "only quote", "no label → first quoted span");
+});
+
 test("parseFailFindings: garbage input → empty list, never throws", () => {
   for (const bad of [undefined, null, 42, {}, "", "no findings here"]) assert.deepEqual(parseFailFindings(bad), []);
 });

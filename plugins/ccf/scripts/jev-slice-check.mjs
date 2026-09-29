@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // CCF jev-slice-check — a human-run CLI SCRIPT (not a hook, not a command).
 //
-// Role: after the plan skill has written its task table, ask Jev (TypeSafe System One) which OPEN task
-// pairs depend on each other, which pairs change the same contract, and which tasks are too small to
-// stand alone; print the result as JSON for the user and the model to weigh. It is advisory: it never
+// Role: after the plan skill has written its task table, build a dependency graph over the OPEN tasks.
+// Code decides every pair it can (declared files clash after brace/glob expansion, a missing file list,
+// a shared hotspot); Jev (TypeSafe System One) is asked only about the rest (dependency, shared contract,
+// shared state) and about tasks too small to stand alone. Fail-closed: a pair Jev did not answer is a
+// dependency. Prints the result as JSON for the user and the model to weigh. It is advisory: it never
 // edits PLAN.md or a task file, and it always exits 0 (a missing key or network is reported in the
 // JSON, never allowed to block planning).
 //
@@ -20,6 +22,10 @@ import { findNonDoneTasks } from "../hooks/lib/plan.mjs";
 import { askJev, JEV_DEFAULT_URL } from "../hooks/lib/jev-client.mjs";
 import { extractAcceptanceCriteria, withinSizeCap, DEFAULT_CAP_BYTES } from "../hooks/lib/completion-evidence.mjs";
 import { extractFiles, buildSliceRequests, mergeSliceAnswers } from "../hooks/lib/slice-check.mjs";
+
+const PARALLEL_NOTE =
+  "parallel_candidates are waves with no edge of any kind, but Jev's dependency recall has not been backtested " +
+  "(task 064 step 2), so a candidate is not proof of independence: re-check the real diffs with worktree-preflight before merging.";
 
 /** @param {Record<string, any>} obj */
 function done(obj) {
@@ -61,7 +67,7 @@ try {
   const baseUrl = process.env.CCF_JEV_URL || JEV_DEFAULT_URL;
   const results = await Promise.all(batches.map((questions) => askJev({ apiKey: key, baseUrl, state, questions })));
   const merged = mergeSliceAnswers(tasks, results);
-  done({ ok: true, tasks: tasks.length, batches: batches.length, ...merged });
+  done({ ok: true, tasks: tasks.length, batches: batches.length, ...merged, note: PARALLEL_NOTE });
 } catch {
   done({ ok: false, reason: "error" });
 }

@@ -69,7 +69,7 @@ Three things are per-file by design; everything else is a drift bug.
 2. **The `Scope boundary:` line.** Each copy names the text THAT file actually produces (the plan body and task files in the `plan` skill, the diff explanation in `updatespec.md`, the findings report in a reviewer). Every copy keeps the same second half: the CCF repo's own source stays English per `.claude/rules/components.md`.
 3. **One extra sentence in `ccf-spec-writer.md` only.** It also drafts a TARGET project's `CLAUDE.md` and rules, so its scope line adds that such content follows the target project's chosen language instead.
 
-Verify the copies with `grep -rln "^- Write in the SAME language" plugins/ccf`, then md5 each block against the hash above. Currently **7** files (`skills/plan/SKILL.md`, `init.md`, `check.md`, `cook.md`, `updatespec.md`, `ccf-spec-writer.md`, `ccf-spec-checker.md`) — down from 9 after `fix.md` and `ccf-debugger.md` were retired, since both had carried a copy.
+Verify the copies with `grep -rln "^- Write in the SAME language" plugins/ccf`, then md5 each block against the hash above. Currently **8** files (`skills/plan/SKILL.md`, `init.md`, `check.md`, `cook.md`, `updatespec.md`, `ccf-spec-writer.md`, `ccf-spec-checker.md`, `ccf-scope-checker.md`) — down from 9 after `fix.md` and `ccf-debugger.md` were retired, then up by one when task 063 added the scope reviewer.
 
 **Three prompts deliberately do NOT carry the block, and why:** `skills/grill-me/SKILL.md` runs inside the main loop, so the calling command's own copy is already in context when the interview runs; `ccf-codebase-analyzer.md` and `ccf-best-practice-researcher.md` return structured reports that a COMMAND consumes and folds into specs or plans. Adding the block to one of these is not an improvement, it is drift from this list; if a fourth exemption is ever needed, record it here with its reason.
 
@@ -136,7 +136,7 @@ Two tables, two different jobs. Do not mix them: a heading groups findings, a ma
 
 A `FAIL:` line in `ccf-spec-checker`'s report carries a verbatim rule or criterion quote and a confidence of 80 or more; 50 to 79 is `WARN:` (the rubric lives in the agent file). The report ends with a `Checked for:` line.
 
-Both ends of this vocabulary must move together. `ccf-spec-checker.md` PRODUCES the headings; `check.md` step 6 and `cook.md` step 3 READ them, and `hooks/lib/verify-chain.mjs`'s reason string only names the `FAIL:` word (it parses no report). Changing one end alone leaves a gate keyed on a marker nobody emits.
+Both ends of this vocabulary must move together. `ccf-spec-checker.md` and `ccf-scope-checker.md` PRODUCE the headings; `check.md` step 6, `cook.md` step 3 and `updatespec.md` step 6 READ them, and `hooks/lib/verify-chain.mjs`'s reason string only names the `FAIL:` and `PARTIAL:` words (it parses no report). Changing one end alone leaves a gate keyed on a marker nobody emits.
 
 ## Why not `@import`
 
@@ -146,6 +146,6 @@ The docs describe the two mechanisms separately and never state how they combine
 
 Consequence for the budget, stated in the order that matters: what a session actually PAYS is `CLAUDE.md` plus every `@import`ed rule, i.e. the `wc -c CLAUDE.md .claude/rules/*.md` total minus this file's own bytes (the only rule that is `paths:`-scoped AND not imported). A subtraction that also removed `hooks.md` would be a hypothetical only: `hooks.md` is `@import`ed, so its `paths:` is void and its bytes are paid every session regardless of that frontmatter. Earlier notes carried four different figures in a row for this total (measured mid-task, then prose grew, then nobody re-measured), which is exactly the fixpoint this file must not repeat — so the paid figure is no longer restated in prose here. It lives in the single machine-readable claim below, which `.claude/tests/context-budget.test.mjs` (repo scope, see `.claude/rules/testing.md`) asserts against a real measurement on every run; re-run `wc -c` as the LAST step of any task that touches this set, then update the number in the label, not in a sentence.
 
-<!-- ccf-budget: paid=98345 -->
+<!-- ccf-budget: paid=100925 -->
 
 This file is itself one of the bytes being measured, and it is the one file EXCLUDED from the paid total (it carries `paths:` and is deliberately not `@import`ed) — so editing the label above changes nothing about what it is checked against. Adding an `@import .claude/rules/prompt-standard.md` line to `CLAUDE.md` would break that: the file would re-enter the paid set it is labeling, closing the fixpoint loop this design exists to avoid. `.claude/tests/context-budget.test.mjs` asserts this file stays in the lazy (excluded) set for exactly that reason.
