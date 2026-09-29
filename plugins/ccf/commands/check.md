@@ -1,7 +1,7 @@
 ---
 description: Verify an implementation against the CCF spec — conformance, coding conventions, SOLID/OOP, and BE↔FE cross-check. Read-only review.
 argument-hint: "[optional: path or feature to check]"
-allowed-tools: Read, Glob, Grep, Bash, Task
+allowed-tools: Read, Glob, Grep, Bash, Task, SendMessage
 model: opus
 ---
 
@@ -38,14 +38,20 @@ You are running CCF `/ccf:check`. You are a **fresh-context reviewer**: a contex
    - Error-handling & logging (per the rules)
    - Test coverage of acceptance criteria
    - Cross-check: diff the BE API surface against how the FE consumes it
+
+   **A cut-off review is not a finished one.** The checker runs under `maxTurns`. When it hits that cap, the harness opens the result with a note like `NOTE: this agent stopped at its N-turn limit before finishing. The text below is PARTIAL output`, while still reporting the spawn as completed; the checker may also open its own report with `PARTIAL:`. On either signal, continue that same checker exactly once with `SendMessage` (the note names its agent id), asking it to finish the items it listed as not yet reviewed. If the continued result is still partial, stop continuing: put `PARTIAL: <what was not reviewed>` as the first line of your report, and state that the review is not clean. `cook.md`, `updatespec.md` and the verify chain treat `PARTIAL:` like `FAIL:` for the `done` decision.
 4. **Review the actual diff:** run `git diff <base>...HEAD` (base = the branch this work forked from, usually `main`/`master`) to see exactly what changed against the baseline. The diff is what catches scope creep and unrelated edits the spec never asked for. Limit the review to the changed surfaces plus their blast radius.
 5. **Verification-first, prove it rather than claim it:** where possible RUN the tests (Bash, read-only) and report the actual output as the evidence. When you cannot prove a requirement is met, say so plainly instead of asserting that it works.
 6. **Produce a structured report** in the marker vocabulary the checkers return, so one grep finds every finding across CCF:
    - `### Conforms` — one `PASS:` line per thing verified, with the evidence named.
    - `### Violations` — one `FAIL:` line per blocking defect, each with `file:line` and a suggested fix.
    - `### Should-reconsider` — one `WARN:` line per non-blocking concern, spec drift included.
+   - `### Acceptance criteria` — every task criterion as met, not met (Missing or Misunderstood), or not verifiable from the diff, plus an `Extra:` line for changes no criterion asks for.
    - `### Tests` — what you ran and the actual result.
-   Relay any `### Premortem` section a checker returned unchanged. Recommend the fixes and leave them to the next implementer task; this command edits nothing. Full marker table in `.claude/rules/prompt-standard.md`.
+   - `### Declined to judge` — what the checker set aside or scored below 50, each with its reason; "none" only when truly nothing, never omitted.
+   - A closing `Checked for:` line naming the dimensions actually covered.
+   6b. **Optional Jev annotation, only when `TYPESAFE_API_KEY` is set and the report has a `FAIL:` line.** Tell the user in one sentence that the diff (minus sensitive files) goes to `api.typesafe.ai`, then locate `scripts/jev-verify-findings.mjs` in the CCF plugin directory with Glob (`${CLAUDE_PLUGIN_ROOT}` is not reliable in a command body) and pipe your report into `node "<that path>"` from the project root. For each finding whose `verdict` is `not-confirmed`, append its `note` to that `FAIL:` line; never delete or downgrade a `FAIL:` on Jev's word, because a missed defect costs more than a second look. Any other `reason` in the JSON means skip this step and say so in one line.
+   Keep each finding's quoted rule and confidence score as the checker wrote them: a `FAIL:` stands only with a score of 80 or more and a verbatim rule or criterion quote, so never promote a `WARN:` to `FAIL:` or demote the reverse without new evidence you name. Relay any `### Premortem` section a checker returned unchanged. Recommend the fixes and leave them to the next implementer task; this command edits nothing. Full marker table in `.claude/rules/prompt-standard.md`.
 
 ## Closing (mandatory)
 0. **Optional cross-model second opinion:** if the official `/advisor` command is available (it may be absent on an older Claude Code build), the user may run `/advisor sonnet` or `/advisor fable` for a DIFFERENT-model read of this implementation. It supplements the `ccf-spec-checker` delegation in step 3 and never substitutes for it, which stays mandatory.

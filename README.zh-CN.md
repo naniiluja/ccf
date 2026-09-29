@@ -124,7 +124,7 @@ claude plugin install ccf@ccf
 - **Agent** = 4 个专用子 agent，全部只读（分析器、研究员、规格撰写者、规格检查者）。没有写文件的 agent——实现代码直接在主会话里完成。
 - **Skill** = 2 个 skill。`plan` 是 `/ccf:plan` 背后的工作流（你像命令一样输入它，模型也可以按其 `description` 自行加载）。`grill-me` 是内部 skill：各命令通过 Skill 工具调用的共享需求访谈引擎，从 `/` 菜单隐藏（`user-invocable: false`）。
 - **钩子** = 7 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、review-trace、git-trace、verify-trace、verify-chain、explore-guide、archive、plan-trigger、jev-client、completion-evidence、slice-check）位于 `hooks/lib/`。
-- **脚本** = 2 个由人手动运行的 CLI（`scripts/archive-plan.mjs`、`scripts/jev-slice-check.mjs`）—— 与钩子遵循同样的无构建、无依赖规则，但没有任何机制会自动调用它们。**会改写你的文件**的操作就应该放在这里，这样影响范围始终由你主动运行来界定；`jev-slice-check` 不改写任何文件，但要花钱并需要 `TYPESAFE_API_KEY`，因此同样由你决定：它只把任务 id、标题、`Files to touch` 和验收标准发给 `api.typesafe.ai`，并打印哪些未完成任务相互依赖或过于零碎。
+- **脚本** = 3 个由人手动运行的 CLI（`scripts/archive-plan.mjs`、`scripts/jev-slice-check.mjs`、`scripts/jev-verify-findings.mjs`）—— 与钩子遵循同样的无构建、无依赖规则，但没有任何机制会自动调用它们。**会改写你的文件**的操作就应该放在这里，这样影响范围始终由你主动运行来界定；`jev-slice-check` 不改写任何文件，但要花钱并需要 `TYPESAFE_API_KEY`，因此同样由你决定：它只把任务 id、标题、`Files to touch` 和验收标准发给 `api.typesafe.ai`，并打印哪些未完成任务相互依赖或过于零碎。`jev-verify-findings` 从 stdin 读取 `/ccf:check` 报告，针对每条 `FAIL:` 发现询问 Jev：diff 中是否确实存在该缺陷；它会发送 diff（已剔除敏感文件），只做标注，从不删除发现。
 - **模板** = 带 `{{...}}` 占位符的文件（`root/` 始终使用，`backend/` + `frontend/` 在全栈时使用），由 `/ccf:init` 实例化。
 
 详见 `plugins/ccf/`。钩子需要 Node ≥ 18。

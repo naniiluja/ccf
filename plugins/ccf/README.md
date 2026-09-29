@@ -41,8 +41,9 @@ plugins/ccf/
 │  ├─ auto-verify.mjs           # Stop: opt-in (--auto-verify) block to drive the verify step
 │  ├─ completion-evidence.mjs   # Stop: opt-in (--completion-evidence + TYPESAFE_API_KEY) advisory: ask Jev if the diff meets the task's criteria
 │  └─ explore-guide-inject.mjs  # SubagentStart(Explore): inject the LSP/Grep/Glob exploration directive
-├─ scripts/                     # 2 human-run CLIs — nothing invokes them automatically
+├─ scripts/                     # 3 human-run CLIs — nothing invokes them automatically
 │  ├─ jev-slice-check.mjs       # advisory: ask Jev which open tasks depend on each other / are fragments (needs TYPESAFE_API_KEY)
+│  ├─ jev-verify-findings.mjs   # advisory: ask Jev whether each FAIL: of a /ccf:check report is in the diff; annotates only (needs TYPESAFE_API_KEY)
 │  └─ archive-plan.mjs          # retire a fully-closed iteration: PLAN.md → ARCHIVE.md (--apply)
 └─ templates/                   # read by /ccf:init to generate files (not auto-loaded)
    ├─ root/      backend/      frontend/

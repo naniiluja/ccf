@@ -67,7 +67,8 @@ export function readDisciplineOn(rulesDir) {
  * The chain is deliberately a SINGLE review step, not a multi-gate pipeline: the implement work already
  * happened directly in this session (no separate subagent to re-verify), so one fresh-context check is
  * enough before the spec is updated. updatespec runs ONLY when check comes back clean (no `FAIL:`
- * finding); any `FAIL:` → STOP + tell the user, do NOT mark done. `/code-review` stays a good optional
+ * finding and no `PARTIAL:` line); any `FAIL:` or `PARTIAL:` → STOP + tell the user, do NOT mark done.
+ * A review cut off at the checker's `maxTurns` never read the whole diff, so it cannot count as a pass. `/code-review` stays a good optional
  * extra the user can run by hand, but it is not part of this mandatory chain.
  * Pure: garbage input coerces to disciplineOn=false; always returns a non-empty string.
  * @param {{ disciplineOn: boolean }} opts
@@ -82,8 +83,9 @@ export function buildVerifyReason(opts) {
     "<ccf-auto-verify>This task is in-review and you changed code this session. Before stopping, run /ccf:check " +
     "(conformance + conventions review of the implementation, including running the tests)." +
     disciplineNote +
-    " When it comes back CLEAN (no FAIL: finding), run /ccf:updatespec to refresh the spec and mark the task done. " +
-    "If it reports a FAIL: finding, STOP, report it to the user, and do NOT mark the task done." +
+    " When it comes back CLEAN (no FAIL: or PARTIAL: line), run /ccf:updatespec to refresh the spec and mark the task done. " +
+    "If it reports a FAIL: finding, or PARTIAL: because the review was cut off before covering the whole diff, " +
+    "STOP, report it to the user, and do NOT mark the task done." +
     "</ccf-auto-verify>"
   );
 }

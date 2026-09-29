@@ -53,12 +53,12 @@ For EACH task, in order:
 
 ## 3. Verify: a single `/ccf:check`, not a multi-gate pipeline
 Once every selected task is `in-review`, run **`/ccf:check`** once over the whole batch (Skill tool, or instruct the user to run it). This is the ONE verify step CCF requires: since every task was implemented directly in this session rather than by a separate subagent, one fresh-context review is enough, and there is no separate implementer output to re-check.
-- **If it reports a `FAIL:` finding**, **STOP here** and report it to the user; do not run `/ccf:updatespec`.
+- **If it reports a `FAIL:` finding or a `PARTIAL:` line**, **STOP here** and report it to the user; do not run `/ccf:updatespec`. `PARTIAL:` means the review was cut off before it covered the whole diff, so its silence on the rest proves nothing.
 - **If the project opted into the test discipline** (`.claude/rules/testing.md` carries the "Test design discipline" block or `Matrix required: yes`, and the task files record `discipline: on`): `/ccf:check` itself confirms the contract-level matrix tests actually pass as part of its own step 5 (verification-first, run the tests). With the discipline off, this is unchanged: no matrix is forced.
 - `/code-review` remains a good optional extra the user can run for additional quality feedback (Skill tool), but it is not part of this mandatory chain.
 
 ## 4. `/ccf:updatespec`
-**Only if** step 3 came back clean (no `FAIL:` finding), invoke `/ccf:updatespec` (via the Skill tool, or instruct the user to run it) to mark the tasks `done`. **Any `FAIL:` finding anywhere → STOP, report to the user, and leave every task at `in-review`.**
+**Only if** step 3 came back clean (no `FAIL:` finding and no `PARTIAL:` line), invoke `/ccf:updatespec` (via the Skill tool, or instruct the user to run it) to mark the tasks `done`. **Any `FAIL:` or `PARTIAL:` anywhere → STOP, report to the user, and leave every task at `in-review`.**
 
 ## 5. Fallback when Skill or SlashCommand is not exposed
 Not every harness exposes the Skill tool, or a SlashCommand tool for `/ccf:check` and `/ccf:updatespec`; this varies by environment, so verify rather than assume. When a call fails or the tool is absent: **tell the user explicitly** which step could not be auto-invoked, and hand them the same order to run by hand (`/ccf:check` → `/ccf:updatespec`), which is the manual sequence `auto-verify.mjs` documents as its own fallback.

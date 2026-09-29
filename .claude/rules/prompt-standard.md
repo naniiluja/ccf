@@ -119,6 +119,7 @@ Two tables, two different jobs. Do not mix them: a heading groups findings, a ma
 | `FAIL:` | Blocking defect. The gate is not green until it is fixed or the user knowingly accepts it. |
 | `WARN:` | Non-blocking: decide it and record the decision. `/ccf:check` step 6's closing recommends fixing it before `/ccf:updatespec` marks the task `done`, but does not itself loop or block. |
 | `PASS:` | Verified correct, with the evidence named. |
+| `PARTIAL:` | The review stopped before covering the whole target (the checker hit `maxTurns`). Never clean: `cook.md`, `updatespec.md` and `verify-chain.mjs` treat it like `FAIL:` for the `done` decision. |
 
 `FAIL:` is safe to introduce here: the template test-gate's failure heuristic deliberately excludes the bare word FAIL (it requires a failure COUNT of at least 1, or an anchored phrase), so a review marker cannot trip a test gate.
 
@@ -130,8 +131,12 @@ Two tables, two different jobs. Do not mix them: a heading groups findings, a ma
 | `### Violations` | The `FAIL:` tier: blocking defects, each with `file:line` and a suggested fix. |
 | `### Should-reconsider` | The `WARN:` tier: spec drift and non-blocking concerns. |
 | `### Tests` | The commands actually executed and their real results; `check.md` requires this section in every report. |
+| `### Acceptance criteria` | One line per task criterion: met, not met (Missing or Misunderstood), or not verifiable from the diff, plus an `Extra:` line. |
+| `### Declined to judge` | Mandatory: what the reviewer set aside or scored below 50, with the reason; "none" only when truly nothing. |
 
-Both ends of this vocabulary must move together. `ccf-spec-checker.md` PRODUCES the headings; `check.md` step 6, `cook.md` step 3, and `hooks/lib/verify-chain.mjs`'s reason string READ them. Changing one end alone leaves a gate keyed on a marker nobody emits.
+A `FAIL:` line in `ccf-spec-checker`'s report carries a verbatim rule or criterion quote and a confidence of 80 or more; 50 to 79 is `WARN:` (the rubric lives in the agent file). The report ends with a `Checked for:` line.
+
+Both ends of this vocabulary must move together. `ccf-spec-checker.md` PRODUCES the headings; `check.md` step 6 and `cook.md` step 3 READ them, and `hooks/lib/verify-chain.mjs`'s reason string only names the `FAIL:` word (it parses no report). Changing one end alone leaves a gate keyed on a marker nobody emits.
 
 ## Why not `@import`
 
@@ -141,6 +146,6 @@ The docs describe the two mechanisms separately and never state how they combine
 
 Consequence for the budget, stated in the order that matters: what a session actually PAYS is `CLAUDE.md` plus every `@import`ed rule, i.e. the `wc -c CLAUDE.md .claude/rules/*.md` total minus this file's own bytes (the only rule that is `paths:`-scoped AND not imported). A subtraction that also removed `hooks.md` would be a hypothetical only: `hooks.md` is `@import`ed, so its `paths:` is void and its bytes are paid every session regardless of that frontmatter. Earlier notes carried four different figures in a row for this total (measured mid-task, then prose grew, then nobody re-measured), which is exactly the fixpoint this file must not repeat — so the paid figure is no longer restated in prose here. It lives in the single machine-readable claim below, which `.claude/tests/context-budget.test.mjs` (repo scope, see `.claude/rules/testing.md`) asserts against a real measurement on every run; re-run `wc -c` as the LAST step of any task that touches this set, then update the number in the label, not in a sentence.
 
-<!-- ccf-budget: paid=93924 -->
+<!-- ccf-budget: paid=98345 -->
 
 This file is itself one of the bytes being measured, and it is the one file EXCLUDED from the paid total (it carries `paths:` and is deliberately not `@import`ed) — so editing the label above changes nothing about what it is checked against. Adding an `@import .claude/rules/prompt-standard.md` line to `CLAUDE.md` would break that: the file would re-enter the paid set it is labeling, closing the fixpoint loop this design exists to avoid. `.claude/tests/context-budget.test.mjs` asserts this file stays in the lazy (excluded) set for exactly that reason.
