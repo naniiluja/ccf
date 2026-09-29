@@ -20,9 +20,9 @@ Nguoi dung muon go `/plan` (built-in, bat plan mode) la kich hoat luong `ccf:pla
 ## Task backlog — plan-skill (in execution order)
 | # | Slice | Layers | Gate (tests green) | Depends on | Status |
 |---|-------|--------|--------------------|-----------|--------|
-| 051 | Hook `plan-skill-inject` + dong bo so hook 5 sang 6 | 1 lib + 1 hook + 1 test lib + 1 ca io.test + hooks.json + 4 spec/doc | test bang quyet dinh do roi xanh + node --test hook lib + tsc + smoke stdin + grep khong con "5 hook" | — | in-review |
-| 052 | Chuyen `commands/plan.md` sang `skills/plan/SKILL.md` + dong bo phan loai va so dem | 1 file chuyen + description + 2 rule + CLAUDE.md + 3 README + plugin README + prompt-standard | validate + ba bo test + tsc + grep khong con `commands/plan.md` + 7 ban sao khoi van phong cung md5 + do lai wc -c va nhan ccf-budget | 051 | in-review |
-| 053 | Xac minh song 4 ca (Shift+Tab, `/plan <yc>`, `/ccf:plan` ngoai plan mode, hoi dap thuan) | quan sat tren plugin cai lai | 4 ca ghi ket qua that, ca nao chua chay ghi ro "chua quan sat" | 052 | todo |
+| 051 | Hook `plan-skill-inject` + dong bo so hook 5 sang 6 | 1 lib + 1 hook + 1 test lib + 1 ca io.test + hooks.json + 4 spec/doc | test bang quyet dinh do roi xanh + node --test hook lib + tsc + smoke stdin + grep khong con "5 hook" | — | done |
+| 052 | Chuyen `commands/plan.md` sang `skills/plan/SKILL.md` + dong bo phan loai va so dem | 1 file chuyen + description + 2 rule + CLAUDE.md + 3 README + plugin README + prompt-standard | validate + ba bo test + tsc + grep khong con `commands/plan.md` + 7 ban sao khoi van phong cung md5 + do lai wc -c va nhan ccf-budget | 051 | done |
+| 053 | Xac minh song 4 ca (Shift+Tab, `/plan <yc>`, `/ccf:plan` ngoai plan mode, hoi dap thuan) | quan sat tren plugin cai lai | 4 ca ghi ket qua that, ca nao chua chay ghi ro "chua quan sat" | 052 | done |
 
 > Status: `todo` / `in-progress` / `in-review` / `done` / `blocked`. Lifecycle: `todo → in-progress → in-review → done`. Chi `/ccf:updatespec` ghi `done`, sau `/ccf:check`. Khong bump version, khong commit tru khi nguoi dung yeu cau.
 
@@ -33,7 +33,7 @@ Nguoi dung muon dua Jev (TypeSafe System One, tra xac suat Noul) vao workflow CC
 ## Task backlog — jev-integration (in execution order)
 | # | Slice | Layers | Gate (tests green) | Depends on | Status |
 |---|-------|--------|--------------------|-----------|--------|
-| 054 | Loi Jev: `jev-client` (fetch tiem qua tham so) + `completion-evidence` thuan | 2 lib + 2 test lib + `plan.mjs#findInReviewTask` | node --test hook lib + tsc, khong dung mang that | 052 | in-review |
-| 055 | Hook `completion-evidence` (Stop, opt-in) + dong bo so hook 6 sang 7 + README/tooling | 1 hook + hooks.json + ca io.test voi may chu gia + 6 spec/doc | ba bo test + tsc + validate + smoke stdin + grep khong con "= 6" + do lai ngan sach | 054 | in-review |
-| 056 | Script `jev-slice-check` + noi vao buoc 4 cua skill `plan` | 1 script + lib thuan + test + SKILL.md | ba bo test + tsc + validate + grep so dem script 1 sang 2 | 055 | in-review |
-| 057 | Xac minh song va hieu chinh nguong (can key that) | quan sat tren plugin cai lai | do tre, gioi han, nguong hieu chinh tren ARCHIVE, ca thieu tieu chi co y; ca chua chay ghi "chua quan sat" | 056 | in-review |
+| 054 | Loi Jev: `jev-client` (fetch tiem qua tham so) + `completion-evidence` thuan | 2 lib + 2 test lib + `plan.mjs#findInReviewTask` | node --test hook lib + tsc, khong dung mang that | 052 | done |
+| 055 | Hook `completion-evidence` (Stop, opt-in) + dong bo so hook 6 sang 7 + README/tooling | 1 hook + hooks.json + ca io.test voi may chu gia + 6 spec/doc | ba bo test + tsc + validate + smoke stdin + grep khong con "= 6" + do lai ngan sach | 054 | done |
+| 056 | Script `jev-slice-check` + noi vao buoc 4 cua skill `plan` | 1 script + lib thuan + test + SKILL.md | ba bo test + tsc + validate + grep so dem script 1 sang 2 | 055 | done |
+| 057 | Xac minh song va hieu chinh nguong (can key that) | quan sat tren plugin cai lai | do tre, gioi han, nguong hieu chinh tren ARCHIVE, ca thieu tieu chi co y; ca chua chay ghi "chua quan sat" | 056 | done |
