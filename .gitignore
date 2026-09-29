@@ -5,3 +5,4 @@ dist/
 .env
 .env.local
 *.stackdump
+plugins/ccf/evals/results/

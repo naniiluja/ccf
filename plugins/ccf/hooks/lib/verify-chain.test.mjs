@@ -65,6 +65,15 @@ test("buildVerifyReason: always names the single-step chain (check → updatespe
   assert.doesNotMatch(r, /[\u{274C}\u{2705}]/u);
 });
 
+test("buildVerifyReason: a PARTIAL: review is not clean, in both discipline branches (task 060)", () => {
+  for (const disciplineOn of [false, true]) {
+    const r = buildVerifyReason({ disciplineOn });
+    assert.match(r, /PARTIAL:/);
+    // Clean must be defined as neither marker, so a cut-off review can never read as a pass.
+    assert.match(r, /no FAIL: or PARTIAL:/);
+  }
+});
+
 test("buildVerifyReason: disciplineOn=false → no matrix-test note", () => {
   const r = buildVerifyReason({ disciplineOn: false });
   assert.doesNotMatch(r, /test discipline/i);

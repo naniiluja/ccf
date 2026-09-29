@@ -1,7 +1,7 @@
 ---
 description: Verify an implementation against the CCF spec — conformance, coding conventions, SOLID/OOP, and BE↔FE cross-check. Read-only review.
 argument-hint: "[optional: path or feature to check]"
-allowed-tools: Read, Glob, Grep, Bash, Task
+allowed-tools: Read, Glob, Grep, Bash, Task, SendMessage
 model: opus
 ---
 
@@ -30,22 +30,36 @@ You are running CCF `/ccf:check`. You are a **fresh-context reviewer**: a contex
    - FE vs spec
    - **BE ↔ FE cross-check** (does the FE's API usage match the BE contract)
    With `$ARGUMENTS` empty, infer the mode from the most recent changes (step 4's diff) and state in one line which mode you picked, so the user can correct it. This command deliberately carries no `AskUserQuestion` in `allowed-tools` (`.claude/rules/components.md` records that decision), so when the diff is genuinely ambiguous, ask in plain prose rather than reaching for the tool.
-3. **Delegate the deep review to the `ccf-spec-checker` subagent** via Task, fresh and read-only, **with `run_in_background: false`**: since Claude Code v2.1.198 a Task spawn that omits it defaults to running in the background, and step 4 needs the finished report first. For a cross-check, spawn one checker per side (BE and FE) and wait for both before step 4. Each checker verifies:
-   - Spec conformance (every requirement implemented as specified)
-   - Coding conventions (per `.claude/rules/`)
-   - Spec violation / drift (code differs from spec without being recorded)
-   - **SOLID / OOP violations**
-   - Error-handling & logging (per the rules)
-   - Test coverage of acceptance criteria
-   - Cross-check: diff the BE API surface against how the FE consumes it
+3. **Delegate the review to two fresh, read-only subagents, spawned via Task in ONE message so they run at the same time, each call with `run_in_background: false`**: since Claude Code v2.1.198 a Task spawn that omits it defaults to running in the background, and step 4 needs both finished reports first. Use two ordinary Task spawns rather than Claude Code's agent-teams feature, because teammates run as separate sessions that report through a shared task list, while step 6 needs both reports back in this context to merge them. The two scopes do not overlap:
+   - `ccf-scope-checker` (Sonnet, medium effort) checks only whether the diff stays inside the task's `Files to touch` and criteria and covers every criterion. It is the cheaper model because matching a file list and a criteria list against a diff is well-bounded work.
+   - `ccf-spec-checker` (Opus) does everything else. For a cross-check, spawn one `ccf-spec-checker` per side (BE and FE) plus one `ccf-scope-checker` for the whole diff, and wait for all of them before step 4. Each `ccf-spec-checker` verifies:
+     - Spec conformance (every requirement implemented as specified)
+     - Coding conventions (per `.claude/rules/`)
+     - Spec violation / drift (code differs from spec without being recorded)
+     - **SOLID / OOP violations**
+     - Error-handling & logging (per the rules)
+     - Test coverage of acceptance criteria
+     - Cross-check: diff the BE API surface against how the FE consumes it
+
+   **A cut-off review is not a finished one.** The checker runs under `maxTurns`. When it hits that cap, the harness opens the result with a note like `NOTE: this agent stopped at its N-turn limit before finishing. The text below is PARTIAL output`, while still reporting the spawn as completed; the checker may also open its own report with `PARTIAL:`. Apply this to each checker separately. On either signal, continue that same checker exactly once with `SendMessage` (address it by the agent id its spawn result returned; the note itself carries no id), asking it to finish the items it listed as not yet reviewed. If the continued result is still partial, stop continuing: put `PARTIAL: <checker name>: <what was not reviewed>` as the first line of your merged report, and state that the review is not clean. One partial checker makes the whole report partial, even when the other finished. `cook.md`, `updatespec.md` and the verify chain treat `PARTIAL:` like `FAIL:` for the `done` decision.
 4. **Review the actual diff:** run `git diff <base>...HEAD` (base = the branch this work forked from, usually `main`/`master`) to see exactly what changed against the baseline. The diff is what catches scope creep and unrelated edits the spec never asked for. Limit the review to the changed surfaces plus their blast radius.
 5. **Verification-first, prove it rather than claim it:** where possible RUN the tests (Bash, read-only) and report the actual output as the evidence. When you cannot prove a requirement is met, say so plainly instead of asserting that it works.
-6. **Produce a structured report** in the marker vocabulary the checkers return, so one grep finds every finding across CCF:
+6. **Merge the reports, then produce one structured report** in the marker vocabulary the checkers return, so one grep finds every finding across CCF. Merge by location, and never drop a finding:
+   - The key is the finding's `file:line`, with `./` and backslashes normalized. Two findings with the same key become one line that keeps the heavier marker (`FAIL:` over `WARN:`), both descriptions, and the source tag `(spec+scope)`. Every other finding keeps its own tag, `(spec)` or `(scope)`, right after the marker.
+   - A finding with no `file:line` is never merged; keep it as its checker wrote it.
+   - For `### Acceptance criteria`, keep one line per criterion. When the two checkers disagree, keep the less favorable verdict (not met over not verifiable over met) and name both readings.
+   - Count the `FAIL:` and `WARN:` lines of each report before merging. The merged report must hold at least as many as the larger count and no more than their sum; a number outside that range means a finding was lost or duplicated.
+
+   The merged report has these sections:
    - `### Conforms` — one `PASS:` line per thing verified, with the evidence named.
    - `### Violations` — one `FAIL:` line per blocking defect, each with `file:line` and a suggested fix.
    - `### Should-reconsider` — one `WARN:` line per non-blocking concern, spec drift included.
+   - `### Acceptance criteria` — every task criterion as met, not met (Missing or Misunderstood), or not verifiable from the diff, plus an `Extra:` line for changes no criterion asks for.
    - `### Tests` — what you ran and the actual result.
-   Relay any `### Premortem` section a checker returned unchanged. Recommend the fixes and leave them to the next implementer task; this command edits nothing. Full marker table in `.claude/rules/prompt-standard.md`.
+   - `### Declined to judge` — what the checker set aside or scored below 50, each with its reason; "none" only when truly nothing, never omitted.
+   - A closing `Checked for:` line naming the dimensions actually covered.
+   6b. **Optional Jev annotation, only when `TYPESAFE_API_KEY` is set and the report has a `FAIL:` line.** Tell the user in one sentence that the diff (minus sensitive files) goes to `api.typesafe.ai`, then locate `scripts/jev-verify-findings.mjs` in the CCF plugin directory with Glob (`${CLAUDE_PLUGIN_ROOT}` is not reliable in a command body) and pipe your merged report into `node "<that path>"` from the project root, so each finding is judged once even when both checkers raised it. For each finding whose `verdict` is `not-confirmed`, append its `note` to that `FAIL:` line; never delete or downgrade a `FAIL:` on Jev's word, because a missed defect costs more than a second look. Any other `reason` in the JSON means skip this step and say so in one line.
+   Keep each finding's quoted rule and confidence score as the checker wrote them: a `FAIL:` stands only with a score of 80 or more and a verbatim rule or criterion quote, so never promote a `WARN:` to `FAIL:` or demote the reverse without new evidence you name. Relay any `### Premortem` section a checker returned unchanged. Recommend the fixes and leave them to the next implementer task; this command edits nothing. Full marker table in `.claude/rules/prompt-standard.md`.
 
 ## Closing (mandatory)
 0. **Optional cross-model second opinion:** if the official `/advisor` command is available (it may be absent on an older Claude Code build), the user may run `/advisor sonnet` or `/advisor fable` for a DIFFERENT-model read of this implementation. It supplements the `ccf-spec-checker` delegation in step 3 and never substitutes for it, which stays mandatory.

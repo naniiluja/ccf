@@ -11,11 +11,12 @@ plugins/ccf/
 ├─ commands/                    # 4 slash commands (markdown prompts); /ccf:plan is a skill, see below
 │  ├─ init.md  check.md
 │  └─ updatespec.md  cook.md
-├─ agents/                      # 4 subagents, ALL read-only — inherit the project's tools/MCP/skills (see below)
+├─ agents/                      # 5 subagents, ALL read-only — inherit the project's tools/MCP/skills (see below)
 │  ├─ ccf-codebase-analyzer.md       # x5 in parallel: onboard (init) or scope a change (plan)
 │  ├─ ccf-best-practice-researcher.md# fetch best practices from Context7/MS Learn
 │  ├─ ccf-spec-writer.md             # draft the spec
-│  └─ ccf-spec-checker.md            # fresh-context reviewer, used by /ccf:check
+│  ├─ ccf-spec-checker.md            # fresh-context reviewer, used by /ccf:check
+│  └─ ccf-scope-checker.md           # second, scope-only reviewer run in parallel by /ccf:check
 ├─ skills/                      # 2 skills
 │  ├─ plan/SKILL.md             # the workflow behind /ccf:plan (user-facing; the model may also load it by description)
 │  └─ grill-me/SKILL.md         # internal (hidden from / menu): shared requirements-interview engine (plan/init modes)
@@ -41,9 +42,11 @@ plugins/ccf/
 │  ├─ auto-verify.mjs           # Stop: opt-in (--auto-verify) block to drive the verify step
 │  ├─ completion-evidence.mjs   # Stop: opt-in (--completion-evidence + TYPESAFE_API_KEY) advisory: ask Jev if the diff meets the task's criteria
 │  └─ explore-guide-inject.mjs  # SubagentStart(Explore): inject the LSP/Grep/Glob exploration directive
-├─ scripts/                     # 2 human-run CLIs — nothing invokes them automatically
+├─ scripts/                     # 4 human-run CLIs — nothing invokes them automatically
 │  ├─ jev-slice-check.mjs       # advisory: ask Jev which open tasks depend on each other / are fragments (needs TYPESAFE_API_KEY)
-│  └─ archive-plan.mjs          # retire a fully-closed iteration: PLAN.md → ARCHIVE.md (--apply)
+│  ├─ jev-verify-findings.mjs   # advisory: ask Jev whether each FAIL: of a /ccf:check report is in the diff; annotates only (needs TYPESAFE_API_KEY)
+│  ├─ archive-plan.mjs          # retire a fully-closed iteration: PLAN.md → ARCHIVE.md (--apply)
+│  └─ worktree-preflight.mjs    # read-only: check a parallel wave's worktree branches before merging (scope, overlap, merge-tree)
 └─ templates/                   # read by /ccf:init to generate files (not auto-loaded)
    ├─ root/      backend/      frontend/
 ```
@@ -52,7 +55,7 @@ There is no writer agent and no `/ccf:fix` command: implementing a task, and deb
 
 ## Agents — tool/MCP/skill inheritance
 
-All 4 subagents have **no `tools` allowlist**; they inherit the host project's full tool/MCP/skill set. Every one of them carries `disallowedTools: Write, Edit, NotebookEdit, Agent, Task` → inherit-all-minus-file-writes-minus-spawn (every project MCP + the Skill tool, but no file writes and no spawning a nested agent). `Agent, Task` is what blocks nested spawning (the leaf-agent invariant); both names are listed because the harness surfaces the spawn tool under either. An allowlist would block unlisted project MCP + Skill (a plugin subagent can't list unknown-at-authoring-time MCP), so inheritance is the only mechanism; safety is the file-write denial + per-call permission prompts. An inherited MCP tool may be lazily loaded — use `ToolSearch` to load its schema before calling.
+All 5 subagents have **no `tools` allowlist**; they inherit the host project's full tool/MCP/skill set. Every one of them carries `disallowedTools: Write, Edit, NotebookEdit, Agent, Task` → inherit-all-minus-file-writes-minus-spawn (every project MCP + the Skill tool, but no file writes and no spawning a nested agent). `Agent, Task` is what blocks nested spawning (the leaf-agent invariant); both names are listed because the harness surfaces the spawn tool under either. An allowlist would block unlisted project MCP + Skill (a plugin subagent can't list unknown-at-authoring-time MCP), so inheritance is the only mechanism; safety is the file-write denial + per-call permission prompts. An inherited MCP tool may be lazily loaded — use `ToolSearch` to load its schema before calling.
 
 ## Hooks
 

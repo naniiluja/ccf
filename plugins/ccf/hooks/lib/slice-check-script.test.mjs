@@ -89,10 +89,13 @@ test("jev-slice-check: overlap edge from code, dependency + fragment from Jev, w
     assert.deepEqual(out.fragments.map((f) => f.id), ["3"]);
     assert.deepEqual(out.waves, [["1"], ["2"], ["3"]]);
     assert.deepEqual(out.skipped, []);
+    assert.deepEqual(out.unanswered, []);
+    assert.match(out.note, /backtest/);
     // wire check: bearer auth, tasks[i] paths, and the overlapping pair was never asked
     assert.equal(fake.requests[0].auth, `Bearer ${KEY}`);
     const qs = Object.keys(fake.requests[0].body.questions);
-    assert.ok(!qs.includes("dep_0_1") && !qs.includes("contract_0_1"));
+    assert.ok(!qs.includes("dep_0_1") && !qs.includes("contract_0_1") && !qs.includes("shared_state_0_1"));
+    assert.ok(qs.includes("shared_state_1_2"));
     assert.ok(fake.requests[0].body.questions.dep_1_2.instructions.includes("tasks[1]"));
   } finally {
     await fake.close();
@@ -119,7 +122,10 @@ test("jev-slice-check: API failure → still exit 0, batch reported as skipped, 
     const out = JSON.parse(r.stdout);
     assert.equal(out.ok, true);
     assert.deepEqual(out.skipped, [{ batch: 0, reason: "rate-limited" }]);
-    assert.deepEqual(out.edges.map((e) => e.kind), ["file-overlap"]);
+    // fail-closed: the pairs Jev never answered are dependencies, so nothing runs in parallel
+    assert.deepEqual(out.edges.map((e) => `${e.from}>${e.to}:${e.kind}`), ["1>2:file-overlap", "1>3:unanswered", "2>3:unanswered"]);
+    assert.deepEqual(out.waves, [["1"], ["2"], ["3"]]);
+    assert.deepEqual(out.parallel_candidates, []);
   } finally {
     await fake.close();
   }
