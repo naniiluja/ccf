@@ -176,11 +176,7 @@ export function extractFiles(text) {
   return out;
 }
 
-/**
- * @param {any} text
- * @returns {string[]}
- */
-export function extractDependsOn(text) {
+export function extractDependsOn(text = "") {
   if (typeof text !== "string") return [];
   const m = /^\s*[-*]?\s*\**depends on:?\**:?\s*(.*)$/im.exec(text);
   if (!m) return [];
@@ -303,7 +299,7 @@ function normTasks(tasks) {
       title: String(t.title ?? ""),
       files: Array.isArray(t.files) ? t.files.map(String) : [],
       criteria: Array.isArray(t.criteria) ? t.criteria.map(String) : [],
-      dependsOn: Array.isArray(t.dependsOn) ? t.dependsOn.map((d) => String(d).trim()).filter(Boolean) : [],
+      dependsOn: Array.isArray(t.dependsOn) ? t.dependsOn.map(String).map((s = "") => s.trim()).filter(Boolean) : [],
     });
   }
   return out;
