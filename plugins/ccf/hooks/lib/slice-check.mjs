@@ -44,7 +44,7 @@ const HOTSPOTS = [
 ];
 
 /**
- * @typedef {{ id: string, title: string, files: string[], criteria: string[] }} SliceTask
+ * @typedef {{ id: string, title: string, files: string[], criteria: string[], dependsOn: string[] }} SliceTask
  */
 
 /**
@@ -177,6 +177,18 @@ export function extractFiles(text) {
 }
 
 /**
+ * @param {any} text
+ * @returns {string[]}
+ */
+export function extractDependsOn(text) {
+  if (typeof text !== "string") return [];
+  const m = /^\s*[-*]?\s*\**depends on:?\**:?\s*(.*)$/im.exec(text);
+  if (!m) return [];
+  const value = m[1].replace(/<!--.*?-->/g, " ").replace(/`/g, " ");
+  return [...new Set(value.match(/\b[A-Za-z]*\d[\w]*\b/g) ?? [])].map((id) => id.replace(/^task-?/i, ""));
+}
+
+/**
  * @param {string} glob
  * @returns {RegExp}
  */
@@ -259,9 +271,10 @@ export function hotspotClasses(files) {
  * The edge code can decide for a pair without asking anyone, or null when only reading can tell.
  * @param {SliceTask} a
  * @param {SliceTask} b
- * @returns {{ kind: "unknown-files" } | { kind: "file-overlap", files: string[] } | { kind: "hotspot", hotspots: string[] } | null}
+ * @returns {{ kind: "declared-dependency" } | { kind: "unknown-files" } | { kind: "file-overlap", files: string[] } | { kind: "hotspot", hotspots: string[] } | null}
  */
 function certainEdge(a, b) {
+  if (a.dependsOn.includes(b.id) || b.dependsOn.includes(a.id)) return { kind: "declared-dependency" };
   if (a.files.length === 0 || b.files.length === 0) return { kind: "unknown-files" };
   const files = filesOverlap(a.files, b.files);
   if (files.length) return { kind: "file-overlap", files };
@@ -290,6 +303,7 @@ function normTasks(tasks) {
       title: String(t.title ?? ""),
       files: Array.isArray(t.files) ? t.files.map(String) : [],
       criteria: Array.isArray(t.criteria) ? t.criteria.map(String) : [],
+      dependsOn: Array.isArray(t.dependsOn) ? t.dependsOn.map((d) => String(d).trim()).filter(Boolean) : [],
     });
   }
   return out;
@@ -335,7 +349,7 @@ export function buildSliceRequests(tasks, opts = {}) {
 }
 
 /**
- * @typedef {"file-overlap" | "unknown-files" | "hotspot" | "dependency" | "contract" | "shared-state" | "unanswered"} EdgeKind
+ * @typedef {"declared-dependency" | "file-overlap" | "unknown-files" | "hotspot" | "dependency" | "contract" | "shared-state" | "unanswered"} EdgeKind
  * @typedef {{ from: string, to: string, kind: EdgeKind, p?: number, files?: string[], hotspots?: string[], questions?: string[] }} SliceEdge
  */
 
@@ -346,7 +360,7 @@ export function buildSliceRequests(tasks, opts = {}) {
  * and two tasks in one wave therefore have no edge of any kind between them.
  * @param {any} tasks the same value passed to buildSliceRequests
  * @param {any} results one entry per batch: `{ ok: true, answers }` or `{ ok: false, reason }`
- * @param {{ edgeThreshold?: number, fragmentThreshold?: number }} [opts]
+ * @param {{ edgeThreshold?: number, fragmentThreshold?: number, askedJev?: boolean }} [opts]
  * @returns {{
  *   edges: SliceEdge[],
  *   fragments: { id: string, p: number }[],
@@ -359,6 +373,7 @@ export function buildSliceRequests(tasks, opts = {}) {
 export function mergeSliceAnswers(tasks, results, opts = {}) {
   const edgeThreshold = typeof opts?.edgeThreshold === "number" ? opts.edgeThreshold : EDGE_THRESHOLD;
   const fragmentThreshold = typeof opts?.fragmentThreshold === "number" ? opts.fragmentThreshold : DEFAULT_THRESHOLD;
+  const askedJev = opts?.askedJev !== false;
   const list = normTasks(tasks);
   /** @type {Record<string, any>} */
   const answers = {};
@@ -388,6 +403,7 @@ export function mergeSliceAnswers(tasks, results, opts = {}) {
         link(i, j);
         continue;
       }
+      if (!askedJev) continue;
       /** @type {string[]} */
       const missing = [];
       for (const [prefix, kind] of PAIR_QUESTIONS) {

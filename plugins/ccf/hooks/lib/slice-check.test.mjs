@@ -7,6 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   extractFiles,
+  extractDependsOn,
   expandBraces,
   pathsClash,
   filesOverlap,
@@ -230,4 +231,39 @@ test("mergeSliceAnswers: a task depending on an earlier one never forms a cycle 
   const flat = r.waves.flat();
   assert.equal(new Set(flat).size, flat.length);
   assert.equal(flat.length, 4);
+});
+
+// ---- declared dependencies and the offline (no-Jev) mode -----------------------------------------
+
+test("extractDependsOn: ids from the task-template `Depends on` line; none-markers and comments yield nothing", () => {
+  assert.deepEqual(extractDependsOn("# T\n- **Depends on:** 001   <!-- exactly ONE predecessor -->\n"), ["001"]);
+  assert.deepEqual(extractDependsOn("- **Depends on:** task-002, `003` and 4a\n"), ["002", "003", "4a"]);
+  assert.deepEqual(extractDependsOn("- **Depends on:** —\n"), []);
+  assert.deepEqual(extractDependsOn("- **Depends on:** none\n"), []);
+  assert.deepEqual(extractDependsOn("no such line"), []);
+  assert.deepEqual(extractDependsOn(undefined), []);
+});
+
+test("mergeSliceAnswers: a declared `Depends on` is a certain edge and is never asked, whichever side declares it", () => {
+  const tasks = [T("1", ["a.mjs"]), T("2", ["b.mjs"], { dependsOn: ["1"] }), T("3", ["c.mjs"]), T("4", ["d.mjs"])];
+  tasks[0].dependsOn = ["4"];
+  const qids = buildSliceRequests(tasks).batches.flatMap((b) => Object.keys(b));
+  assert.ok(!qids.some((q) => /_0_1$|_0_3$/.test(q)));
+  const r = mergeSliceAnswers(tasks, [], { askedJev: false });
+  assert.deepEqual(r.edges.map((e) => [e.from, e.to, e.kind]), [["1", "2", "declared-dependency"], ["1", "4", "declared-dependency"]]);
+  assert.deepEqual(r.waves, [["1", "3"], ["2", "4"]]);
+});
+
+test("mergeSliceAnswers: askedJev false → only code-decided edges; nothing is unanswered, disjoint tasks share a wave", () => {
+  const r = mergeSliceAnswers(TASKS, [], { askedJev: false });
+  assert.deepEqual(r.edges.map((e) => e.kind), ["file-overlap"]);
+  assert.deepEqual(r.unanswered, []);
+  assert.deepEqual(r.waves, [["1", "3", "4"], ["2"]]);
+});
+
+test("mergeSliceAnswers: fail-closed survives the offline mode — no file list or an unparseable path still serializes", () => {
+  const tasks = [T("1", ["src/{a.mjs"]), T("2", ["b.mjs"]), T("3", [])];
+  const r = mergeSliceAnswers(tasks, [], { askedJev: false });
+  assert.deepEqual(r.edges.map((e) => [e.from, e.to, e.kind]), [["1", "2", "file-overlap"], ["1", "3", "unknown-files"], ["2", "3", "unknown-files"]]);
+  assert.deepEqual(r.waves, [["1"], ["2"], ["3"]]);
 });
