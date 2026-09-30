@@ -18,7 +18,7 @@ A catalog of this project's tools, with **when to use** each, so future-session 
 <!-- Each skill: name — WHEN TO USE — example trigger -->
 
 ## Subagents (CCF)
-Every CCF subagent is READ-ONLY: discovery, review or best-practice grounding, never coding. Implementing a task happens directly in the main session (after /ccf:plan), never through a spawned coding subagent — a spawn adds a wait for a separate context and result, which is slower than writing the code directly with the plan already loaded.
+Every CCF subagent is READ-ONLY: discovery, review or best-practice grounding, never coding. Code is written either directly in the main session (a single task after /ccf:plan) or by /ccf:cook's task agents, one per task of a wave, each in its own worktree created with `isolation: "worktree"`; a writer never runs in the main checkout.
 - **ccf-codebase-analyzer** — map or scope the codebase. **Use when:** onboarding (/ccf:init) or before planning a change (/ccf:plan).
 - **ccf-spec-checker** — review conformance/SOLID. **Use when:** /ccf:check.
 - **ccf-best-practice-researcher** — fetch best practices. **Use when:** grounding a decision.

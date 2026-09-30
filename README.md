@@ -2,11 +2,11 @@
 
 **English** · [Tiếng Việt](./README.vi.md) · [简体中文](./README.zh-CN.md)
 
-A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **context-first, spec-driven, strictly sequential** way of working. CCF turns the loose "vibe coding" loop into a disciplined pipeline where the spec is always fresh, every decision is grounded in real docs, and work happens one verifiable slice at a time.
+A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **context-first, spec-driven, wave-parallel** way of working. CCF turns the loose "vibe coding" loop into a disciplined pipeline where the spec is always fresh, every decision is grounded in real docs, and work happens one verifiable slice at a time.
 
 - **Context-first** — the spec lives in `CLAUDE.md` + `.claude/`, kept continuously fresh so every session starts already knowing the project.
 - **Grounding** — every design decision references best practices from **Context7** and **Microsoft Learn** (two MCP servers bundled with the plugin), not from memory.
-- **Strictly sequential** — one task at a time (waterfall of vertical slices), no parallel feature development, to maximize quality.
+- **Parallel by waves** — tasks that code proves independent (no declared dependency, no shared file or hotspot) run at the same time, each in its own isolated git worktree; everything else waits for the wave before it.
 - **Adapts to your codebase** — bootstrap a fresh project as a monorepo (git init at the root; fullstack splits into `be/` + `fe/` with nested specs) *or* onboard an existing one, where `/ccf:init` analyzes the real structure (5 read-only agents) and writes a spec that mirrors it — no layout forced on you.
 - **Codes directly, fast** — no coding subagent to wait on. Implementation happens right in the main session, with the plan and codebase already loaded; CCF's subagents exist only for discovery, review and best-practice grounding.
 
@@ -19,7 +19,7 @@ A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **c
 | Planning slips straight into editing files | A **`UserPromptSubmit` hook** hard-blocks `/ccf:plan` unless you're in plan mode — planning stays read-only and reviewable. |
 | Design decisions made from stale memory | Bundled **Context7 + Microsoft Learn** MCP servers; CCF prompts cite official docs before writing. |
 | Mistakes repeat across sessions | `/ccf:updatespec` writes **two tiers** — project rules to the spec, anti-mistake feedback to system **memory** (loaded at higher weight). |
-| Big-bang features that are hard to review | Plans are a **sequential waterfall of vertical slices**, each a thin tracer-bullet (DB→service→UI) with its own test gate. |
+| Big-bang features that are hard to review | Plans are **ordered vertical slices**, each a thin tracer-bullet (DB→service→UI) with its own test gate. |
 | Tests written loosely (or skipped) under time pressure | An **opt-in test discipline** — when on, a contract-level matrix (Equivalence Partitioning + Boundary Value Analysis + decision table) is designed and the tests are written failing-first directly during implement, and a generated **Stop-hook gate blocks stopping** until the tests actually pass. Ship-fast flows simply don't opt in. |
 
 ## Install
@@ -49,12 +49,12 @@ After installing, open Claude Code in your project folder and run `/ccf:init`.
 | Command | What it does |
 |---------|--------------|
 | `/ccf:init` | Bootstrap a new project (interview → generate CLAUDE.md + .claude + plan) or onboard an existing one (5 read-only analyzer agents map the real structure). |
-| `/ccf:plan` | Create a sequential plan for one feature, grounded in best practices. **Requires plan mode** (Shift+Tab) — enforced by a hook. After planning, implement each task directly in the session, one at a time. |
+| `/ccf:plan` | Create a plan of vertical slices for one feature, grounded in best practices. **Requires plan mode** (Shift+Tab) — enforced by a hook. After planning, implement a single task directly in the session, or the whole plan in waves with `/ccf:cook`. |
 | `/ccf:check` | Verify the implementation against the spec (conformance, conventions, SOLID/OOP, BE↔FE cross-check). Read-only — this is the single mandatory verify step before a task is marked `done`. |
 | `/ccf:updatespec` | Update the spec **and system memory** with this session's lessons (incl. new tools with "when to use"). |
-| `/ccf:cook` | Run the whole todo/in-progress backlog in one go, implementing each task directly in the session (stop on any red gate), then a single `/ccf:check` and `/ccf:updatespec`. Mutually exclusive with `auto-verify.mjs --auto-verify`. |
+| `/ccf:cook` | Run the whole todo/in-progress backlog in parallel waves: one agent per task in its own worktree, then the preflight gate and a merge that runs the tests after every merge (stop on any red), then a single `/ccf:check` and `/ccf:updatespec`. Commits on your branch after one confirmation. Mutually exclusive with `auto-verify.mjs --auto-verify`. |
 
-Typical flow: `/ccf:init` → (plan mode) `/ccf:plan` → implement directly (per task, or the whole backlog via `/ccf:cook`) → `/ccf:check` → `/ccf:updatespec`. When the test discipline is ON, the contract-level matrix tests are written during implement and `/ccf:check` confirms they pass. `/code-review` remains a good optional extra, never a required step.
+Typical flow: `/ccf:init` → (plan mode) `/ccf:plan` → implement (one task directly, or the whole backlog in waves via `/ccf:cook`) → `/ccf:check` → `/ccf:updatespec`. When the test discipline is ON, the contract-level matrix tests are written during implement and `/ccf:check` confirms they pass. `/code-review` remains a good optional extra, never a required step.
 
 ## The 5 agents — all read-only
 
@@ -111,9 +111,9 @@ Principle: **no duplication**. A rule in CLAUDE.md that keeps getting forgotten 
 
 After a `/compact` (manual or automatic), CCF's `session-start` hook (matcher `compact`) auto re-loads the in-progress task from `.claude/plan/PLAN.md`, restoring the right work context so you don't have to paste it back.
 
-## Plan = sequential waterfall of vertical slices
+## Plan = vertical slices, run in waves
 
-`/ccf:init` and `/ccf:plan` produce one plan in `.claude/plan/` (a `PLAN.md` index + `task-NNN-*.md` files). Each task is a **thin vertical slice** — a tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, each as *spec → failing test → implement*. Every task has exactly **one predecessor** and names the **test gate** that must be green before the next slice starts. This is what makes "strictly sequential" concrete and reviewable.
+`/ccf:init` and `/ccf:plan` produce one plan in `.claude/plan/` (a `PLAN.md` index + `task-NNN-*.md` files). Each task is a **thin vertical slice** — a tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, each as *spec → failing test → implement*. Every task names its `Depends on` predecessors, its `Files to touch` and the **test gate** it must pass. `/ccf:cook` turns those into waves in code: two tasks share a wave only when nothing links them, and missing data always means "wait".
 
 `PLAN.md` stays scoped to the **current** iteration. When every task in an iteration is `done`, it is retired into `ARCHIVE.md` (its task files into `.claude/plan/archive/`). This cuts both ways on purpose: a closed row left in `PLAN.md` is counted as live work by the session-start and Stop hooks, while *deleting* the history would lose a real record of what shipped and why. So the rule is archive, never delete.
 
@@ -125,7 +125,7 @@ Retirement is **detected automatically, applied deliberately**. The Stop hook no
 - **Agents** = 5 specialized subagents, ALL read-only (analyzer, researcher, spec-writer, spec-checker, scope-checker). No writer agent — implementing happens directly in the main session.
 - **Skills** = 2 skills. `plan` is the workflow behind `/ccf:plan` (you type it like a command, and the model can also load it by its `description`). `grill-me` is internal: the shared requirements-interview engine the commands invoke via the Skill tool, hidden from the `/` menu (`user-invocable: false`).
 - **Hooks** = 7 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, review-trace, git-trace, verify-trace, verify-chain, explore-guide, archive, plan-trigger, jev-client, completion-evidence, slice-check) live in `hooks/lib/`.
-- **Scripts** = 4 human-run CLIs (`scripts/archive-plan.mjs`, `scripts/jev-slice-check.mjs`, `scripts/jev-verify-findings.mjs`, `scripts/worktree-preflight.mjs`) — same no-build/no-dependency rules as a hook, but nothing invokes them automatically. This is where an action that **mutates your files** belongs, so its blast radius stays bounded by you choosing to run it; `jev-slice-check` mutates nothing but costs money and needs `TYPESAFE_API_KEY`, so it is also your call: it sends only task ids, titles, `Files to touch` and criteria to `api.typesafe.ai` and prints which open tasks depend on each other or look like fragments. `jev-verify-findings` reads a `/ccf:check` report on stdin and asks Jev, for each `FAIL:` finding, whether the diff really contains that defect; it sends the diff (minus sensitive files) and only annotates, never removes a finding. `worktree-preflight` is read-only and offline: before you merge the branches of a parallel wave (one `claude -w ccf-<iteration>-<taskid>` session per task), it checks in code that each branch's real changed files stay inside its task's `Files to touch`, that no two branches changed the same file, and that `git merge-tree` finds no conflict.
+- **Scripts** = 6 CLIs (`scripts/archive-plan.mjs`, `scripts/jev-slice-check.mjs`, `scripts/jev-verify-findings.mjs`, `scripts/plan-waves.mjs`, `scripts/worktree-preflight.mjs`, `scripts/integrate-wave.mjs`) — same no-build/no-dependency rules as a hook, but nothing invokes them automatically. This is where an action that **mutates your files** belongs, so its blast radius stays bounded by you choosing to run it; `jev-slice-check` mutates nothing but costs money and needs `TYPESAFE_API_KEY`, so it is also your call: it sends only task ids, titles, `Files to touch` and criteria to `api.typesafe.ai` and prints which open tasks depend on each other or look like fragments. `jev-verify-findings` reads a `/ccf:check` report on stdin and asks Jev, for each `FAIL:` finding, whether the diff really contains that defect; it sends the diff (minus sensitive files) and only annotates, never removes a finding. `worktree-preflight` is read-only and offline: before the branches of a parallel wave are merged, it checks in code that each branch's real changed files stay inside its task's `Files to touch`, that no two branches changed the same file, and that `git merge-tree` finds no conflict. `plan-waves` prints the wave split. `integrate-wave --apply` runs that preflight itself, merges each branch `--no-ff`, runs your tests after every merge (resetting to the last green merge on red), and removes the worktrees only when all stayed green. `/ccf:cook` runs these three for you.
 - **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:init` instantiates.
 
 See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.

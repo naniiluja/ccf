@@ -6,3 +6,4 @@ dist/
 .env.local
 *.stackdump
 plugins/ccf/evals/results/
+.claude/worktrees/

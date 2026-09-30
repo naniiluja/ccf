@@ -9,7 +9,7 @@ allowed-tools: Read, Glob, Grep, AskUserQuestion, Bash(git log:*), Bash(git bran
 
 A CCF command invoked you through the Skill tool. `$ARGUMENTS` carries the **mode** that selects which topics to cover:
 
-- `plan` — interrogate one feature/change before writing a sequential plan.
+- `plan` — interrogate one feature/change before writing a plan.
 - `init` — elicit project decisions before bootstrapping CCF.
 
 Run a focused interview under the discipline below, then hand a concise **summary of the answers** back to the calling command so it can continue.
