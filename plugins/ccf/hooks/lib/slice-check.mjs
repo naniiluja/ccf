@@ -386,9 +386,11 @@ export function mergeSliceAnswers(tasks, results, opts = {}) {
   const unanswered = [];
   /** @type {number[]} */
   const level = list.map(() => 0);
-  /** @param {number} i @param {number} j */
-  const link = (i, j) => {
-    level[j] = Math.max(level[j], level[i] + 1);
+  /** @type {[number, number][]} */
+  const orderPairs = [];
+  /** @param {number} first @param {number} second */
+  const requireAfter = (first, second) => {
+    orderPairs.push([first, second]);
   };
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
@@ -396,7 +398,10 @@ export function mergeSliceAnswers(tasks, results, opts = {}) {
       const certain = certainEdge(list[i], list[j]);
       if (certain) {
         edges.push({ from, to, ...certain });
-        link(i, j);
+        const iNeedsJ = certain.kind === "declared-dependency" && list[i].dependsOn.includes(list[j].id);
+        const jNeedsI = certain.kind === "declared-dependency" && list[j].dependsOn.includes(list[i].id);
+        if (iNeedsJ && !jNeedsI) requireAfter(j, i);
+        else requireAfter(i, j);
         continue;
       }
       if (!askedJev) continue;
@@ -408,15 +413,23 @@ export function mergeSliceAnswers(tasks, results, opts = {}) {
         if (p === null) missing.push(qid);
         else if (p >= edgeThreshold) {
           edges.push({ from, to, kind, p });
-          link(i, j);
+          requireAfter(i, j);
         }
       }
       if (missing.length) {
         edges.push({ from, to, kind: "unanswered", questions: missing });
         unanswered.push({ from, to, questions: missing });
-        link(i, j);
+        requireAfter(i, j);
       }
     }
+  }
+  for (let pass = 0; pass < list.length; pass++) {
+    let changed = false;
+    for (const [first, second] of orderPairs) {
+      const next = level[first] + 1;
+      if (level[second] < next) { level[second] = next; changed = true; }
+    }
+    if (!changed) break;
   }
 
   /** @type {{ id: string, p: number }[]} */
