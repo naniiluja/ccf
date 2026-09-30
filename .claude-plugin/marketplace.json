@@ -9,7 +9,7 @@
     {
       "name": "ccf",
       "source": "./plugins/ccf",
-      "description": "Context-first, spec-driven, strictly sequential dev workflow with Context7 + Microsoft Learn grounding.",
+      "description": "Context-first, spec-driven, wave-parallel dev workflow with Context7 + Microsoft Learn grounding.",
       "version": "0.11.0",
       "category": "workflow",
       "homepage": "https://github.com/naniiluja/ccf",

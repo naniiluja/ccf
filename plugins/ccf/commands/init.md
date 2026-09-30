@@ -1,11 +1,11 @@
 ---
-description: Bootstrap a new project or onboard an existing one into the CCF workflow — generate CLAUDE.md + .claude specs + an initial sequential plan.
+description: Bootstrap a new project or onboard an existing one into the CCF workflow — generate CLAUDE.md + .claude specs + an initial plan of vertical slices.
 argument-hint: "[optional: short description of what you want to build]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill, AskUserQuestion, WebFetch, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*
 model: opus
 ---
 
-You are running CCF `/ccf:init`. Produce a best-practice-grounded context layer (`CLAUDE.md` plus `.claude/`) and an initial sequential implementation plan, following Anthropic's Explore then Plan workflow. Write no application code in this command: `/ccf:plan` details the first feature, and it is then implemented directly in the session, one task at a time.
+You are running CCF `/ccf:init`. Produce a best-practice-grounded context layer (`CLAUDE.md` plus `.claude/`) and an initial implementation plan of vertical slices, following Anthropic's Explore then Plan workflow. Write no application code in this command: `/ccf:plan` details the first feature, and it is then implemented directly in the session, one task at a time.
 
 Templates live in `${CLAUDE_PLUGIN_ROOT}/templates/`. Read them and instantiate them, replacing every `{{...}}` placeholder, when you write real files into the project.
 
@@ -61,7 +61,7 @@ Read the templates in `${CLAUDE_PLUGIN_ROOT}/templates/root/`, instantiate them,
 - Fold the testing answers in per the **Reference** section above.
 
 ### A4. Generate the initial plan
-Generate one large plan in `.claude/plan/` from the templates (a `PLAN.md` index plus `task-NNN-*.md` files), structured as a **sequential waterfall of VERTICAL SLICES**: each task is a thin tracer-bullet crossing the layers it touches (DB, service, UI), ordered thinnest to richest, each running spec → failing test → implement. **Right-size each slice** to a cohesive PR-sized increment, folding its doc and spec-sync in by default, and split it smaller only on a real driver (a data dependency, a need for an independent green gate, risk isolation, or a slice that will not fit one context). A swarm of micro-tasks costs a review cycle each and buys nothing. Give each task exactly one predecessor and name the test gate that must be green before the next slice starts. There is no per-task model or agent choice to record: every task is implemented directly in the session (`/ccf:plan` step 6), never by a spawned coding subagent.
+Generate one large plan in `.claude/plan/` from the templates (a `PLAN.md` index plus `task-NNN-*.md` files), structured as **VERTICAL SLICES with declared dependencies**: each task is a thin tracer-bullet crossing the layers it touches (DB, service, UI), ordered thinnest to richest, each running spec → failing test → implement. **Right-size each slice** to a cohesive PR-sized increment, folding its doc and spec-sync in by default, and split it smaller only on a real driver (a data dependency, a need for an independent green gate, risk isolation, or a slice that will not fit one context). A swarm of micro-tasks costs a review cycle each and buys nothing. Give each task its `Depends on` predecessors (`—` for none) and its `Files to touch`, and name the test gate it must pass: `/ccf:cook` runs tasks with no link between them in parallel waves, so an undeclared link is a bug. There is no per-task model or agent choice to record: `/ccf:cook` asks for the task agents' model once per run.
 
 ### A5. Closing
 Run no git command here; leave that to the user. Tell them to start a fresh session and run `/ccf:plan` (in plan mode) when they are ready to detail the first feature, and remind them that a Context7 rate limit is fixed by setting a free `CONTEXT7_API_KEY` env var and restarting Claude Code.
@@ -103,6 +103,6 @@ Recommend `/ccf:plan` for new work. Leave committing to the user.
 ---
 
 ## Guardrails (both branches)
-- One task at a time, and no **writing** agents in parallel. Only read-only research fans out, per `architecture.md`.
+- Writers run in parallel only as `/ccf:cook`'s task agents, each in its own worktree created with `isolation: "worktree"`; this command writes the spec itself and fans out only read-only research, per `architecture.md`.
 - Every rule you write must be verifiable, so that a later `/ccf:check` can actually test it.
 - Run a git command only when the user asks for one.

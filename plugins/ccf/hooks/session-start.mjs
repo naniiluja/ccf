@@ -21,7 +21,7 @@ const managed = existsSync(planDir) || hasClaudeMd;
 
 let msg =
   "<ccf>This project follows the CCF (Claude Context First) workflow: context-first, spec-driven, " +
-  "STRICTLY SEQUENTIAL (one task at a time, no parallel feature development). " +
+  "parallel by waves (independent tasks run at once, each in its own isolated worktree; linked tasks wait). " +
   "Ground every design decision in Context7 + Microsoft Learn. Keep CLAUDE.md/.claude always fresh.";
 
 if (!managed) {
