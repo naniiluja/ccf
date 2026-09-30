@@ -1,9 +1,9 @@
 # Task {{NNN}} — {{TITLE}}
 
 - **Vertical slice:** {{LAYERS}}    <!-- the layers this slice crosses end-to-end, e.g. DB + service + UI -->
-- **Depends on:** {{PREDECESSOR}}   <!-- exactly ONE predecessor to keep the sequential chain -->
+- **Depends on:** {{PREDECESSOR}}   <!-- every task whose result this one needs, comma-separated, or — ; /ccf:cook runs unlinked tasks in parallel -->
 - **Spec refs:** {{SPEC_REFS}}      <!-- links to related rules/requirements -->
-- **MCP to use:** {{MCP}}           <!-- e.g. supabase, or "none" — implemented directly in the session, never by a spawned coding subagent -->
+- **MCP to use:** {{MCP}}           <!-- e.g. supabase, or "none" -->
 - **Gate (must be GREEN before the next slice):** {{GATE}}  <!-- which test types: unit always; integration when crossing a boundary; e2e for the user-visible path -->
 
 ## Goal (one sentence)

@@ -1,7 +1,7 @@
 # {{PROJECT_NAME}}
 
 > Managed by **CCF (Claude Context First)**. Workflow: Explore → Plan → Implement → Commit.
-> **STRICTLY SEQUENTIAL**: one task at a time, no parallel feature development — parallel edits to one codebase create merge conflicts and unreviewable interleaved changes.
+> **Parallel by waves**: tasks with no declared dependency, shared file or shared hotspot run at the same time, each in its own isolated git worktree, and every wave is merged only after a preflight check and a full test run on the merged result. Everything else waits for the wave before it.
 > Ground every design decision in Context7 + Microsoft Learn.
 > Keep this spec always fresh with `/ccf:updatespec`.
 
@@ -29,4 +29,4 @@
 @.claude/rules/git-workflow.md
 
 ## Current plan
-See `.claude/plan/PLAN.md` for the sequential backlog of the CURRENT iteration. Execute **one task at a time**, directly in the session (no spawned coding subagent), in order; do not start task N+1 until task N is implemented + tested + checked. Closed iterations move to `.claude/plan/ARCHIVE.md` (task files to `.claude/plan/archive/`), so keep this section about the work in flight — not a running history. Archive it, never delete it.
+See `.claude/plan/PLAN.md` for the backlog of the CURRENT iteration. Run it with `/ccf:cook`, which executes independent tasks in parallel waves (one worktree-isolated agent per task) and starts a task only after every task in its `Depends on` is merged + tested; a single task can also be implemented directly in the session. Closed iterations move to `.claude/plan/ARCHIVE.md` (task files to `.claude/plan/archive/`), so keep this section about the work in flight — not a running history. Archive it, never delete it.
