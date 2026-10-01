@@ -40,7 +40,7 @@ CCF is a **Claude Code plugin** that imposes a context-first, spec-driven, wave-
 ## Current plan
 Live queue: `.claude/plan/PLAN.md` — the CURRENT iteration only. Closed history + postmortems: `.claude/plan/ARCHIVE.md`, with their task files in `.claude/plan/archive/`. Those two files are the premortem anchor source; read them together. Do NOT let a closed row sit in `PLAN.md` — `lib/plan.mjs` counts it as live work.
 
-**Live iteration in `PLAN.md`:** lifecycle-cleanup (070-074). Before it, second-review-scope + worktree-safety (063-066) closed and archived: `ccf-scope-checker` runs beside `ccf-spec-checker` in `/ccf:check`, `slice-check` is fail-closed, `scripts/worktree-preflight.mjs` checks a wave read-only. Jev backtest (067-069) archived: recall 92.3% / FPR 65-70% (13+/60-), under the 95% bar, so Jev stays advisory-only. Remaining open follow-ups from `archive/task-064-*`: `integrate-wave --apply` (4), plan-step opt-in (5); a paid `claude plugin eval` run.
+**Live iteration in `PLAN.md`:** lifecycle-cleanup (070-074). Archived before it: 063-066 (second-review-scope + worktree-safety) and the Jev backtest (067-069): recall 92.3% / FPR 65-70% (13+/60-), under the 95% bar, so Jev stays advisory-only. Remaining open follow-ups from `archive/task-064-*`: `integrate-wave --apply` (4), plan-step opt-in (5); a paid `claude plugin eval` run.
 
 **Standing machine latches now guarding this repo:** `.claude/tests/context-budget.test.mjs` (the paid-context label — `updatespec.md`'s Closing re-measures it after every spec edit), the `FAIL:` marker asserts in `verify-chain.test.mjs`, and the `PLAN.md.tmpl` preamble latch in `archive.test.mjs` (verified RED on a bug reproduction before being trusted — `testing.md`'s "a latch never seen RED proves nothing" lesson).
 
@@ -52,7 +52,7 @@ Live queue: `.claude/plan/PLAN.md` — the CURRENT iteration only. Closed histor
 
 **Standing debt**: `.claude/rules/hooks.md` at ~24KB (measured after plan-skill-inject) is the largest per-session cost, and the proposal to split it by event is still open. Note the `@import` finding above before "fixing" it with `paths:`: that frontmatter buys nothing while the import line stays.
 
-**Task-status lifecycle**: `todo → in-progress → in-review → done`. A task reaches `in-review` once merged (`/ccf:cook`) or implemented in-session; only `/ccf:updatespec` writes `done`, after `/ccf:check` passes. Counts: **4 cmd / 5 agent (all read-only) / 7 hook / 2 skill / 8 script** — the real files under `commands/`, `agents/`, `hooks/`, `skills/`, `scripts/` are the source of truth.
+**Task-status lifecycle**: `todo → in-progress → in-review → done`. A task reaches `in-review` once merged (`/ccf:cook`) or implemented in-session; only `/ccf:updatespec` writes `done`, after `/ccf:check` passes. Counts: **4 cmd / 5 agent (all read-only) / 7 hook / 2 skill / 9 script** — the real files under `commands/`, `agents/`, `hooks/`, `skills/`, `scripts/` are the source of truth.
 
 **Archive retirement is now deterministic-detected, human-applied.** `scripts/archive-plan.mjs` performs the retirement (`--apply`; default previews); `updatespec-nudge` clause D detects a fully-closed iteration and prints the command; clause E nudges `prune-archive.mjs` (keeps the newest 10 iterations' task files). `lib/archive.mjs` holds the shared decision, grouping iterations **by position** (`## Origin` to the next `## Origin`) because their section headings do not share a name.
 
