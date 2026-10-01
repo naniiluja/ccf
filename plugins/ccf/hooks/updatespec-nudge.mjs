@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // CCF Stop nudge — Stop event, PURELY ADVISORY (never blocks).
-// Composes FOUR INDEPENDENT advisories into the single non-blocking Stop channel:
+// Composes FIVE INDEPENDENT advisories into the single non-blocking Stop channel:
 //   (A) verify-work     : this SESSION edited code but ran no test command (session transcript evidence).
 //   (B) updatespec      : code changed more recently than the spec (cross-history staleness, freshness.mjs).
 //   (C) plan-status-sync: this SESSION ran `git commit` but PLAN.md still has tasks not 'done'.
 //   (D) archive-plan    : PLAN.md holds an iteration whose every task is CLOSED — it should be retired.
+//   (E) prune-archive   : archive/ holds task files of iterations older than the newest 10 in ARCHIVE.md.
 // No clause gates another; all off → emit nothing, exit 0.
 // Channel: default is emitSystemMessage (user-facing only, SINGLE channel — must stay INVARIANT).
 // Opt-in via a `--dual-channel-stop` argv flag → emitStopAdvisory (BOTH additionalContext + systemMessage,
@@ -20,7 +21,10 @@ import { specsOlderThanCode } from "./lib/freshness.mjs";
 import { needsVerifyNudge, readTranscriptSignals } from "./lib/verify-trace.mjs";
 import { findNonDoneTasks } from "./lib/plan.mjs";
 import { committedThisSession } from "./lib/git-trace.mjs";
-import { findRetirableIterationsIn } from "./lib/archive.mjs";
+import { findRetirableIterationsIn, findPrunableTaskFilesIn } from "./lib/archive.mjs";
+
+/** Clause (E) keeps the task files of this many newest archived iterations; the script's default. */
+const PRUNE_KEEP_ITERATIONS = 10;
 
 const input = await readStdinJson();
 
@@ -98,6 +102,20 @@ if (retirable.length > 0) {
   advisories.push({
     directive: `<ccf>PLAN.md still holds ${count} iteration(s) whose every task is closed. Tell the user, ${RELAY_IN_USER_LANGUAGE}, that a closed iteration left in PLAN.md is counted as live work by the plan hooks, and that running \`${command}\` retires it into ARCHIVE.md (task files into archive/). Mention they can run it without --apply first to preview.</ccf>`,
     userNote: `${count} fully-closed iteration(s) still in PLAN.md — retire with: ${command} (drop --apply to preview first)`,
+  });
+}
+
+// (E) Prune-archive — archive/ holds task files of iterations older than the newest 10 in ARCHIVE.md
+// (independent of A-D). Same detection-vs-action split as (D): deleting files is left to the
+// human-run `scripts/prune-archive.mjs`, which reads the same findPrunableTaskFilesIn decision.
+const prunable = findPrunableTaskFilesIn(join(cwd, ".claude", "plan"), PRUNE_KEEP_ITERATIONS).prune;
+if (prunable.length > 0) {
+  const scriptPath = fileURLToPath(new URL("../scripts/prune-archive.mjs", import.meta.url));
+  const command = `node "${scriptPath}"`;
+  const count = prunable.length;
+  advisories.push({
+    directive: `<ccf>.claude/plan/archive/ holds ${count} task file(s) of iterations older than the newest ${PRUNE_KEEP_ITERATIONS} in ARCHIVE.md. Tell the user, ${RELAY_IN_USER_LANGUAGE}, that running \`${command}\` previews which files would be pruned (ARCHIVE.md and git history keep the record), and that adding --apply stages their removal with git rm without committing.</ccf>`,
+    userNote: `${count} archived task file(s) belong to iterations older than the newest ${PRUNE_KEEP_ITERATIONS} — preview with: ${command} (then add --apply)`,
   });
 }
 

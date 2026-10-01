@@ -233,6 +233,50 @@ test("updatespec-nudge (no flag), clause C (git commit + PLAN.md pending task, t
   assert.ok(parsed.systemMessage.includes("/ccf:check"), "clause C systemMessage must name /ccf:check");
 });
 
+/**
+ * A CCF tmp project whose ARCHIVE.md holds `iterations` iterations (newest first), each with one task
+ * file in archive/. With 11 iterations the oldest one's file is prunable at the default keep of 10.
+ * @param {number} iterations
+ * @returns {string}
+ */
+function makePruneProject(iterations) {
+  const dir = makeTmpProject();
+  mkdirSync(join(dir, ".claude", "rules"), { recursive: true });
+  const planDir = join(dir, ".claude", "plan");
+  mkdirSync(join(planDir, "archive"), { recursive: true });
+  const lines = ["# Archive"];
+  for (let k = 0; k < iterations; k++) {
+    const id = String(200 + iterations - k);
+    lines.push("", `## Origin: it-${id}`, "| # | Slice | Status |", "|---|---|---|", `| ${id} | s | done |`);
+    writeFileSync(join(planDir, "archive", `task-${id}-x.md`), "x\n");
+  }
+  writeFileSync(join(planDir, "ARCHIVE.md"), lines.join("\n") + "\n");
+  return dir;
+}
+
+// Decision table (task 070 clause E): prunable files {yes, no} x stop_hook_active {true, false} →
+// nudge only on (yes, false). Clauses A-D stay off in every row (no transcript, no PLAN.md, no spec .md).
+test("updatespec-nudge clause E: prunable task files + stop_hook_active false → names the absolute prune-archive command", () => {
+  const dir = makePruneProject(11);
+  const { stdout, status } = runHook("updatespec-nudge.mjs", { cwd: dir, stop_hook_active: false });
+  assert.equal(status, 0);
+  const parsed = JSON.parse(stdout);
+  assert.deepEqual(Object.keys(parsed), ["systemMessage"]);
+  const scriptPath = join(HOOKS_DIR, "..", "scripts", "prune-archive.mjs");
+  assert.ok(parsed.systemMessage.includes(`node "${scriptPath}"`), "must carry the absolute script path");
+  assert.ok(parsed.systemMessage.includes("1 archived task file"), "must name the count");
+  assert.ok(!parsed.systemMessage.includes("archive-plan.mjs"), "clause D must stay off");
+});
+
+test("updatespec-nudge clause E: decision-table rows that must stay silent", () => {
+  for (const [iterations, active] of [[11, true], [10, false], [10, true]]) {
+    const dir = makePruneProject(/** @type {number} */ (iterations));
+    const { stdout, status } = runHook("updatespec-nudge.mjs", { cwd: dir, stop_hook_active: active });
+    assert.equal(status, 0);
+    assert.equal(stdout, "", `iterations=${iterations} stop_hook_active=${active}`);
+  }
+});
+
 // =================================================================================================
 // 5. updatespec-nudge.mjs --dual-channel-stop → emitStopAdvisory (BOTH channels)
 // =================================================================================================

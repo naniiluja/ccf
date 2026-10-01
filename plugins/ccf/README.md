@@ -12,7 +12,7 @@ plugins/ccf/
 ├─ agents/                      # 5 subagents, ALL read-only (see below)
 ├─ skills/                      # plan/ (the /ccf:plan workflow), grill-me/ (internal interview engine)
 ├─ hooks/                       # 7 .mjs hooks + hooks.json + lib/ helpers
-├─ scripts/                     # 7 human-run CLIs (nothing invokes them automatically)
+├─ scripts/                     # 8 human-run CLIs (nothing invokes them automatically)
 └─ templates/                   # {{...}} files that /ccf:init instantiates
 ```
 
@@ -39,7 +39,7 @@ Run directly with `node` (no build, no dependency, Node ≥ 18). The `.mjs` exte
 | `plan-mode-guard` | `UserPromptSubmit` | Blocks `/ccf:plan` outside plan mode (exit 2). |
 | `plan-skill-inject` | `UserPromptSubmit` | In plan mode, nudges the model toward the `ccf:plan` skill, once per session. Never blocks. |
 | `session-start` | `SessionStart` | Re-injects the context-first reminder; re-loads the in-progress task after compact/clear; adds a freshness signal when code is newer than the spec. |
-| `updatespec-nudge` | `Stop` | Advisory only. Four nudges: verify your work, run check then updatespec, mark done tasks, archive closed iterations. |
+| `updatespec-nudge` | `Stop` | Advisory only. Five nudges: verify your work, run check then updatespec, mark done tasks, archive closed iterations, prune old archived task files. |
 | `auto-verify` | `Stop` | Opt-in (`--auto-verify`). The only blocking Stop hook: drives one verify step (`/ccf:check`, then `/ccf:updatespec`) via `decision: "block"`. |
 | `completion-evidence` | `Stop` | Opt-in (`--completion-evidence` + `TYPESAFE_API_KEY`). Advisory: asks Jev whether the diff meets the task's criteria. The diff leaves your machine. |
 | `explore-guide-inject` | `SubagentStart` (`Explore`) | Injects an LSP/Grep/Glob exploration directive into the built-in `Explore` agent. |
@@ -64,6 +64,8 @@ Human-run CLIs. File-mutating actions belong here, never in a hook.
 | `plan-waves.mjs` | Print the wave split for the backlog. |
 | `worktree-preflight.mjs` | Read-only pre-merge check of a parallel wave (scope, overlap, merge conflicts). |
 | `integrate-wave.mjs` | Merge a wave: preflight, `--no-ff` merge per branch, tests after every merge, reset to last green on red. |
+| `prune-archive.mjs` | Keep the task files of the newest 10 archived iterations; `--apply` stages `git rm` of older ones (default previews; never commits). `ARCHIVE.md` and git history stay the record. |
+| `memory-audit.mjs` | Read-only: measure a project memory dir and open the consolidation gate for `/ccf:updatespec` step 5b. Opt-in `--jev` + `TYPESAFE_API_KEY` adds an advisory keep/merge/drop label; memory text leaves your machine. |
 
 ## Templates
 

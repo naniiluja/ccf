@@ -18,6 +18,11 @@
 
 > **Task files** for these iterations live in `.claude/plan/archive/`, moved with `git mv` so their
 > history is intact.
+>
+> **Retention:** this file and git history are permanent; `archive/` keeps only the task files of the
+> newest 10 iterations below (by position), and `scripts/prune-archive.mjs` (preview, then `--apply`)
+> stages the older ones for removal. Recover a pruned file with
+> `git log --diff-filter=D --name-only -- .claude/plan/archive/`, then `git show <sha>^:<path>`.
 
 ## Residual risk carried forward from the bulk-closes
 

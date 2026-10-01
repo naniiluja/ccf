@@ -1,6 +1,7 @@
-// CCF plan-archive decisions. Every decision is a PURE function over lines; the single exception is
-// findRetirableIterationsIn, a thin defensive path-taking reader for hook callers (matching how
-// plan.mjs exposes findActiveTask/findNonDoneTasks by path). No function here WRITES anything.
+// CCF plan-archive decisions. Every decision is a PURE function over lines; the two exceptions are
+// findRetirableIterationsIn and findPrunableTaskFilesIn, thin defensive path-taking readers for hook
+// callers (matching how plan.mjs exposes findActiveTask/findNonDoneTasks by path). No function here
+// WRITES anything. The prune pair is shared by scripts/prune-archive.mjs and clause (E) the same way.
 // Shared by scripts/archive-plan.mjs (which performs the file writes) and updatespec-nudge.mjs
 // clause (D) (which only detects and nudges). Keeping the decision here means the hook that NOTICES
 // a retirable iteration and the script that RETIRES it can never disagree about "fully closed".
@@ -14,7 +15,8 @@
 // mis-assign or orphan those sections and cut the wrong lines out of the file. So an iteration is
 // defined by POSITION: everything from one `## Origin` heading up to the next one (or EOF).
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { collectTaskRows, isClosedStatus, isRealTaskRow } from "./plan.mjs";
 
 /** A `## Origin …` heading — the only structural marker that starts an iteration. */
@@ -158,6 +160,72 @@ export function insertIntoArchive(archiveContent, entryText) {
   while (head.length > 0 && head[head.length - 1].trim() === "") head.pop();
   const joined = head.length > 0 ? [...head, "", entry].join("\n") : entry;
   return endWithSingleNewline(joined);
+}
+
+/** A task file name `task-<id>-<slug>.md`; group 1 is the id. */
+const TASK_FILE_RE = /^task-(\d+[a-z]?)-.*\.md$/i;
+
+/**
+ * @typedef {object} TaskFilePrune
+ * @property {string[]} keepIds task ids of the newest `keep` iterations
+ * @property {string[]} prune task file names whose id belongs ONLY to an older iteration
+ * @property {string[]} orphans task file names whose id belongs to no iteration (kept, reported)
+ */
+
+/**
+ * Decide which archived task files may be pruned. ARCHIVE.md is newest first, so the first `keep`
+ * iterations (POSITIONAL, via parseIterations) are kept; an iteration with no task rows still
+ * counts toward `keep`. Fail-safe in both directions that could lose a file: an id seen in a kept
+ * iteration is never pruned even if an older iteration lists it too, and an id no iteration lists
+ * is an orphan (kept and reported), never pruned. Non-task file names are ignored.
+ * @param {string[]} archiveLines all lines of ARCHIVE.md
+ * @param {string[]} fileNames entries of the archive/ directory
+ * @param {number} keep how many of the newest iterations keep their task files (>= 1)
+ * @returns {TaskFilePrune}
+ */
+export function planTaskFilePrune(archiveLines, fileNames, keep) {
+  const iterations = parseIterations(archiveLines);
+  /** @param {Iteration[]} its @returns {string[]} */
+  const idsOf = (its) => its.flatMap((it) => it.rows.map((row) => row.id.toLowerCase()).filter((id) => TASK_ID_RE.test(id)));
+  const keepIds = [...new Set(idsOf(iterations.slice(0, keep)))];
+  const kept = new Set(keepIds);
+  const old = new Set(idsOf(iterations.slice(keep)));
+  /** @type {string[]} */
+  const prune = [];
+  /** @type {string[]} */
+  const orphans = [];
+  for (const name of [...fileNames].sort()) {
+    const match = TASK_FILE_RE.exec(name);
+    if (!match) continue;
+    const id = match[1].toLowerCase();
+    if (kept.has(id)) continue;
+    if (old.has(id)) prune.push(name);
+    else orphans.push(name);
+  }
+  return { keepIds, prune, orphans };
+}
+
+/**
+ * planTaskFilePrune over `<planDir>/ARCHIVE.md` and `<planDir>/archive/`, shared by
+ * scripts/prune-archive.mjs and updatespec-nudge clause (E) so the detector and the mutator cannot
+ * disagree. Best-effort like findRetirableIterationsIn: a missing or unreadable ARCHIVE.md or
+ * archive/ yields an empty result, never a throw.
+ * @param {string} planDir path to `.claude/plan`
+ * @param {number} keep see planTaskFilePrune
+ * @returns {TaskFilePrune}
+ */
+export function findPrunableTaskFilesIn(planDir, keep) {
+  /** @type {TaskFilePrune} */
+  const empty = { keepIds: [], prune: [], orphans: [] };
+  const archiveFile = join(planDir, "ARCHIVE.md");
+  const archiveDir = join(planDir, "archive");
+  if (!existsSync(archiveFile) || !existsSync(archiveDir)) return empty;
+  try {
+    const lines = readFileSync(archiveFile, "utf8").split(/\r?\n/);
+    return planTaskFilePrune(lines, readdirSync(archiveDir), keep);
+  } catch {
+    return empty;
+  }
 }
 
 /**

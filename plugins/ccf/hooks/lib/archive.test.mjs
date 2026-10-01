@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, readFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,8 @@ import {
   retirePlan,
   insertIntoArchive,
   findRetirableIterationsIn,
+  planTaskFilePrune,
+  findPrunableTaskFilesIn,
 } from "./archive.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -22,11 +24,15 @@ const TEMPLATE_PLAN_PATH = join(HERE, "..", "..", "templates", "root", ".claude"
 // REAL-template tests below derive from this instead of each re-reading the file.
 const TEMPLATE_RAW = readFileSync(TEMPLATE_PLAN_PATH, "utf8");
 
-// The three guidance blocks that must always live in the template's preamble (task 050 FAIL A).
+// The guidance blocks that must always live in the template's preamble (task 050 FAIL A).
 const GUIDANCE_PATTERNS = [
   [/Write the status as a \*\*bare word\*\*/, "the bare-word guidance"],
   [/Status: `todo` \/ `in-progress` \/ `in-review` \/ `done` \/ `blocked`/, "the status legend line"],
   [/\*\*Keep this file to the CURRENT iteration\.\*\*/, "the archive-vs-delete guidance"],
+  // Task 072: the retention rule replaced "archive, never delete", so the preamble must say what is kept
+  // and how a pruned task file comes back.
+  [/task files of the newest 10 iterations/, "the retention rule"],
+  [/git log --diff-filter=D --name-only -- \.claude\/plan\/archive\//, "the recovery command"],
 ];
 
 /**
@@ -298,6 +304,129 @@ test("findRetirableIterationsIn: a directory in place of the file yields [] inst
   const dir = mkdtempSync(join(tmpdir(), "ccf-archive-test-"));
   try {
     assert.deepEqual(findRetirableIterationsIn(dir), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// =================================================================================================
+// planTaskFilePrune / findPrunableTaskFilesIn (task 070). Contract matrix:
+//   EP  file name: kept-iteration id | old-iteration id | orphan | non-task file | suffixed id (034a)
+//   BVA iteration count {0, 9, 10, 11} with keep 10; keep {1, 10}; an iteration with zero task rows;
+//       an empty archive/ dir. (keep 0 is rejected by the script, see prune-archive-script.test.mjs.)
+// =================================================================================================
+
+/**
+ * An ARCHIVE.md body with `n` iterations, newest first. Iteration k (0-based) owns task id
+ * 100 + n - k, so the newest iteration carries the highest id, like the real archive.
+ * @param {number} n
+ * @returns {string[]}
+ */
+function archiveWith(n) {
+  const out = ["# Archive", "", "> preamble"];
+  for (let k = 0; k < n; k++) {
+    const id = String(100 + n - k);
+    out.push("", `## Origin: it-${id}`, "", "| # | Slice | Status |", "|---|---|---|", `| ${id} | slice ${id} | done |`);
+  }
+  return out;
+}
+
+/** @param {number[]} ids @returns {string[]} */
+const filesFor = (ids) => ids.map((id) => `task-${id}-x.md`);
+
+test("planTaskFilePrune: BVA iteration count 0 → every task file is an orphan, nothing pruned", () => {
+  assert.deepEqual(planTaskFilePrune(archiveWith(0), ["task-001-a.md"], 10), {
+    keepIds: [],
+    prune: [],
+    orphans: ["task-001-a.md"],
+  });
+});
+
+test("planTaskFilePrune: BVA 9 and 10 iterations with keep 10 → nothing pruned", () => {
+  for (const n of [9, 10]) {
+    const ids = Array.from({ length: n }, (_, k) => 101 + k);
+    const r = planTaskFilePrune(archiveWith(n), filesFor(ids), 10);
+    assert.deepEqual(r.prune, [], `n=${n}`);
+    assert.deepEqual(r.orphans, [], `n=${n}`);
+    assert.equal(r.keepIds.length, n);
+  }
+});
+
+test("planTaskFilePrune: BVA 11 iterations with keep 10 → exactly the oldest iteration's file is pruned", () => {
+  const ids = Array.from({ length: 11 }, (_, k) => 101 + k);
+  const r = planTaskFilePrune(archiveWith(11), filesFor(ids), 10);
+  assert.deepEqual(r.prune, ["task-101-x.md"]);
+  assert.deepEqual(r.orphans, []);
+  assert.ok(!r.keepIds.includes("101"));
+});
+
+test("planTaskFilePrune: BVA keep 1 → only the newest iteration is kept", () => {
+  const r = planTaskFilePrune(archiveWith(3), filesFor([101, 102, 103]), 1);
+  assert.deepEqual(r.keepIds, ["103"]);
+  assert.deepEqual(r.prune, ["task-101-x.md", "task-102-x.md"]);
+});
+
+test("planTaskFilePrune: EP file names — kept, old, orphan, non-task, suffixed id", () => {
+  const lines = [
+    "## Origin: new", "| # | Slice | Status |", "|---|---|---|", "| 034 | a | done |", "| 034a | live verify | done |",
+    "## Origin: old", "| # | Slice | Status |", "|---|---|---|", "| 020 | b | done |", "| 020a | c | done |",
+  ];
+  const files = ["task-034-a.md", "task-034a-live.md", "task-020-b.md", "task-020a-c.md", "task-009-orphan.md", "README.md", "notes.txt", "task-abc-x.md"];
+  const r = planTaskFilePrune(lines, files, 1);
+  assert.deepEqual(r.keepIds, ["034", "034a"]);
+  assert.deepEqual(r.prune, ["task-020-b.md", "task-020a-c.md"]);
+  assert.deepEqual(r.orphans, ["task-009-orphan.md"]);
+});
+
+test("planTaskFilePrune: an id in both a kept and an older iteration is kept (fail-safe), never pruned", () => {
+  const lines = [
+    "## Origin: new", "| # | Slice | Status |", "|---|---|---|", "| 050 | redo | done |",
+    "## Origin: old", "| # | Slice | Status |", "|---|---|---|", "| 050 | first | done |", "| 049 | x | done |",
+  ];
+  const r = planTaskFilePrune(lines, ["task-050-a.md", "task-049-b.md"], 1);
+  assert.deepEqual(r.prune, ["task-049-b.md"]);
+  assert.ok(r.keepIds.includes("050"));
+});
+
+test("planTaskFilePrune: an iteration with zero task rows still counts toward keep (positional)", () => {
+  const lines = [
+    "## Origin: new", "| # | Slice | Status |", "|---|---|---|", "| 012 | a | done |",
+    "## Origin: cleanup, no table",
+    "## Origin: old", "| # | Slice | Status |", "|---|---|---|", "| 010 | b | done |",
+  ];
+  assert.deepEqual(planTaskFilePrune(lines, ["task-012-a.md", "task-010-b.md"], 2).prune, ["task-010-b.md"]);
+});
+
+test("planTaskFilePrune: an empty file list → nothing pruned, no orphans", () => {
+  const r = planTaskFilePrune(archiveWith(12), [], 10);
+  assert.deepEqual([r.prune, r.orphans], [[], []]);
+  assert.equal(r.keepIds.length, 10);
+});
+
+test("findPrunableTaskFilesIn: missing ARCHIVE.md, missing archive/ or empty archive/ → empty result, never throws", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ccf-prune-lib-"));
+  try {
+    const empty = { keepIds: [], prune: [], orphans: [] };
+    assert.deepEqual(findPrunableTaskFilesIn(join(dir, "nope"), 10), empty);
+    assert.deepEqual(findPrunableTaskFilesIn(dir, 10), empty);
+    writeFileSync(join(dir, "ARCHIVE.md"), archiveWith(11).join("\n"));
+    assert.deepEqual(findPrunableTaskFilesIn(dir, 10).prune, [], "no archive/ dir");
+    mkdirSync(join(dir, "archive"));
+    assert.deepEqual(findPrunableTaskFilesIn(dir, 10).prune, [], "empty archive/ dir");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findPrunableTaskFilesIn: reads ARCHIVE.md + archive/ and returns the planTaskFilePrune decision", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ccf-prune-lib-"));
+  try {
+    writeFileSync(join(dir, "ARCHIVE.md"), archiveWith(11).join("\n"));
+    mkdirSync(join(dir, "archive"));
+    for (const f of ["task-101-x.md", "task-111-x.md", "task-001-orphan.md"]) writeFileSync(join(dir, "archive", f), "x");
+    const r = findPrunableTaskFilesIn(dir, 10);
+    assert.deepEqual(r.prune, ["task-101-x.md"]);
+    assert.deepEqual(r.orphans, ["task-001-orphan.md"]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
