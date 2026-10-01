@@ -18,10 +18,9 @@
 //
 // Orphans (a task file whose id no archived iteration lists) are always kept and only reported.
 // A file git refuses to remove (untracked, locally modified) is skipped and reported, never forced.
-// Exit codes: 0 = success (including "nothing to do"), 1 = a real failure (bad --keep value).
 
 import { existsSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { findPrunableTaskFilesIn } from "../hooks/lib/archive.mjs";
 
@@ -30,7 +29,7 @@ const DEFAULT_KEEP = 10;
 const argv = process.argv.slice(2);
 const apply = argv.includes("--apply");
 const useGit = !argv.includes("--no-git");
-const projectDir = readFlagValue(argv, "--dir") ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = resolve(readFlagValue(argv, "--dir") ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
 const keep = parseKeep(argv);
 if (keep === null) {
   console.error("CCF prune-archive: --keep needs a whole number of iterations, 1 or more (e.g. --keep 10).");
@@ -76,7 +75,7 @@ for (const name of prune) {
 
 console.log(`\nDone — ${removed} of ${prune.length} file(s) removed.`);
 if (useGit) console.log("Deletions are staged in git; nothing was committed.");
-process.exit(0);
+process.exit(removed === prune.length ? 0 : 1);
 
 // --- helpers -------------------------------------------------------------------------------------
 

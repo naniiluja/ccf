@@ -23,7 +23,7 @@
 // in between leaves the history duplicated (recoverable) rather than deleted (not).
 
 import { existsSync, readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { parseIterations, isRetirable, retirePlan, insertIntoArchive } from "../hooks/lib/archive.mjs";
 import { isClosedStatus } from "../hooks/lib/plan.mjs";
@@ -31,7 +31,7 @@ import { isClosedStatus } from "../hooks/lib/plan.mjs";
 const argv = process.argv.slice(2);
 const apply = argv.includes("--apply");
 const useGit = !argv.includes("--no-git");
-const projectDir = readFlagValue(argv, "--dir") ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+const projectDir = resolve(readFlagValue(argv, "--dir") ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
 
 const planDir = join(projectDir, ".claude", "plan");
 const planFile = join(planDir, "PLAN.md");

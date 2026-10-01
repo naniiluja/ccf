@@ -6,10 +6,10 @@ description: JS/Node and markdown conventions for the CCF plugin project.
 
 ## JavaScript / Node (`*.mjs`)
 - **Pure ESM**: `import ... from "node:..."`. Always prefix `node:` for built-in modules.
-- **JSDoc required** for every exported function and every function with parameters: `@param`/`@returns` with types — because `tsconfig.json` enables `checkJs` + `strict`, wrong types fail `tsc` (see how to run `tsc` with the `@types/node` prerequisite in `testing.md`).
+- **No comments, docstrings or JSDoc in new code** (user rule, 2026-10-01): names and small functions carry the meaning. Existing JSDoc stays; do not add or extend it. `checkJs` + `strict` make an untyped parameter in a new non-test `.mjs` fail `tsc` (implicit any, TS7006): when that happens, stop and ask the user instead of adding JSDoc. Test files are excluded from `tsc`.
 - Small pure functions, one responsibility. Shared helpers (e.g. hook I/O) live in `hooks/lib/` and are imported — DRY, don't copy-paste the stdin/stdout contract.
 - Use meaningful names (`findActiveTask`, `specsOlderThanCode`); no cryptic abbreviations.
-- Comments explain **why** (e.g. "avoid hanging when there is no stdin"), not what the code already says.
+- When editing existing code, add no comment; if the change makes an existing comment false, delete it rather than rewrite it.
 - Coerce untrusted input: `String(input.x ?? "")`, `Number(...)` — don't trust stdin data.
 
 ## Markdown (command / agent / rule / template)

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
+import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "prune-archive.mjs");
@@ -63,9 +63,17 @@ function makeRepo({ git: useGit = true, archiveDir = true } = {}) {
 
 /** @param {string} dir @param {string[]} [extra] */
 function run(dir, extra = []) {
-  const r = spawnSync(process.execPath, [SCRIPT, "--dir", dir, ...extra], { env: GIT_ENV, encoding: "utf8", shell: false });
+  return spawnScript([SCRIPT, "--dir", dir, ...extra]);
+}
+
+function spawnScript(args, { cwd, env = GIT_ENV } = {}) {
+  const r = spawnSync(process.execPath, args, { cwd, env, encoding: "utf8", shell: false });
   return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
+
+const STAGED_101_102 = ["D\t.claude/plan/archive/task-101-a.md", "D\t.claude/plan/archive/task-102-b.md"];
+
+const stagedSorted = (dir) => git(dir, ["diff", "--cached", "--name-status"]).trim().split("\n").filter(Boolean).sort();
 
 /** @param {string} dir @param {string} name */
 const archived = (dir, name) => join(dir, ".claude", "plan", "archive", name);
@@ -105,7 +113,7 @@ test("prune-archive --apply (git): an untracked or modified file is skipped and 
   appendFileSync(archived(dir, "task-101-a.md"), "local edit\n");
   writeFileSync(archived(dir, "task-102-new.md"), "untracked\n");
   const { status, stdout, stderr } = run(dir, ["--keep", "1", "--apply"]);
-  assert.equal(status, 0);
+  assert.equal(status, 1, "a partial prune must not look like a complete one");
   const out = stdout + stderr;
   assert.match(out, /skipped.*task-101-a\.md/i);
   assert.match(out, /skipped.*task-102-new\.md/i);
@@ -146,4 +154,54 @@ test("prune-archive: a missing archive/ dir exits 0 with 'nothing to do'", () =>
   const { status, stdout } = run(dir, ["--keep", "1", "--apply"]);
   assert.equal(status, 0);
   assert.match(stdout, /nothing to do/i);
+});
+
+test("prune-archive --apply: a RELATIVE --dir stages the same deletions as an absolute one", () => {
+  const dir = makeRepo();
+  const { status, stdout, stderr } = spawnScript([SCRIPT, "--dir", basename(dir), "--keep", "1", "--apply"], { cwd: dirname(dir) });
+  assert.equal(status, 0, stdout + stderr);
+  assert.deepEqual(stagedSorted(dir), STAGED_101_102);
+});
+
+test("prune-archive --apply: a relative CLAUDE_PROJECT_DIR is resolved too", () => {
+  const dir = makeRepo();
+  const env = { ...GIT_ENV, CLAUDE_PROJECT_DIR: basename(dir) };
+  const { status, stdout, stderr } = spawnScript([SCRIPT, "--keep", "1", "--apply"], { cwd: dirname(dir), env });
+  assert.equal(status, 0, stdout + stderr);
+  assert.deepEqual(stagedSorted(dir), STAGED_101_102);
+});
+
+test("prune-archive --apply: no --dir and no env falls back to cwd", () => {
+  const dir = makeRepo();
+  const env = { ...GIT_ENV };
+  delete env.CLAUDE_PROJECT_DIR;
+  const { status, stdout, stderr } = spawnScript([SCRIPT, "--keep", "1", "--apply"], { cwd: dir, env });
+  assert.equal(status, 0, stdout + stderr);
+  assert.deepEqual(stagedSorted(dir), STAGED_101_102);
+});
+
+test("prune-archive --apply: every file refused (removed 0, skipped 2) exits 1", () => {
+  const dir = makeRepo();
+  appendFileSync(archived(dir, "task-101-a.md"), "local edit\n");
+  appendFileSync(archived(dir, "task-102-b.md"), "local edit\n");
+  const { status } = run(dir, ["--keep", "1", "--apply"]);
+  assert.equal(status, 1);
+  assert.deepEqual(stagedSorted(dir), []);
+});
+
+test("prune-archive --apply --no-git: an rmSync failure exits 1 and the other file is still removed", () => {
+  const dir = makeRepo({ git: false });
+  rmSync(archived(dir, "task-101-a.md"));
+  mkdirSync(archived(dir, "task-101-a.md"));
+  const { status, stdout, stderr } = run(dir, ["--keep", "1", "--apply", "--no-git"]);
+  assert.equal(status, 1);
+  assert.match(stdout + stderr, /skipped.*task-101-a\.md/i);
+  assert.ok(!existsSync(archived(dir, "task-102-b.md")));
+});
+
+test("prune-archive preview: files git would refuse do not fail the preview (exit 0)", () => {
+  const dir = makeRepo();
+  appendFileSync(archived(dir, "task-101-a.md"), "local edit\n");
+  const { status } = run(dir, ["--keep", "1"]);
+  assert.equal(status, 0);
 });
