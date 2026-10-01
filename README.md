@@ -2,133 +2,50 @@
 
 **English** · [Tiếng Việt](./README.vi.md) · [简体中文](./README.zh-CN.md)
 
-A workflow plugin for [Claude Code](https://code.claude.com) that enforces a **context-first, spec-driven, wave-parallel** way of working. CCF turns the loose "vibe coding" loop into a disciplined pipeline where the spec is always fresh, every decision is grounded in real docs, and work happens one verifiable slice at a time.
+A plugin for [Claude Code](https://code.claude.com) that keeps your AI coding assistant disciplined: plan first, keep the project spec fresh, check work against the spec, and run independent tasks in parallel.
 
-- **Context-first** — the spec lives in `CLAUDE.md` + `.claude/`, kept continuously fresh so every session starts already knowing the project.
-- **Grounding** — every design decision references best practices from **Context7** and **Microsoft Learn** (two MCP servers bundled with the plugin), not from memory.
-- **Parallel by waves** — tasks that code proves independent (no declared dependency, no shared file or hotspot) run at the same time, each in its own isolated git worktree; everything else waits for the wave before it.
-- **Adapts to your codebase** — bootstrap a fresh project as a monorepo (git init at the root; fullstack splits into `be/` + `fe/` with nested specs) *or* onboard an existing one, where `/ccf:init` analyzes the real structure (5 read-only agents) and writes a spec that mirrors it — no layout forced on you.
-- **Codes directly, fast** — no coding subagent to wait on. Implementation happens right in the main session, with the plan and codebase already loaded; CCF's subagents exist only for discovery, review and best-practice grounding.
+## Why use it
 
-## Why CCF — the problems it solves
+Plain Claude Code is a sharp assistant with a short memory. Over a long session it forgets your project rules, lets planning slide into editing files, and never reminds you to update the docs. CCF adds three habits that stick:
 
-| Pain in plain Claude Code | What CCF does about it |
-|---|---|
-| Context "rots" over a long session; the model drifts from the rules | A **`SessionStart` hook** re-injects the context-first reminder every start/clear/compact, and re-loads your in-progress task after a compact. |
-| The spec silently falls behind the code | Two **freshness hooks** compare the spec's vs the code's last **git commit time** and *nudge* `/ccf:updatespec` — at session start and when you stop. |
-| Planning slips straight into editing files | A **`UserPromptSubmit` hook** hard-blocks `/ccf:plan` unless you're in plan mode — planning stays read-only and reviewable. |
-| Design decisions made from stale memory | Bundled **Context7 + Microsoft Learn** MCP servers; CCF prompts cite official docs before writing. |
-| Mistakes repeat across sessions | `/ccf:updatespec` writes **two tiers** — project rules to the spec, anti-mistake feedback to system **memory** (loaded at higher weight). |
-| Big-bang features that are hard to review | Plans are **ordered vertical slices**, each a thin tracer-bullet (DB→service→UI) with its own test gate. |
-| Tests written loosely (or skipped) under time pressure | An **opt-in test discipline** — when on, a contract-level matrix (Equivalence Partitioning + Boundary Value Analysis + decision table) is designed and the tests are written failing-first directly during implement, and a generated **Stop-hook gate blocks stopping** until the tests actually pass. Ship-fast flows simply don't opt in. |
+- **Plan before code.** `/ccf:plan` only runs in plan mode, so planning stays read-only and reviewable. No accidental edits.
+- **Spec stays fresh.** Hooks (small scripts that fire on session events) nudge you to update the spec when the code changes. Lessons you learn get saved into system memory, so mistakes stop repeating.
+- **Check before done.** `/ccf:check` reviews each finished task against the spec with two independent reviewers. Nothing counts as done until it passes.
 
 ## Install
 
-### Via marketplace (recommended)
+In Claude Code:
+
 ```
 /plugin marketplace add naniiluja/ccf
 /plugin install ccf@ccf
 ```
 
-### Via npx
-```
-npx @naniiluja/ccf
-```
-(runs `claude plugin marketplace add` + `install` for you)
+Or in one step: `npx @naniiluja/ccf`
 
-### Local (for development)
-```
-claude plugin marketplace add D:/projects/ccf
-claude plugin install ccf@ccf
-```
+Then open Claude Code in your project folder and run `/ccf:init`.
 
-After installing, open Claude Code in your project folder and run `/ccf:init`.
+## The 5 commands
 
-## The 5 slash commands (`/ccf:plan` is packaged as a skill)
+| Command | What it does, in plain words |
+|---|---|
+| `/ccf:init` | Set up CCF in your project. It interviews you, then writes the project spec (`CLAUDE.md`). For an existing project, it reads your real codebase first and mirrors its structure. |
+| `/ccf:plan` | Break one feature into small ordered slices (database, then service, then UI), each with its own test. Requires plan mode (Shift+Tab). |
+| `/ccf:cook` | Run the slices in parallel waves. Tasks with no link between them run at the same time, each in its own isolated copy of the repo (a git worktree); tests run after every merge. |
+| `/ccf:check` | Review finished work against the spec. The single mandatory step before a task is marked done. |
+| `/ccf:updatespec` | Write this session's lessons back into the spec and the system memory. |
 
-| Command | What it does |
-|---------|--------------|
-| `/ccf:init` | Bootstrap a new project (interview → generate CLAUDE.md + .claude + plan) or onboard an existing one (5 read-only analyzer agents map the real structure). |
-| `/ccf:plan` | Create a plan of vertical slices for one feature, grounded in best practices. **Requires plan mode** (Shift+Tab) — enforced by a hook. After planning, implement a single task directly in the session, or the whole plan in waves with `/ccf:cook`. |
-| `/ccf:check` | Verify the implementation against the spec (conformance, conventions, SOLID/OOP, BE↔FE cross-check). Read-only — this is the single mandatory verify step before a task is marked `done`. |
-| `/ccf:updatespec` | Update the spec **and system memory** with this session's lessons (incl. new tools with "when to use"). |
-| `/ccf:cook` | Run the whole todo/in-progress backlog in parallel waves: one agent per task in its own worktree, then the preflight gate and a merge that runs the tests after every merge (stop on any red), then a single `/ccf:check` and `/ccf:updatespec`. Commits on your branch after one confirmation. Mutually exclusive with `auto-verify.mjs --auto-verify`. |
+Typical flow: `/ccf:init` → `/ccf:plan` → `/ccf:cook` → `/ccf:check` → `/ccf:updatespec`.
 
-Typical flow: `/ccf:init` → (plan mode) `/ccf:plan` → implement (one task directly, or the whole backlog in waves via `/ccf:cook`) → `/ccf:check` → `/ccf:updatespec`. When the test discipline is ON, the contract-level matrix tests are written during implement and `/ccf:check` confirms they pass. `/code-review` remains a good optional extra, never a required step.
+## Under the hood
 
-## The 5 agents — all read-only
+You don't need this section to use CCF. It's here for the curious.
 
-There is no coding subagent: every task is implemented **directly in the main session**. Spawning a coding subagent means waiting on a separate context to boot, read the task, and hand a result back, which is measurably slower than writing the code yourself with the plan already loaded — so CCF's subagents exist only for discovery, review and best-practice grounding.
+- **Hooks** are the deterministic layer. Commands and agents are prompts, and a model can ignore a prompt. Hooks are scripts that run on session events no matter what: they block `/ccf:plan` outside plan mode, nudge a spec update when code changed, and re-load your in-progress task after a compact.
+- **Agents** are 5 read-only helpers: one reads slices of your codebase, one fetches best practices from official docs, one drafts spec text, two review your work. None of them write code. You write the code, directly in the session.
+- **Docs lookup built in.** The plugin ships Context7 and Microsoft Learn (MCP servers), so design advice cites real documentation instead of model memory.
 
-Specialized subagents that **inherit the host project's tools, MCP servers and skills** — so they can use whatever MCP your project provides (Supabase, Oracle, chrome-devtools, …) and call its skills, with no per-agent allowlist to maintain. Every CCF agent is a **leaf** — it carries `disallowedTools: Write, Edit, NotebookEdit, Agent, Task`, so it cannot write files or spawn nested subagents (nested spawning is allowed by default, but the limit is version-dependent: 5 in v2.1.172 through v2.1.216, 1 — effectively disabled — in v2.1.217 and v2.1.218, and back to 3 from v2.1.219 onward, which is the current default; configurable via the `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` env var — set to `1` to disable NESTED spawning only, i.e. a spawned subagent can no longer spawn a subagent of its own; the harness still spawns a level-1 subagent normally. CCF blocks nested spawning deterministically regardless of that default). Parallelism is **read-only research only**, and since none of these agents write files, there is no separate writer-parallelism concern to track.
-
-| Agent | Role | Mode |
-|---|---|---|
-| `ccf-codebase-analyzer` | Analyzes one slice of an existing codebase and reports what exists, proposing no solutions. Fanned out 5-in-parallel by `/ccf:init` (onboarding slices, whole project) and `/ccf:plan` (planning slices, scoped to the requested change). CCF commands discover code through this, never the built-in `Explore`. | read-only |
-| `ccf-best-practice-researcher` | Fetches cited best practices from Context7 / MS Learn in an isolated context. | read-only |
-| `ccf-spec-writer` | Drafts CLAUDE.md / rules content from a decisions summary, for `/ccf:init` and `/ccf:updatespec`; the main thread writes the files. | drafts |
-| `ccf-spec-checker` | Fresh-context reviewer — checks an implementation against the spec (conformance, conventions, SOLID/OOP, drift). | read-only |
-| `ccf-scope-checker` | Second reviewer `/ccf:check` runs in parallel (Sonnet): does the diff stay inside the task's files and criteria, and cover all of them. Findings are merged by `file:line`. | read-only |
-
-## Hooks — the deterministic layer
-
-Commands and agents are *prompts* (a model can choose to ignore a prompt). **Hooks are the only deterministic part of CCF** — `.mjs` scripts run by `node` at lifecycle events, so they fire every time regardless of what the model decides. They are **no-build, no-dependency, Windows-clean** (Node ≥ 18, built-ins only).
-
-| Hook | Event | What it guarantees |
-|---|---|---|
-| **plan-mode-guard** | `UserPromptSubmit` | If a prompt contains `/ccf:plan` but the session is **not in plan mode**, it **blocks** (exit 2) and tells you to enter plan mode. Every other prompt passes through untouched. This is the *enforced* half of "planning is read-only and reviewed before execution". |
-| **plan-skill-inject** | `UserPromptSubmit` | Bare `/plan` is Claude Code's built-in, so a plugin skill cannot take that name. Instead, when a CCF-initialized project is **in plan mode**, this hook nudges the model (via `additionalContext`) to run the `ccf:plan` skill, at most once per session. A pure question about the code is answered directly. Never blocks; any error exits silently. Remove its entry from `hooks.json` to turn it off. |
-| **session-start** | `SessionStart` (`startup\|clear\|compact`) | Injects the context-first reminder so the model wakes up already in CCF mode. If **CCF-managed**, it adds a *freshness signal* when the code looks newer than the spec, and after a `compact`/`clear` it **re-loads the in-progress task** from `.claude/plan/PLAN.md` so you resume exactly where you left off. |
-| **updatespec-nudge** | `Stop` | Purely **advisory**, never blocks. Four independent clauses: **(A)** if you edited code this session but ran no tests, it reminds you to *verify your work* (run the tests / type-check); **(B)** if the code changed but the spec didn't, it nudges `/ccf:check` then `/ccf:updatespec`; **(C)** if you ran `git commit` this session but `PLAN.md` still has tasks not `done`, it nudges you to mark each `done` (only after its `/ccf:check` passes) or fix its status; **(D)** if an iteration in `PLAN.md` has every task row closed, it prints the exact `scripts/archive-plan.mjs` command to retire it. Guards against re-trigger loops via `stop_hook_active`. Default path is single-channel (`systemMessage` only). **Opt-in** (default off): add `--dual-channel-stop` to the `updatespec-nudge.mjs` command in `hooks.json` to also emit the same nudge as `additionalContext` (model-facing) alongside `systemMessage` (user-facing) — **not yet observed** on a real harness `Stop` payload, so this stays off in the shipped `hooks.json`. |
-| **completion-evidence** | `Stop` | **Opt-in** (default off), **advisory**, never blocks. Enable by adding `--completion-evidence` to the `completion-evidence.mjs` command in `hooks.json` **and** setting `TYPESAFE_API_KEY` in your environment. When a task is **in-review** and this session changed code, it sends the task's acceptance criteria, the working diff (`git diff HEAD` plus new files) and the last test output to Jev (TypeSafe System One, `api.typesafe.ai`) and prints the criteria Jev does not find met. **The diff leaves your machine.** Files named like secrets (`.env*`, `*.pem`, `*.key`, `id_rsa*`, `*credential*`, `*secret*`) are stripped and named in the message; a diff over 80KB (the API rejects requests above about 33K input tokens) is not sent, never truncated, and you are told it was not checked. Asked once per task + diff; any failure (no key, 401, 429, 529, timeout at ~6.5s) exits silently. |
-| **auto-verify** | `Stop` | **Opt-in** (default off) and the only CCF Stop hook that can **block**. Enable by adding `--auto-verify` to the `auto-verify.mjs` command in `hooks.json`. When a task is **in-review**, this session **changed code**, and no `ccf-spec-checker` review has run yet, it returns `decision: "block"` (the "ralph loop") with a reason that drives a single verify step — `/ccf:check`, then `/ccf:updatespec` once it comes back clean. Guards against loops via `stop_hook_active`; best-effort, any error exits silently. |
-| **explore-guide-inject** | `SubagentStart` (`Explore`) | CCF doesn't own the built-in `Explore` subagent's prompt, so at spawn this hook **injects** (via `additionalContext`) a short, **language-agnostic, LSP-conditional** exploration directive: prefer semantic navigation (the `LSP` tool — `workspaceSymbol`/`goToDefinition`/`findReferences`/`documentSymbol`, falling back when no server exists) plus ripgrep-backed `Grep` and `Glob`, and read whole files only after locating the region. Best-effort, never blocks the spawn. This is now the ONLY `SubagentStart` hook — CCF has no writer subagent left to inject coding rules into. |
-
-**Freshness heuristic (shared, single source of truth in `hooks/lib/freshness.mjs`):** both freshness-aware hooks compare the last **git commit time** (`git log -1 --format=%ct`) of *code* files against that of *spec* files (`.md` under `.claude/rules` + `CLAUDE.md`) — committer time, so it reflects real content change and is **immune to `mtime` churn** from `checkout`/`pull`/`clone`. When git can't answer (not a git repo, or a path with no commits yet — e.g. a freshly `/ccf:init`-ed project) it **falls back to a depth-limited `mtime` walk** that works for *any* layout (`src/`, `server/`, `packages/x/src`, plugin-style `plugins/x/hooks`, or code at the root). It is a lightweight nudge, never a hard conclusion — a content-level "is the spec still accurate?" judgment is left to `/ccf:updatespec`.
-
-**Why hooks are auto-loaded, not declared:** like commands/agents/MCP, hooks load automatically from the standard `hooks/hooks.json` location — current Claude Code (v2.1.x) auto-discovers it. Do **not** add a `"hooks"` field to `plugin.json` pointing back at the standard path: that loads the file twice and fails with `Duplicate hooks file detected`. The `manifest.hooks` field is only for *additional* hook files at a non-standard path.
-
-## Bundled MCP servers
-
-The plugin bundles 2 MCP servers (plugin scope, auto started/stopped by Claude Code):
-
-- **microsoft-learn** — `https://learn.microsoft.com/api/mcp` (remote HTTP, no auth required).
-- **context7** — `https://mcp.context7.com/mcp` (remote HTTP, works out of the box without a key).
-
-> **Context7 rate limit:** the plugin runs Context7 without an API key (free rate limit). If you hit a rate limit, get a free key at [context7.com/dashboard](https://context7.com/dashboard), set the `CONTEXT7_API_KEY` env var, and restart Claude Code.
-
-## Spec vs Memory (two context tiers)
-
-`/ccf:updatespec` records lessons in **two places** with different purposes:
-
-- **Spec** (`CLAUDE.md` + `.claude/rules/`) — loaded as a *user message*, lower weight. Holds **project rules**: conventions, architecture, tech-stack, tooling.
-- **Memory** (`~/.claude/projects/<path>/memory/`) — loaded into the *system prompt*, **not down-weighted**, so Claude follows it more strongly. Holds **anti-mistake feedback** + **user preferences** across sessions → helps Claude repeat fewer mistakes.
-- **`MEMORY.md` is a pure index** — only its first **200 lines or 25KB** load each session, so keep it lean; the strongest tier is **`feedback`** (always with its `Why`).
-
-Principle: **no duplication**. A rule in CLAUDE.md that keeps getting forgotten → write a `feedback` memory that *reinforces* it (with the "why"), rather than copying its content.
-
-## Compact-aware mechanism
-
-After a `/compact` (manual or automatic), CCF's `session-start` hook (matcher `compact`) auto re-loads the in-progress task from `.claude/plan/PLAN.md`, restoring the right work context so you don't have to paste it back.
-
-## Plan = vertical slices, run in waves
-
-`/ccf:init` and `/ccf:plan` produce one plan in `.claude/plan/` (a `PLAN.md` index + `task-NNN-*.md` files). Each task is a **thin vertical slice** — a tracer-bullet crossing the layers it touches (DB + service + UI), ordered thinnest → richest, each as *spec → failing test → implement*. Every task names its `Depends on` predecessors, its `Files to touch` and the **test gate** it must pass. `/ccf:cook` turns those into waves in code: two tasks share a wave only when nothing links them, and missing data always means "wait".
-
-`PLAN.md` stays scoped to the **current** iteration. When every task in an iteration is `done`, it is retired into `ARCHIVE.md` (its task files into `.claude/plan/archive/`). This cuts both ways on purpose: a closed row left in `PLAN.md` is counted as live work by the session-start and Stop hooks, while *deleting* the history would lose a real record of what shipped and why. So the rule is archive, never delete.
-
-Retirement is **detected automatically, applied deliberately**. The Stop hook notices a fully-closed iteration and prints the exact command; `node "<plugin-root>/scripts/archive-plan.mjs"` previews it (writing nothing, and naming any row still holding an iteration open) and `--apply` performs it — rewriting both files and `git mv`-ing the task files, staged but never committed. The mutation is not automated on purpose: a hook fires with no human in the loop, and a wrong detection there would silently rewrite your plan and your history.
-
-## Architecture
-
-- **Commands** = 4 markdown prompts that drive Claude in-session (not scripts): init, check, updatespec, cook. `/ccf:plan` is the 5th slash command by name, packaged as a skill (see Skills).
-- **Agents** = 5 specialized subagents, ALL read-only (analyzer, researcher, spec-writer, spec-checker, scope-checker). No writer agent — implementing happens directly in the main session.
-- **Skills** = 2 skills. `plan` is the workflow behind `/ccf:plan` (you type it like a command, and the model can also load it by its `description`). `grill-me` is internal: the shared requirements-interview engine the commands invoke via the Skill tool, hidden from the `/` menu (`user-invocable: false`).
-- **Hooks** = 7 `.mjs` run directly with `node` — no build step, no dependency, Windows-clean; shared helpers (freshness, plan parsing, review-trace, git-trace, verify-trace, verify-chain, explore-guide, archive, plan-trigger, jev-client, completion-evidence, slice-check) live in `hooks/lib/`.
-- **Scripts** = 6 CLIs (`scripts/archive-plan.mjs`, `scripts/jev-slice-check.mjs`, `scripts/jev-verify-findings.mjs`, `scripts/plan-waves.mjs`, `scripts/worktree-preflight.mjs`, `scripts/integrate-wave.mjs`) — same no-build/no-dependency rules as a hook, but nothing invokes them automatically. This is where an action that **mutates your files** belongs, so its blast radius stays bounded by you choosing to run it; `jev-slice-check` mutates nothing but costs money and needs `TYPESAFE_API_KEY`, so it is also your call: it sends only task ids, titles, `Files to touch` and criteria to `api.typesafe.ai` and prints which open tasks depend on each other or look like fragments. `jev-verify-findings` reads a `/ccf:check` report on stdin and asks Jev, for each `FAIL:` finding, whether the diff really contains that defect; it sends the diff (minus sensitive files) and only annotates, never removes a finding. `worktree-preflight` is read-only and offline: before the branches of a parallel wave are merged, it checks in code that each branch's real changed files stay inside its task's `Files to touch`, that no two branches changed the same file, and that `git merge-tree` finds no conflict. `plan-waves` prints the wave split. `integrate-wave --apply` runs that preflight itself, merges each branch `--no-ff`, runs your tests after every merge (resetting to the last green merge on red), and removes the worktrees only when all stayed green. `/ccf:cook` runs these three for you.
-- **Templates** = `{{...}}`-placeholder files (`root/` always, `backend/` + `frontend/` when fullstack) that `/ccf:init` instantiates.
-
-See `plugins/ccf/` for details. Requires Node ≥ 18 for the hooks.
+Full internals reference: [plugins/ccf/README.md](./plugins/ccf/README.md). Requires Node ≥ 18 for the hooks.
 
 ## License
 
@@ -136,4 +53,4 @@ MIT
 
 ## Acknowledgements
 
-This project was first released in the [LINUX DO](https://linux.do/) community — thanks to the community members for their support and feedback.
+First released in the [LINUX DO](https://linux.do/) community. Thanks for the support and feedback.
