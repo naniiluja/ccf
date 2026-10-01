@@ -11,6 +11,14 @@ test("iterationSlug: the first `## Origin` heading, lowercased and dash-joined; 
   assert.equal(iterationSlug(undefined), "iter");
 });
 
+test("iterationSlug: dot runs collapse, so the slug is always a valid git branch component", () => {
+  const slug = iterationSlug("## Origin: v1...v2 migration");
+  assert.ok(!slug.includes(".."), slug);
+  assert.equal(slug, "v1-v2-migration");
+  const name = worktreeName(slug, "101");
+  assert.ok(name && !name.includes(".."), String(name));
+});
+
 test("worktreeName: ccf-<slug>-<id>, at most 64 chars, and preflight reads the id back from its branch", () => {
   assert.equal(worktreeName("parallel-cook", "067"), "ccf-parallel-cook-067");
   const long = worktreeName("a".repeat(80), "12345");

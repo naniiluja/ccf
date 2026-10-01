@@ -251,7 +251,14 @@ test("mergeSliceAnswers: a declared `Depends on` is a certain edge and is never 
   assert.ok(!qids.some((q) => /_0_1$|_0_3$/.test(q)));
   const r = mergeSliceAnswers(tasks, [], { askedJev: false });
   assert.deepEqual(r.edges.map((e) => [e.from, e.to, e.kind]), [["1", "2", "declared-dependency"], ["1", "4", "declared-dependency"]]);
-  assert.deepEqual(r.waves, [["1", "3"], ["2", "4"]]);
+  assert.deepEqual(r.waves, [["3", "4"], ["1"], ["2"]]);
+});
+
+test("mergeSliceAnswers: a task declared to depend on a later-listed task runs in a later wave", () => {
+  const tasks = [T("1", ["a.mjs"], { dependsOn: ["4"] }), T("2", ["b.mjs"]), T("3", ["c.mjs"]), T("4", ["d.mjs"])];
+  const r = mergeSliceAnswers(tasks, [], { askedJev: false });
+  assert.deepEqual(r.edges.map((e) => [e.from, e.to, e.kind]), [["1", "4", "declared-dependency"]]);
+  assert.deepEqual(r.waves, [["2", "3", "4"], ["1"]]);
 });
 
 test("mergeSliceAnswers: askedJev false → only code-decided edges; nothing is unanswered, disjoint tasks share a wave", () => {

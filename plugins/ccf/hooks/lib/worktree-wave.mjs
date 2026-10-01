@@ -10,6 +10,7 @@ export function iterationSlug(planText = "") {
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[^a-z0-9.]+/g, "-")
+    .replace(/\.{2,}/g, "-")
     .replace(/^[-.]+|[-.]+$/g, "")
     .slice(0, 24)
     .replace(/[-.]+$/, "");
@@ -21,7 +22,7 @@ export function worktreeName(slug = "", id = "") {
   if (!/^[A-Za-z0-9]+$/.test(taskId)) return null;
   const room = WORKTREE_NAME_MAX - "ccf-".length - 1 - taskId.length;
   if (room < 1) return null;
-  const cut = String(slug ?? "").slice(0, room).replace(/[^A-Za-z0-9._-]/g, "-").replace(/[-.]+$/, "") || FALLBACK_SLUG.slice(0, room);
+  const cut = String(slug ?? "").slice(0, room).replace(/[^A-Za-z0-9._-]/g, "-").replace(/\.{2,}/g, "-").replace(/[-.]+$/, "") || FALLBACK_SLUG.slice(0, room);
   const name = `ccf-${cut}-${taskId}`;
   return taskIdFromBranch(`worktree-${name}`) === taskId ? name : null;
 }

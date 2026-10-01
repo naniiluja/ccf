@@ -80,12 +80,12 @@ try {
     const m = git(dir, ["merge", "--no-ff", "--no-edit", "-m", `merge ${branch} (ccf wave)`, branch]);
     if (m.status !== 0) {
       git(dir, ["merge", "--abort"]);
-      done({ ok: false, applied: true, start, merged, failed: { branch, stage: "merge", output: tail(m.stdout + m.stderr) }, note: "Worktrees kept; later branches were not merged." });
+      done({ ok: false, applied: merged.length > 0, start, merged, failed: { branch, stage: "merge", output: tail(m.stdout + m.stderr) }, note: "Worktrees kept; later branches were not merged." });
     }
     const t = runTests(dir, testCommand);
     if (!t.passed) {
       git(dir, ["reset", "--hard", before]);
-      done({ ok: false, applied: true, start, merged, failed: { branch, stage: "test", output: t.output }, note: `HEAD reset to ${before}, the last green merge. Worktrees kept; later branches were not merged.` });
+      done({ ok: false, applied: merged.length > 0, start, merged, failed: { branch, stage: "test", output: t.output }, note: `HEAD reset to ${before}, the last green merge. Worktrees kept; later branches were not merged.` });
     }
     merged.push({ branch, mergeSha: git(dir, ["rev-parse", "HEAD"]).stdout.trim() });
   }
