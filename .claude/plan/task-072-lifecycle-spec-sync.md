@@ -41,4 +41,12 @@ Every spec, prompt and README describes the new lifecycle consistently (8 script
 5. `/ccf:check` → `/ccf:updatespec`.
 
 ## Results
-(fill in during implementation)
+- **Test first:** `archive.test.mjs` `GUIDANCE_PATTERNS` gained the retention sentence ("task files of the newest 10 iterations") and the recovery command; RED before the template edit (2 failing: the preamble latch and the single-iteration retirement), GREEN after (34/34).
+- **Edits:** `updatespec.md` step 6 ("Archive, never delete" → retention rule + `prune-archive.mjs` preview/`--apply` + recovery); `hooks.md` clause E (four → five clauses); `tooling.md` entries for both scripts; `architecture.md` 6 → 8 scripts, three commands now call scripts; `components.md` `AskUserQuestion` note (updatespec.md now asks in step 5b); `CLAUDE.md` 6 → 8 scripts + clause E/retention; READMEs; ARCHIVE.md, PLAN.md and `PLAN.md.tmpl` preambles.
+- **Root READMEs** (`README.md`, `.vi`, `.zh-CN`) carry no script table since the 36f122d rewrite, so each got one short "Scripts" bullet naming the count (8) and both new scripts.
+- **Drift, left on purpose:** `plugins/ccf/README.md` lists a `jev-backtest.mjs` row from unmerged PR #8 while no such file exists on this branch; the header count says 8 (the real files), so the table shows 9 rows until PR #8 merges and the count becomes 9.
+- **Prune (deviation by main-session instruction):** preview only in the worktree: 25 files to prune, 9 orphans (task-001 to task-009), `git status --porcelain` identical before and after. `--apply` was not run by the agent; the main session runs it after the user confirms.
+- **Budget (measured last):** `CLAUDE.md` 59 lines / 12,210 bytes (base 12,072; a first draft hit 12,415 and failed the < 12,288 latch, so the script list and clause E line were cut back). Paid total 104,931 (was 103,078), label updated in `prompt-standard.md`.
+- **Gate (agent run, worktree):** lib 352/352, repo 15 pass + 1 planned skip, template 8/8, `tsc` exit 0, `claude plugin validate plugins/ccf` passed. Merged by `integrate-wave.mjs` with the full suite + `tsc` green after the merge.
+- **Preflight lesson:** the first preflight refused the branch (`out-of-scope`) because the brief told the agent to edit this very task file, which is not in its own `Files to touch`. The agent reverted it on its branch and this section was written in the main checkout after the merge.
+- **Follow-ups noted:** `templates/root/CLAUDE.md.tmpl:32` still says "Archive it, never delete it" about the `## Current plan` section (still accurate, left alone); `CLAUDE.md`'s "Live iteration in `PLAN.md`: none" line is stale until `/ccf:updatespec`.
