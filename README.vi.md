@@ -2,133 +2,50 @@
 
 [English](./README.md) · **Tiếng Việt** · [简体中文](./README.zh-CN.md)
 
-Một plugin workflow cho [Claude Code](https://code.claude.com) áp đặt cách làm việc **context-first, spec-driven, song song theo wave**. CCF biến vòng lặp "vibe coding" lỏng lẻo thành một pipeline có kỷ luật: spec luôn tươi, mọi quyết định đều grounded trong tài liệu thật, và công việc diễn ra từng slice verify được một lúc.
+Một plugin cho [Claude Code](https://code.claude.com) giúp trợ lý AI viết code của bạn làm việc có kỷ luật: lập plan trước, giữ spec dự án luôn mới, kiểm tra thành phẩm đúng spec, và chạy song song các task độc lập.
 
-- **Context-first** — spec sống trong `CLAUDE.md` + `.claude/`, được cập nhật liên tục để mỗi session bắt đầu là đã hiểu dự án.
-- **Grounding** — mọi quyết định thiết kế tham chiếu best practice từ **Context7** và **Microsoft Learn** (2 MCP server đi kèm plugin), không dựa vào trí nhớ.
-- **Song song theo wave** — các task mà code chứng minh là độc lập (không khai báo phụ thuộc, không chung file hay hotspot) chạy cùng lúc, mỗi task trong một git worktree riêng; các task còn lại chờ wave trước.
-- **Thích ứng với codebase của bạn** — bootstrap dự án mới dạng monorepo (git init ở thư mục gốc; fullstack tách `be/` + `fe/` với spec lồng) *hoặc* onboard codebase có sẵn, lúc này `/ccf:init` phân tích cấu trúc thật (5 agent read-only) và sinh spec phản ánh đúng nó — không ép buộc layout nào.
-- **Code trực tiếp, nhanh** — không phải chờ subagent viết code. Việc implement diễn ra ngay trong main session, với plan và codebase đã sẵn có trong context; subagent của CCF chỉ còn dùng để khám phá, review và tra cứu best practice.
+## Vì sao nên dùng
 
-## Vì sao CCF — những vấn đề nó giải quyết
+Claude Code thuần là một trợ lý giỏi nhưng hay quên. Session càng dài, nó càng quên rule dự án, plan đang làm dở thì trượt sang sửa file, và chẳng bao giờ nhắc bạn cập nhật tài liệu. CCF thêm ba thói quen bám rất chắc:
 
-| Nỗi đau trong Claude Code thuần | CCF làm gì với nó |
-|---|---|
-| Context "rot" qua một session dài; model trôi khỏi rule | Một **hook `SessionStart`** re-inject lời nhắc context-first ở mỗi start/clear/compact, và re-load task in-progress sau compact. |
-| Spec âm thầm tụt lại sau code | Hai **hook freshness** so **thời điểm commit git** cuối của spec vs code và *nudge* `/ccf:updatespec` — lúc bắt đầu session và khi bạn dừng. |
-| Planning trượt thẳng sang sửa file | Một **hook `UserPromptSubmit`** chặn cứng `/ccf:plan` trừ khi bạn ở plan mode — planning luôn read-only và review được. |
-| Quyết định thiết kế dựa trên trí nhớ cũ | **Context7 + Microsoft Learn** MCP đi kèm; prompt CCF trích dẫn tài liệu chính thức trước khi viết. |
-| Sai lầm lặp lại qua các session | `/ccf:updatespec` ghi **hai tầng** — rule dự án vào spec, feedback chống lỗi vào **memory** hệ thống (nạp ở trọng số cao hơn). |
-| Feature big-bang khó review | Plan là **các vertical slice có thứ tự**, mỗi slice là một tracer-bullet mỏng (DB→service→UI) với test gate riêng. |
-| Test viết qua loa (hoặc bỏ) khi gấp deadline | Một **test discipline opt-in** — khi bật, một ma trận ở mức contract (Equivalence Partitioning + Boundary Value Analysis + decision table) được thiết kế và test được viết failing-first ngay trong lúc implement, và một **Stop-hook gate chặn việc dừng** cho tới khi test thực sự pass. Luồng ship-nhanh thì đơn giản là không opt-in. |
+- **Plan trước, code sau.** `/ccf:plan` chỉ chạy được ở plan mode, nên bước lập kế hoạch luôn ở chế độ chỉ đọc, xem lại được. Không còn chuyện sửa nhầm file.
+- **Spec luôn mới.** Hook (script nhỏ tự chạy theo sự kiện của session) nhắc bạn cập nhật spec mỗi khi code đổi. Bài học rút ra được lưu vào memory hệ thống, lỗi cũ không lặp lại.
+- **Check trước khi xong.** `/ccf:check` cho hai reviewer độc lập soi thành phẩm đúng spec. Task nào chưa qua check thì chưa được tính là xong.
 
 ## Cài đặt
 
-### Qua marketplace (khuyến nghị)
+Trong Claude Code:
+
 ```
 /plugin marketplace add naniiluja/ccf
 /plugin install ccf@ccf
 ```
 
-### Qua npx
-```
-npx @naniiluja/ccf
-```
-(chạy `claude plugin marketplace add` + `install` giúp bạn)
+Hoặc một lệnh duy nhất: `npx @naniiluja/ccf`
 
-### Local (để phát triển)
-```
-claude plugin marketplace add D:/projects/ccf
-claude plugin install ccf@ccf
-```
+Sau đó mở Claude Code trong thư mục dự án và chạy `/ccf:init`.
 
-Sau khi cài, mở Claude Code ở thư mục dự án và chạy `/ccf:init`.
+## 5 lệnh
 
-## 5 lệnh (`/ccf:plan` được đóng gói dạng skill)
+| Lệnh | Nói dễ hiểu là |
+|---|---|
+| `/ccf:init` | Dựng CCF cho dự án. Nó hỏi bạn vài câu rồi viết spec dự án (`CLAUDE.md`). Dự án có sẵn thì nó đọc code thật trước rồi viết spec theo đúng cấu trúc đó. |
+| `/ccf:plan` | Chẻ một feature thành các slice nhỏ có thứ tự (database, rồi service, rồi UI), mỗi slice có test riêng. Cần bật plan mode (Shift+Tab). |
+| `/ccf:cook` | Chạy các slice theo wave song song. Task nào không liên quan nhau thì chạy cùng lúc, mỗi task trong một bản copy riêng của repo (git worktree); merge xong là chạy test. |
+| `/ccf:check` | Review thành phẩm đúng spec. Bước bắt buộc duy nhất trước khi task được đánh dấu xong. |
+| `/ccf:updatespec` | Ghi bài học của session này vào spec và memory hệ thống. |
 
-| Lệnh | Tác dụng |
-|------|----------|
-| `/ccf:init` | Bootstrap dự án mới (phỏng vấn → sinh CLAUDE.md + .claude + plan) hoặc onboard dự án có sẵn (5 agent phân tích read-only map cấu trúc thật). |
-| `/ccf:plan` | Tạo plan gồm các vertical slice cho một feature, grounded trong best practice. **Yêu cầu plan mode** (Shift+Tab) — được hook bắt buộc. Sau plan, implement một task trực tiếp trong session, hoặc cả plan theo wave bằng `/ccf:cook`. |
-| `/ccf:check` | Verify implementation so với spec (conformance, convention, SOLID/OOP, cross-check BE↔FE). Read-only — đây là bước verify bắt buộc duy nhất trước khi một task được đánh dấu `done`. |
-| `/ccf:updatespec` | Cập nhật spec **và memory hệ thống** với bài học trong session (gồm công cụ mới kèm "dùng khi nào"). |
-| `/ccf:cook` | Chạy toàn bộ backlog todo/in-progress theo wave song song: mỗi task một agent trong worktree riêng, rồi qua preflight gate và bước merge chạy test sau mỗi lần merge (dừng ngay khi đỏ), rồi chạy một lượt `/ccf:check` và `/ccf:updatespec` duy nhất. Commit trên branch hiện tại sau một lần xác nhận. Loại trừ lẫn nhau với `auto-verify.mjs --auto-verify`. |
+Luồng thường dùng: `/ccf:init` → `/ccf:plan` → `/ccf:cook` → `/ccf:check` → `/ccf:updatespec`.
 
-Luồng điển hình: `/ccf:init` → (plan mode) `/ccf:plan` → implement (một task trực tiếp, hoặc cả backlog theo wave qua `/ccf:cook`) → `/ccf:check` → `/ccf:updatespec`. Khi test discipline bật, ma trận test mức contract được viết ngay trong lúc implement và `/ccf:check` xác nhận chúng pass. `/code-review` vẫn là gợi ý tùy chọn tốt, không còn là bước bắt buộc.
+## Bên dưới nắp capo
 
-## 5 agent — tất cả đều read-only
+Không cần đọc mục này vẫn dùng được CCF. Dành cho ai tò mò.
 
-Không còn subagent nào viết code: mọi task đều được implement **trực tiếp trong main session**. Spawn một subagent để viết code nghĩa là phải chờ một context riêng khởi động, đọc task, rồi trả kết quả về — chậm hơn hẳn so với tự viết code khi plan và codebase đã sẵn có trong context, nên subagent của CCF chỉ còn dùng để khám phá, review và tra cứu best practice.
+- **Hook** là lớp chắc chắn nhất. Command và agent chỉ là prompt, model có thể lờ đi. Hook là script chạy theo sự kiện session, lần nào cũng chạy: chặn `/ccf:plan` ngoài plan mode, nhắc cập nhật spec khi code đổi, nạp lại task đang dở sau khi compact.
+- **Agent** là 5 trợ lý chỉ đọc: một đọc từng phần codebase, một tra best practice từ tài liệu chính thức, một soạn thảo spec, hai reviewer soi code. Không ai trong số đó viết code. Bạn viết code trực tiếp trong session.
+- **Tra tài liệu ngay trong plugin.** CCF đi kèm Context7 và Microsoft Learn (MCP server), nên lời khuyên thiết kế trích từ tài liệu thật, không phải từ trí nhớ của model.
 
-Các subagent chuyên biệt **kế thừa tool, MCP server và skill của dự án host** — nên chúng dùng được bất kỳ MCP nào dự án bạn cung cấp (Supabase, Oracle, chrome-devtools, …) và gọi được skill của dự án, không phải bảo trì allowlist riêng cho từng agent. Mọi agent CCF đều là **leaf** — mang `disallowedTools: Write, Edit, NotebookEdit, Agent, Task` nên không ghi file được và không spawn được agent con (mặc định vẫn cho nest-spawn, nhưng giới hạn thay đổi theo bản: 5 ở bản v2.1.172 tới v2.1.216, 1 — coi như tắt hẳn — ở bản v2.1.217 và v2.1.218, rồi trở lại 3 từ bản v2.1.219 trở đi, đây là mặc định hiện hành; đổi được bằng biến môi trường `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` — đặt bằng `1` chỉ tắt spawn LỒNG NHAU, nghĩa là agent con không spawn được agent con của riêng nó nữa; harness vẫn spawn agent ở tầng 1 như bình thường. CCF vẫn chặn spawn lồng nhau một cách xác định bất kể con số mặc định của môi trường). Parallelism **chỉ dành cho research read-only**, và vì không agent nào ghi file nữa nên không còn mối lo riêng về "song song khi ghi file" phải theo dõi.
-
-| Agent | Vai trò | Chế độ |
-|---|---|---|
-| `ccf-codebase-analyzer` | Phân tích một slice của codebase có sẵn và báo cáo hiện trạng, không đề xuất giải pháp. Được fan-out 5 cái song song bởi `/ccf:init` (slice onboarding, quét cả dự án) và `/ccf:plan` (slice lập kế hoạch, chỉ trong phạm vi thay đổi được yêu cầu). Các lệnh CCF khám phá code qua agent này, không dùng `Explore` gốc. | read-only |
-| `ccf-best-practice-researcher` | Lấy best practice có trích dẫn từ Context7 / MS Learn trong context tách biệt. | read-only |
-| `ccf-spec-writer` | Soạn nội dung CLAUDE.md / rules từ bản tóm tắt quyết định, dùng cho `/ccf:init` và `/ccf:updatespec`; luồng chính mới là nơi ghi file. | soạn |
-| `ccf-spec-checker` | Reviewer context tươi — kiểm implementation so với spec (conformance, convention, SOLID/OOP, drift). | read-only |
-| `ccf-scope-checker` | Reviewer thứ hai `/ccf:check` chạy song song (Sonnet): diff có nằm trong file và tiêu chí của task không, và có phủ hết chúng không. Finding được gộp theo `file:line`. | read-only |
-
-## Hook — tầng deterministic
-
-Command và agent là *prompt* (model có thể chọn lờ một prompt đi). **Hook là phần deterministic duy nhất của CCF** — script `.mjs` chạy bằng `node` ở các sự kiện lifecycle, nên chúng kích hoạt mỗi lần bất kể model quyết gì. Chúng **no-build, no-dependency, Windows-clean** (Node ≥ 18, chỉ dùng built-in).
-
-| Hook | Sự kiện | Đảm bảo điều gì |
-|---|---|---|
-| **plan-mode-guard** | `UserPromptSubmit` | Nếu prompt chứa `/ccf:plan` nhưng session **không ở plan mode**, nó **chặn** (exit 2) và bảo bạn vào plan mode. Mọi prompt khác đi qua nguyên vẹn. Đây là nửa *được cưỡng chế* của "planning là read-only và review trước khi execute". |
-| **plan-skill-inject** | `UserPromptSubmit` | `/plan` trần là lệnh built-in của Claude Code nên skill của plugin không thể chiếm tên đó. Thay vào đó, khi một dự án đã khởi tạo CCF **đang ở plan mode**, hook này nhắc model (qua `additionalContext`) chạy skill `ccf:plan`, tối đa một lần mỗi session. Câu hỏi thuần về code thì được trả lời thẳng. Không bao giờ chặn; mọi lỗi đều im lặng. Xoá entry của nó khỏi `hooks.json` để tắt. |
-| **session-start** | `SessionStart` (`startup\|clear\|compact`) | Inject lời nhắc context-first để model tỉnh dậy đã ở chế độ CCF. Nếu **CCF-managed**, nó thêm *freshness signal* khi code có vẻ mới hơn spec, và sau `compact`/`clear` nó **re-load task in-progress** từ `.claude/plan/PLAN.md` để bạn resume đúng chỗ. |
-| **updatespec-nudge** | `Stop` | Thuần **advisory**, không bao giờ chặn. Bốn clause độc lập: **(A)** nếu bạn sửa code trong session mà chưa chạy test, nhắc *verify your work* (chạy test / type-check); **(B)** nếu code đã đổi nhưng spec thì chưa, nudge `/ccf:check` rồi `/ccf:updatespec`; **(C)** nếu bạn đã chạy `git commit` trong session mà `PLAN.md` vẫn còn task chưa `done`, nhắc bạn đánh dấu mỗi task `done` (chỉ sau khi `/ccf:check` của nó pass) hoặc sửa lại status; **(D)** nếu một iteration trong `PLAN.md` đã đóng hết mọi row task, hook in ra đúng câu lệnh `scripts/archive-plan.mjs` để archive nó. Chống loop re-trigger qua `stop_hook_active`. Đường mặc định là đơn kênh (chỉ `systemMessage`). **Opt-in** (mặc định tắt): thêm `--dual-channel-stop` vào lệnh `updatespec-nudge.mjs` trong `hooks.json` để phát cùng lúc `additionalContext` (dành cho model) và `systemMessage` (dành cho người dùng) — **chưa được quan sát** trên payload `Stop` thật của harness, nên vẫn tắt trong `hooks.json` được ship. |
-| **completion-evidence** | `Stop` | **Tuỳ chọn** (mặc định tắt), **chỉ khuyến nghị**, không bao giờ chặn. Bật bằng cách thêm `--completion-evidence` vào lệnh `completion-evidence.mjs` trong `hooks.json` **và** đặt `TYPESAFE_API_KEY` trong môi trường. Khi một task đang **in-review** và phiên này đã sửa code, hook gửi tiêu chí nghiệm thu của task, diff hiện tại (`git diff HEAD` cùng file mới) và kết quả test gần nhất tới Jev (TypeSafe System One, `api.typesafe.ai`), rồi in các tiêu chí Jev không thấy được thoả. **Diff rời khỏi máy bạn.** File có tên giống bí mật (`.env*`, `*.pem`, `*.key`, `id_rsa*`, `*credential*`, `*secret*`) bị loại và được nêu tên trong thông báo; diff trên 80KB (API từ chối request quá khoảng 33K token đầu vào) không được gửi, không bị cắt, và hook báo cho bạn biết là chưa kiểm tra. Mỗi cặp task + diff chỉ hỏi một lần; mọi lỗi (thiếu key, 401, 429, 529, quá hạn khoảng 6,5 giây) đều thoát im lặng. |
-| **auto-verify** | `Stop` | **Opt-in** (mặc định tắt) và là hook Stop DUY NHẤT của CCF có thể **chặn**. Bật bằng cách thêm `--auto-verify` vào lệnh `auto-verify.mjs` trong `hooks.json`. Khi một task đang **in-review**, session này đã **sửa code**, và chưa có review `ccf-spec-checker` nào chạy, nó trả về `decision: "block"` ("ralph loop") kèm reason lái main loop chạy một bước verify duy nhất — `/ccf:check`, rồi `/ccf:updatespec` ngay khi nó sạch. Chống loop qua `stop_hook_active`; best-effort, mọi lỗi đều thoát im lặng. |
-| **explore-guide-inject** | `SubagentStart` (`Explore`) | CCF không sở hữu prompt của subagent `Explore` built-in, nên lúc spawn hook này **inject** (qua `additionalContext`) một directive khám phá ngắn, **không phụ thuộc ngôn ngữ, có điều kiện LSP**: ưu tiên điều hướng ngữ nghĩa (công cụ `LSP` — `workspaceSymbol`/`goToDefinition`/`findReferences`/`documentSymbol`, fall back khi không có language server) cùng `Grep` (ripgrep) và `Glob`, chỉ đọc cả file sau khi đã định vị vùng cần. Best-effort, không bao giờ chặn việc spawn. Đây giờ là hook `SubagentStart` DUY NHẤT — CCF không còn subagent viết code nào để inject coding rule vào nữa. |
-
-**Freshness heuristic (dùng chung, single source of truth ở `hooks/lib/freshness.mjs`):** cả hai hook freshness so **thời điểm commit git** cuối (`git log -1 --format=%ct`) của file *code* với của file *spec* (`.md` trong `.claude/rules` + `CLAUDE.md`) — committer time, nên phản ánh thay đổi nội dung thật và **miễn nhiễm với `mtime` bị xáo trộn** bởi `checkout`/`pull`/`clone`. Khi git không trả lời được (không phải git repo, hay path chưa có commit — vd dự án vừa `/ccf:init`) nó **fallback về duyệt `mtime` giới hạn độ sâu**, hoạt động với *mọi* layout (`src/`, `server/`, `packages/x/src`, kiểu plugin `plugins/x/hooks`, hay code ở root). Đây là nudge nhẹ, không bao giờ là kết luận chắc chắn — phán xét ở mức nội dung "spec còn chính xác không?" được để cho `/ccf:updatespec`.
-
-**Vì sao hook được auto-load, không cần khai báo:** giống command/agent/MCP, hook tự load từ vị trí chuẩn `hooks/hooks.json` — Claude Code hiện tại (v2.1.x) tự discover. **Đừng** thêm field `"hooks"` vào `plugin.json` trỏ về đúng path chuẩn: nó nạp file hai lần và lỗi `Duplicate hooks file detected`. Field `manifest.hooks` chỉ dành cho các file hook *bổ sung* ở path không chuẩn.
-
-## MCP server đi kèm
-
-Plugin tự bundle 2 MCP server (plugin scope, Claude Code tự start/stop):
-
-- **microsoft-learn** — `https://learn.microsoft.com/api/mcp` (remote HTTP, không cần auth).
-- **context7** — `https://mcp.context7.com/mcp` (remote HTTP, chạy ngay không cần key).
-
-> **Context7 rate limit:** plugin chạy Context7 không cần API key (rate limit free). Nếu gặp rate-limit, lấy free key tại [context7.com/dashboard](https://context7.com/dashboard), set env var `CONTEXT7_API_KEY`, rồi khởi động lại Claude Code.
-
-## Spec vs Memory (hai tầng context)
-
-`/ccf:updatespec` ghi bài học vào **hai nơi** với mục đích khác nhau:
-
-- **Spec** (`CLAUDE.md` + `.claude/rules/`) — nạp như *user message*, trọng số thấp hơn. Giữ **rule dự án**: convention, architecture, tech-stack, tooling.
-- **Memory** (`~/.claude/projects/<path>/memory/`) — nạp vào *system prompt*, **không bị giảm trọng số** nên Claude tuân mạnh hơn. Giữ **feedback chống lỗi** + **user preference** xuyên session → giúp Claude bớt lặp sai lầm.
-- **`MEMORY.md` là index thuần** — mỗi session chỉ nạp **200 dòng đầu hoặc 25KB**, nên phải giữ gọn; tầng mạnh nhất là **`feedback`** (luôn kèm `Why`).
-
-Nguyên tắc: **không trùng lặp**. Rule trong CLAUDE.md hay bị quên → viết một `feedback` memory để *gia cố* (kèm "vì sao"), thay vì chép lại nội dung.
-
-## Cơ chế compact-aware
-
-Sau mỗi lần `/compact` (thủ công hay tự động), hook `session-start` của CCF (matcher `compact`) tự re-load task in-progress từ `.claude/plan/PLAN.md`, khôi phục đúng context công việc để bạn không phải dán lại.
-
-## Plan = các vertical slice, chạy theo wave
-
-`/ccf:init` và `/ccf:plan` sinh một plan trong `.claude/plan/` (một index `PLAN.md` + các file `task-NNN-*.md`). Mỗi task là một **vertical slice mỏng** — tracer-bullet xuyên qua các tầng nó chạm tới (DB + service + UI), sắp xếp mỏng → giàu dần, mỗi cái theo *spec → failing test → implement*. Mỗi task khai báo các predecessor trong `Depends on`, danh sách `Files to touch` và **test gate** phải qua. `/ccf:cook` dùng code để chia wave từ các khai báo đó: hai task chỉ chung một wave khi không có liên kết nào, và thiếu dữ liệu luôn có nghĩa là "chờ".
-
-`PLAN.md` chỉ chứa iteration **đang chạy**. Khi mọi task của một iteration đã `done`, nó được chuyển sang `ARCHIVE.md` (các file task sang `.claude/plan/archive/`). Quy tắc này cắt về hai phía, và đó là cố ý: một row đã đóng còn nằm trong `PLAN.md` sẽ bị hook session-start và hook Stop đếm là việc còn sống, còn *xoá* lịch sử thì lại làm mất một ghi chép thật về việc gì đã ship và vì sao. Nên luật là archive, tuyệt đối không xoá.
-
-Việc archive được **phát hiện tự động, nhưng thi hành có chủ ý**. Hook Stop nhận ra iteration đã đóng hoàn toàn rồi in ra đúng câu lệnh; `node "<plugin-root>/scripts/archive-plan.mjs"` là bản xem trước (không ghi gì, và nêu tên những row còn giữ iteration mở), thêm `--apply` mới thực hiện — ghi lại cả hai file và `git mv` các file task, có stage nhưng không commit. Phần ghi file cố ý không tự động: hook chạy mà không có ai trong vòng lặp, nên một lần phát hiện sai ở đó sẽ âm thầm viết lại plan và lịch sử của bạn.
-
-## Kiến trúc
-
-- **Command** = 4 file markdown prompt điều khiển Claude trong session (không phải script): init, check, updatespec, cook. `/ccf:plan` là slash command thứ 5 theo tên, được đóng gói dạng skill (xem mục Skill).
-- **Agent** = 5 subagent chuyên biệt, TẤT CẢ đều read-only (analyzer, researcher, spec-writer, spec-checker, scope-checker). Không còn agent nào ghi file — implement luôn diễn ra trực tiếp trong main session.
-- **Skill** = 2 skill. `plan` là quy trình đứng sau `/ccf:plan` (bạn gõ như một command, model cũng có thể tự nạp nó theo `description`). `grill-me` là skill nội bộ: engine phỏng vấn dùng chung mà các command gọi qua Skill tool, ẩn khỏi menu `/` (`user-invocable: false`).
-- **Hook** = 7 `.mjs` chạy trực tiếp bằng `node` — không build step, không dependency, Windows-clean; các helper dùng chung (freshness, đọc plan, review-trace, git-trace, verify-trace, verify-chain, explore-guide, archive, plan-trigger, jev-client, completion-evidence, slice-check) nằm ở `hooks/lib/`.
-- **Script** = 6 CLI (`scripts/archive-plan.mjs`, `scripts/jev-slice-check.mjs`, `scripts/jev-verify-findings.mjs`, `scripts/plan-waves.mjs`, `scripts/worktree-preflight.mjs`, `scripts/integrate-wave.mjs`) — cùng luật no-build/no-dependency như hook, nhưng không có gì gọi chúng tự động. Đây là chỗ dành cho hành động **ghi vào file của bạn**, để phạm vi ảnh hưởng luôn bị giới hạn bởi việc bạn chủ động chạy; `jev-slice-check` không ghi gì nhưng tốn tiền và cần `TYPESAFE_API_KEY`, nên cũng do bạn quyết: nó chỉ gửi id, tiêu đề, `Files to touch` và tiêu chí của task tới `api.typesafe.ai`, rồi in ra task nào phụ thuộc nhau hoặc quá vụn. `jev-verify-findings` đọc báo cáo `/ccf:check` từ stdin và hỏi Jev, với từng finding `FAIL:`, diff có thật sự chứa lỗi đó không; nó gửi diff (đã bỏ file nhạy cảm) và chỉ chú thích, không bao giờ xóa finding. `plan-waves` in ra cách chia wave. `worktree-preflight` chỉ đọc, chạy offline, kiểm bằng code rằng file thật mỗi branch đổi nằm trong `Files to touch` của task, hai branch không đổi chung file, và `git merge-tree` không thấy conflict. `integrate-wave --apply` tự chạy preflight đó, merge từng branch `--no-ff`, chạy test sau mỗi lần merge (đỏ thì reset về lần merge xanh gần nhất), và chỉ xóa worktree khi tất cả đều xanh. `/ccf:cook` chạy ba script này cho bạn.
-- **Template** = file placeholder `{{...}}` (`root/` luôn dùng, `backend/` + `frontend/` khi fullstack) mà `/ccf:init` instantiate.
-
-Xem `plugins/ccf/` cho chi tiết. Yêu cầu Node ≥ 18 cho hook.
+Tài liệu nội bộ đầy đủ: [plugins/ccf/README.md](./plugins/ccf/README.md). Hook cần Node ≥ 18.
 
 ## License
 
@@ -136,4 +53,4 @@ MIT
 
 ## Lời cảm ơn
 
-Dự án này được công bố lần đầu tại cộng đồng [LINUX DO](https://linux.do/) — cảm ơn các thành viên cộng đồng đã ủng hộ và góp ý.
+Dự án ra mắt lần đầu tại cộng đồng [LINUX DO](https://linux.do/). Cảm ơn mọi người đã ủng hộ và góp ý.

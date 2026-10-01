@@ -2,133 +2,50 @@
 
 [English](./README.md) · [Tiếng Việt](./README.vi.md) · **简体中文**
 
-一个面向 [Claude Code](https://code.claude.com) 的工作流插件，强制执行**上下文优先、规格驱动、严格串行**的工作方式。CCF 把松散的「氛围式编码」循环变成一条有纪律的流水线：规格始终新鲜、每个决策都基于真实文档、工作以可验证的切片逐个推进。
+一个 [Claude Code](https://code.claude.com) 插件，让你的 AI 编程助手守规矩：先做计划、规格常新、对照规格验收、无关任务并行跑。
 
-- **上下文优先** — 规格存放在 `CLAUDE.md` + `.claude/` 中，持续保持新鲜，让每个会话开始时就已经了解项目。
-- **基于权威文档** — 每个设计决策都参考来自 **Context7** 和 **Microsoft Learn**（插件自带这两个 MCP 服务器）的最佳实践，而不是凭记忆。
-- **严格串行** — 一次只做一个任务（垂直切片的瀑布式），不并行开发多个功能，以最大化质量。
-- **适配你的代码库** — 既可以将新项目引导为 monorepo（在根目录 git init；全栈则分为 `be/` + `fe/`，各自带有嵌套规格），也可以接管已有代码库——此时 `/ccf:init` 用 5 个只读 agent 分析真实结构并生成与之匹配的规格，不强加任何目录布局。
-- **直接写代码，够快** — 没有编码 subagent 要等。实现代码就在主会话里进行，计划和代码库上下文都已经加载好；CCF 的 subagent 只用于探索、审查和最佳实践调研。
+## 为什么用它
 
-## 为什么用 CCF — 它解决的问题
+原生 Claude Code 是个聪明但健忘的助手。会话一长，它就忘记你的项目规则，规划做到一半滑成改文件，也从不提醒你更新文档。CCF 加了三个很牢的习惯：
 
-| 纯 Claude Code 的痛点 | CCF 的应对 |
-|---|---|
-| 长会话中上下文「腐化」，模型偏离规则 | 一个 **`SessionStart` 钩子**在每次 start/clear/compact 时重新注入上下文优先提醒，并在 compact 后重新加载进行中的任务。 |
-| 规格悄悄落后于代码 | 两个**新鲜度钩子**比较规格与代码的最后一次 **git 提交时间**并*提示*运行 `/ccf:updatespec`——在会话开始时和你停止时。 |
-| 规划直接滑向改文件 | 一个 **`UserPromptSubmit` 钩子**硬性阻止 `/ccf:plan`，除非你处于 plan mode——规划保持只读且可审查。 |
-| 设计决策基于陈旧记忆 | 自带 **Context7 + Microsoft Learn** MCP；CCF 提示词在动笔前引用官方文档。 |
-| 错误跨会话重复出现 | `/ccf:updatespec` 写入**两层**——项目规则写进规格，防错 feedback 写进系统 **memory**（以更高权重加载）。 |
-| 难以审查的大爆炸式功能 | 计划是**垂直切片的瀑布式**，每个切片是一颗细的曳光弹（DB→service→UI），各自带有测试关卡。 |
-| 赶进度时测试写得草率（或被跳过） | 一个**可选启用的测试纪律**——启用后，实现阶段会直接设计契约级矩阵（等价类划分 + 边界值分析 + 决策表）并先写失败测试，且生成的 **Stop 钩子关卡会阻止停止**，直到测试真正通过。追求快速上线的流程则直接不启用。 |
+- **先规划，后写代码。** `/ccf:plan` 只能在 plan mode 下运行，规划阶段只读、可审查，不会误改文件。
+- **规格常新。** Hook（随会话事件自动触发的小脚本）在代码变化时提醒你更新规格。本次学到的教训写进系统 memory，同样的错不再犯第二遍。
+- **验收通过才算完。** `/ccf:check` 用两个独立审查者对照规格检查成品。没通过检查的任务，不算 done。
 
 ## 安装
 
-### 通过 marketplace（推荐）
+在 Claude Code 里：
+
 ```
 /plugin marketplace add naniiluja/ccf
 /plugin install ccf@ccf
 ```
 
-### 通过 npx
-```
-npx @naniiluja/ccf
-```
-（替你执行 `claude plugin marketplace add` + `install`）
+或一步到位：`npx @naniiluja/ccf`
 
-### 本地（用于开发）
-```
-claude plugin marketplace add D:/projects/ccf
-claude plugin install ccf@ccf
-```
+然后在你的项目目录打开 Claude Code，运行 `/ccf:init`。
 
-安装后，在你的项目文件夹中打开 Claude Code 并运行 `/ccf:init`。
+## 5 个命令
 
-## 5 个命令（`/ccf:plan` 以 skill 形式打包）
+| 命令 | 大白话 |
+|---|---|
+| `/ccf:init` | 给项目接入 CCF。问你几个问题，然后写出项目规格（`CLAUDE.md`）。已有项目会先读真实代码，再按实际结构写规格。 |
+| `/ccf:plan` | 把一个功能切成有序的小切片（数据库、服务、界面逐层），每个切片自带测试。需要 plan mode（Shift+Tab）。 |
+| `/ccf:cook` | 按 wave 并行跑切片。互不相干的任务同时进行，每个任务在独立的 repo 副本（git worktree）里；每次合并后都跑测试。 |
+| `/ccf:check` | 对照规格审查成品。任务标 done 之前唯一必须过的关。 |
+| `/ccf:updatespec` | 把本次会话的经验写回规格和系统 memory。 |
 
-| 命令 | 作用 |
-|------|------|
-| `/ccf:init` | 引导一个新项目（访谈 → 生成 CLAUDE.md + .claude + 计划）或接管一个已有项目（5 个只读分析 agent 映射真实结构）。 |
-| `/ccf:plan` | 为一个功能创建串行计划，基于最佳实践。**需要 plan mode**（Shift+Tab）——由钩子强制。计划完成后，直接在会话里逐个任务实现，一次一个。 |
-| `/ccf:check` | 对照规格验证实现（一致性、约定、SOLID/OOP、前后端交叉检查）。只读——这是任务被标记 `done` 之前唯一必须通过的验证步骤。 |
-| `/ccf:updatespec` | 用本次会话的经验更新规格**和系统 memory**（包括新工具及其「何时使用」）。 |
-| `/ccf:cook` | 一次性跑完整个 todo/in-progress backlog：直接在会话里逐个实现每个任务（遇到红色关卡立即停止），然后跑一次 `/ccf:check` 和 `/ccf:updatespec`。与 `auto-verify.mjs --auto-verify` 互斥。 |
+常用流程：`/ccf:init` → `/ccf:plan` → `/ccf:cook` → `/ccf:check` → `/ccf:updatespec`。
 
-典型流程：`/ccf:init` → （plan mode）`/ccf:plan` → 直接实现（逐任务，或通过 `/ccf:cook` 跑完整个 backlog）→ `/ccf:check` → `/ccf:updatespec`。启用测试纪律时，契约级测试矩阵会在实现阶段写好，`/ccf:check` 会确认它们通过。`/code-review` 仍然是不错的可选补充，但不再是必需步骤。
+## 引擎盖下面
 
-## 5 个 agent — 全部只读
+不用看这节也能用 CCF。写给好奇的人。
 
-没有编码 subagent：每个任务都**直接在主会话里**实现。Spawn 一个编码 subagent 意味着要等它启动一个独立上下文、读取任务、再把结果传回来，这比在已经加载好计划的情况下自己直接写代码明显更慢——所以 CCF 的 subagent 只用于探索、审查和最佳实践调研。
+- **Hook 是最确定的一层。** 命令和 agent 只是提示词，模型可以选择无视。Hook 是随会话事件运行的脚本，每次必触发：在 plan mode 之外挡住 `/ccf:plan`，代码变了就提醒更新规格，compact 之后自动载入未完成的任务。
+- **Agent 是 5 个只读帮手**：读代码库切片、查官方最佳实践、起草规格、两个做审查。它们都不写代码，代码由你直接在会话里写。
+- **文档查询内置。** 插件自带 Context7 和 Microsoft Learn（MCP 服务器），设计建议引用真实文档，而不是模型的记忆。
 
-专用子 agent **继承宿主项目的工具、MCP 服务器与 skill**——因此可以使用你项目提供的任意 MCP（Supabase、Oracle、chrome-devtools 等）并调用项目的 skill，无需为每个 agent 维护 allowlist。每个 CCF agent 都是 **leaf**——带有 `disallowedTools: Write, Edit, NotebookEdit, Agent, Task`，因此既不能写文件也不能 spawn 嵌套子 agent（默认仍允许嵌套 spawn，但上限因版本而异：v2.1.172 到 v2.1.216 为 5，v2.1.217 和 v2.1.218 降为 1（等同禁用），自 v2.1.219 起恢复为 3，即当前默认值；可通过环境变量 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` 调整——设为 `1` 只会关闭**嵌套** spawn，即子 agent 不能再 spawn 自己的子 agent；宿主仍会正常 spawn 第 1 层子 agent。CCF 无论该默认值如何都会确定性地阻止嵌套 spawn）。并行**仅用于只读研究**，而且既然这几个 agent 都不写文件，也就不再需要单独追踪「写文件 agent 不能并行」这件事。
-
-| Agent | 角色 | 模式 |
-|---|---|---|
-| `ccf-codebase-analyzer` | 分析已有代码库的一个切片并报告现状，不提出解决方案。由 `/ccf:init`（onboarding 切片，覆盖整个项目）和 `/ccf:plan`（规划切片，限定在所请求的变更范围内）各并行 fan-out 5 个。CCF 命令通过该 agent 探索代码，不使用内置的 `Explore`。 | 只读 |
-| `ccf-best-practice-researcher` | 在隔离上下文中从 Context7 / MS Learn 获取带引用的最佳实践。 | 只读 |
-| `ccf-spec-writer` | 根据决策摘要起草 CLAUDE.md / rules 内容，供 `/ccf:init` 与 `/ccf:updatespec` 使用；实际写文件的是主线程。 | 起草 |
-| `ccf-spec-checker` | 新鲜上下文的审查者——对照规格检查实现（一致性、约定、SOLID/OOP、漂移）。 | 只读 |
-| `ccf-scope-checker` | `/ccf:check` 并行运行的第二个审查者（Sonnet）：diff 是否停留在任务声明的文件和验收标准之内，并覆盖全部标准。发现按 `file:line` 合并。 | 只读 |
-
-## 钩子 — 确定性层
-
-命令和 agent 都是*提示词*（模型可以选择忽略一个提示词）。**钩子是 CCF 唯一确定性的部分**——在生命周期事件由 `node` 运行的 `.mjs` 脚本，因此无论模型如何决定它们每次都会触发。它们**无构建、无依赖、Windows 友好**（Node ≥ 18，仅用内置模块）。
-
-| 钩子 | 事件 | 它保证什么 |
-|---|---|---|
-| **plan-mode-guard** | `UserPromptSubmit` | 若提示词含 `/ccf:plan` 但会话**不在 plan mode**，它会**阻止**（exit 2）并让你进入 plan mode。其他提示词原样通过。这是「规划只读且执行前经审查」中*被强制执行*的那一半。 |
-| **plan-skill-inject** | `UserPromptSubmit` | 裸 `/plan` 是 Claude Code 的内置命令，插件的 skill 无法占用这个名字。因此当已初始化 CCF 的项目**处于 plan mode** 时，此 hook 会（通过 `additionalContext`）提示模型运行 `ccf:plan` skill，每个会话最多一次。纯粹的代码问题会被直接回答。从不阻止；任何错误都静默退出。从 `hooks.json` 删除其条目即可关闭。 |
-| **session-start** | `SessionStart`（`startup\|clear\|compact`） | 注入上下文优先提醒，让模型醒来就已处于 CCF 模式。若**受 CCF 管理**，当代码看起来比规格新时它会加上*新鲜度信号*，并在 `compact`/`clear` 后从 `.claude/plan/PLAN.md` **重新加载进行中的任务**，让你精确地从中断处继续。 |
-| **updatespec-nudge** | `Stop` | 纯**建议性**，从不阻止。四个独立子句：**(A)** 若本次会话改了代码却没跑测试，提醒你*验证工作*（运行测试 / 类型检查）；**(B)** 若代码变了但规格没变，提示 `/ccf:check` 然后 `/ccf:updatespec`；**(C)** 若本次会话跑了 `git commit` 但 `PLAN.md` 仍有任务未 `done`，提醒你把每个任务标为 `done`（仅在其 `/ccf:check` 通过后）或修正其状态；**(D)** 若 `PLAN.md` 中某个迭代的每一行任务都已关闭，打印出用于退役它的确切 `scripts/archive-plan.mjs` 命令。通过 `stop_hook_active` 防止重复触发循环。默认路径是单通道（仅 `systemMessage`）。**可选开启**（默认关闭）：在 `hooks.json` 的 `updatespec-nudge.mjs` 命令后加上 `--dual-channel-stop`，即可同时发出面向模型的 `additionalContext` 与面向用户的 `systemMessage`——该行为**尚未在真实 harness 的 `Stop` payload 上被观察到**，因此在随包 `hooks.json` 中保持关闭。 |
-| **completion-evidence** | `Stop` | **可选开启**（默认关闭），**仅提示**，绝不阻止。在 `hooks.json` 的 `completion-evidence.mjs` 命令后加上 `--completion-evidence`，**并**在环境中设置 `TYPESAFE_API_KEY` 即可启用。当某任务处于 **in-review** 且本次会话改了代码时，它把任务的验收标准、当前 diff（`git diff HEAD` 加新文件）和最近一次测试输出发给 Jev（TypeSafe System One，`api.typesafe.ai`），并打印 Jev 认为未满足的标准。**diff 会离开你的机器。** 名称像密钥的文件（`.env*`、`*.pem`、`*.key`、`id_rsa*`、`*credential*`、`*secret*`）会被剔除并在消息中点名；超过 80KB 的 diff（API 会拒绝超过约 33K 输入 token 的请求）不会被发送、也不会被截断，并会告诉你未检查。同一任务 + diff 只询问一次；任何失败（无 key、401、429、529、约 6.5 秒超时）都静默退出。 |
-| **auto-verify** | `Stop` | **可选开启**（默认关闭），且是 CCF 唯一能**阻止**停止的 Stop 钩子。在 `hooks.json` 的 `auto-verify.mjs` 命令后加上 `--auto-verify` 即可启用。当某任务处于 **in-review**、本次会话**改了代码**、且尚无 `ccf-spec-checker` 评审运行时，它返回 `decision: "block"`（「ralph loop」），其 reason 驱动一个单一验证步骤——`/ccf:check`，通过后再 `/ccf:updatespec`。通过 `stop_hook_active` 防止循环；尽力而为，任何错误都静默退出。 |
-| **explore-guide-inject** | `SubagentStart`（`Explore`） | CCF 不拥有内置 `Explore` 子 agent 的提示词，因此在 spawn 时此钩子**注入**（通过 `additionalContext`）一条简短、**与语言无关、按 LSP 条件**的探索指令：优先语义导航（`LSP` 工具——`workspaceSymbol`/`goToDefinition`/`findReferences`/`documentSymbol`，无 language server 时回退）以及 `Grep`（ripgrep）和 `Glob`，仅在定位到相关区域后才读取整个文件。尽力而为，绝不阻止 spawn。现在是唯一的 `SubagentStart` 钩子——CCF 已经没有写文件的 subagent 需要注入编码规则了。 |
-
-**新鲜度启发式（共享，单一事实来源位于 `hooks/lib/freshness.mjs`）：** 两个具备新鲜度感知的钩子都比较*代码*文件与*规格*文件（`.claude/rules` 下的 `.md` 加 `CLAUDE.md`）的最后一次 **git 提交时间**（`git log -1 --format=%ct`）——采用 committer time，因此反映真实的内容变更，并**不受 `checkout`/`pull`/`clone` 造成的 `mtime` 扰动影响**。当 git 无法回答时（不是 git 仓库，或某路径尚无提交——例如刚 `/ccf:init` 的项目），它会**回退到有限深度的 `mtime` 遍历**，适用于*任何*布局（`src/`、`server/`、`packages/x/src`、插件式的 `plugins/x/hooks`，或位于根目录的代码）。这是轻量提示，绝非硬性结论——内容层面「规格是否仍然准确？」的判断留给 `/ccf:updatespec`。
-
-**为什么钩子是自动加载、而非声明：** 与命令/agent/MCP 一样，钩子从标准位置 `hooks/hooks.json` 自动加载——当前 Claude Code（v2.1.x）会自动发现它。**不要**在 `plugin.json` 里加 `"hooks"` 字段指回这个标准路径：那会把文件加载两次并报错 `Duplicate hooks file detected`。`manifest.hooks` 字段仅用于位于非标准路径的*额外*钩子文件。
-
-## 自带的 MCP 服务器
-
-插件自带 2 个 MCP 服务器（插件级作用域，由 Claude Code 自动启停）：
-
-- **microsoft-learn** — `https://learn.microsoft.com/api/mcp`（远程 HTTP，无需认证）。
-- **context7** — `https://mcp.context7.com/mcp`（远程 HTTP，开箱即用，无需密钥）。
-
-> **Context7 速率限制：** 插件以无 API key 方式运行 Context7（免费速率限制）。若遇到速率限制，请在 [context7.com/dashboard](https://context7.com/dashboard) 获取免费密钥，设置 `CONTEXT7_API_KEY` 环境变量，然后重启 Claude Code。
-
-## 规格 vs Memory（两层上下文）
-
-`/ccf:updatespec` 把经验记录到**两个地方**，用途不同：
-
-- **规格**（`CLAUDE.md` + `.claude/rules/`）——作为 *user message* 加载，权重较低。存放**项目规则**：约定、架构、技术栈、工具。
-- **Memory**（`~/.claude/projects/<path>/memory/`）——加载进 *system prompt*，**不被降权**，因此 Claude 更严格地遵循。存放跨会话的**防错 feedback** + **用户偏好** → 帮助 Claude 少犯重复错误。
-- **`MEMORY.md` 是纯索引** —— 每个会话只加载**前 200 行或 25KB**，因此要保持精简；最强的一层是 **`feedback`**（始终附带 `Why`）。
-
-原则：**不重复**。CLAUDE.md 中总被遗忘的规则 → 写一条 `feedback` memory 来*强化*它（附上「为什么」），而不是复制其内容。
-
-## 压缩感知机制
-
-每次 `/compact` 之后（无论手动还是自动），CCF 的 `session-start` 钩子（匹配器 `compact`）会自动从 `.claude/plan/PLAN.md` 重新加载进行中的任务，恢复正确的工作上下文，无需你重新粘贴。
-
-## 计划 = 垂直切片的瀑布式
-
-`/ccf:init` 和 `/ccf:plan` 在 `.claude/plan/` 中生成一份计划（一个 `PLAN.md` 索引 + 若干 `task-NNN-*.md` 文件）。每个任务都是一个**细的垂直切片**——穿过它所触及各层（DB + service + UI）的曳光弹，按从薄到厚排序，每个都遵循 *规格 → 失败测试 → 实现*。每个任务恰好有**一个前驱**，并指明下一切片开始前必须变绿的**测试关卡**。这正是让「严格串行」变得具体且可审查的东西。
-
-`PLAN.md` 只保留**当前**迭代。当某个迭代的所有任务都 `done` 之后，它会被退役到 `ARCHIVE.md`（任务文件移入 `.claude/plan/archive/`）。这条规则刻意在两个方向上都成立：已关闭的行若留在 `PLAN.md` 中，会被 session-start 钩子和 Stop 钩子当成仍在进行的工作来计数；而*删除*历史又会丢失一份关于过去到底发生过什么、为什么的真实记录。所以规则是归档，绝不删除。
-
-退役是**自动检测、手动执行**的。Stop 钩子发现某个迭代已完全关闭后会打印出确切命令；`node "<plugin-root>/scripts/archive-plan.mjs"` 只做预览（不写入任何内容，并指出还有哪些行让迭代处于打开状态），加上 `--apply` 才真正执行——重写两个文件并 `git mv` 任务文件，只暂存、绝不提交。写入操作刻意不自动化：钩子在无人参与的情况下触发，一次错误检测就会悄悄改写你的计划与历史。
-
-## 架构
-
-- **命令** = 4 个在会话中驱动 Claude 的 markdown 提示（不是脚本）：init、check、updatespec、cook。`/ccf:plan` 按名称是第 5 个斜杠命令，以 skill 形式打包（见 Skill）。
-- **Agent** = 5 个专用子 agent，全部只读（分析器、研究员、规格撰写者、规格检查者、范围检查者）。没有写文件的 agent——实现代码直接在主会话里完成。
-- **Skill** = 2 个 skill。`plan` 是 `/ccf:plan` 背后的工作流（你像命令一样输入它，模型也可以按其 `description` 自行加载）。`grill-me` 是内部 skill：各命令通过 Skill 工具调用的共享需求访谈引擎，从 `/` 菜单隐藏（`user-invocable: false`）。
-- **钩子** = 7 个直接用 `node` 运行的 `.mjs` —— 无构建步骤、无依赖、Windows 友好；共享的辅助模块（新鲜度、plan 解析、review-trace、git-trace、verify-trace、verify-chain、explore-guide、archive、plan-trigger、jev-client、completion-evidence、slice-check）位于 `hooks/lib/`。
-- **脚本** = 4 个由人手动运行的 CLI（`scripts/archive-plan.mjs`、`scripts/jev-slice-check.mjs`、`scripts/jev-verify-findings.mjs`、`scripts/worktree-preflight.mjs`）—— 与钩子遵循同样的无构建、无依赖规则，但没有任何机制会自动调用它们。**会改写你的文件**的操作就应该放在这里，这样影响范围始终由你主动运行来界定；`jev-slice-check` 不改写任何文件，但要花钱并需要 `TYPESAFE_API_KEY`，因此同样由你决定：它只把任务 id、标题、`Files to touch` 和验收标准发给 `api.typesafe.ai`，并打印哪些未完成任务相互依赖或过于零碎。`jev-verify-findings` 从 stdin 读取 `/ccf:check` 报告，针对每条 `FAIL:` 发现询问 Jev：diff 中是否确实存在该缺陷；它会发送 diff（已剔除敏感文件），只做标注，从不删除发现。
-- **模板** = 带 `{{...}}` 占位符的文件（`root/` 始终使用，`backend/` + `frontend/` 在全栈时使用），由 `/ccf:init` 实例化。
-
-详见 `plugins/ccf/`。钩子需要 Node ≥ 18。
+完整内部文档：[plugins/ccf/README.md](./plugins/ccf/README.md)。Hook 需要 Node ≥ 18。
 
 ## 许可证
 
@@ -136,4 +53,4 @@ MIT
 
 ## 致谢
 
-本项目首发于 [LINUX DO](https://linux.do/) 社区，感谢社区佬友的支持与反馈。
+本项目首发于 [LINUX DO](https://linux.do/) 社区，感谢大家的支持与反馈。
