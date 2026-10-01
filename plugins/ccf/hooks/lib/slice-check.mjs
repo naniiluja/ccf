@@ -269,7 +269,7 @@ export function hotspotClasses(files) {
  * @param {SliceTask} b
  * @returns {{ kind: "declared-dependency" } | { kind: "unknown-files" } | { kind: "file-overlap", files: string[] } | { kind: "hotspot", hotspots: string[] } | null}
  */
-function certainEdge(a, b) {
+export function certainEdge(a, b) {
   if (a.dependsOn.includes(b.id) || b.dependsOn.includes(a.id)) return { kind: "declared-dependency" };
   if (a.files.length === 0 || b.files.length === 0) return { kind: "unknown-files" };
   const files = filesOverlap(a.files, b.files);
@@ -308,7 +308,8 @@ function normTasks(tasks) {
 /**
  * Build the shared state and the batched Noul questions.
  * @param {any} tasks
- * @param {{ batchSize?: any }} [opts]
+ * @param {{ batchSize?: any, pairs?: [number, number][] }} [opts] when `pairs` is given, only those
+ *   index pairs are asked about (used by the backtest to avoid meaningless cross-pairs)
  * @returns {{ state: { tasks: { id: string, title: string, files: string[], acceptance_criteria: string[] }[] },
  *   batches: Record<string, { type: "noul", instructions: string }>[] }}
  */
@@ -316,6 +317,9 @@ export function buildSliceRequests(tasks, opts = {}) {
   const list = normTasks(tasks);
   const size = typeof opts?.batchSize === "number" && Number.isFinite(opts.batchSize) && opts.batchSize >= 1
     ? Math.floor(opts.batchSize) : DEFAULT_BATCH_SIZE;
+  const onlyPairs = Array.isArray(opts?.pairs)
+    ? new Set(opts.pairs.map(([a, b]) => `${a}:${b}`))
+    : null;
   const state = {
     tasks: list.map((t) => ({ id: t.id, title: t.title, files: t.files, acceptance_criteria: t.criteria })),
   };
@@ -329,6 +333,7 @@ export function buildSliceRequests(tasks, opts = {}) {
   });
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
+      if (onlyPairs && !onlyPairs.has(`${i}:${j}`)) continue;
       if (certainEdge(list[i], list[j])) continue; // certain: code decides it
       for (const [prefix, , ask] of PAIR_QUESTIONS) qs.push([`${prefix}_${i}_${j}`, ask(i, j)]);
     }

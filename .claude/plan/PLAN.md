@@ -12,3 +12,4 @@
 > sections into `ARCHIVE.md` verbatim and `git mv` its task files into `archive/`.
 > **Premortem note:** `ccf-spec-checker` and `/ccf:plan` step 6 anchor failure modes to real past
 > iterations, so they must read `ARCHIVE.md` as well as this file.
+---

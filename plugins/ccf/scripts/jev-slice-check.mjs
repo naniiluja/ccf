@@ -24,8 +24,11 @@ import { extractAcceptanceCriteria, withinSizeCap, DEFAULT_CAP_BYTES } from "../
 import { extractFiles, buildSliceRequests, mergeSliceAnswers } from "../hooks/lib/slice-check.mjs";
 
 const PARALLEL_NOTE =
-  "parallel_candidates are waves with no edge of any kind, but Jev's dependency recall has not been backtested " +
-  "(task 064 step 2), so a candidate is not proof of independence: re-check the real diffs with worktree-preflight before merging.";
+  "parallel_candidates are waves with no edge of any kind. Jev dependency recall was backtested 2026-10-01 " +
+  "on 13 declared dependencies + 60 sampled non-dependencies from archived ccf tasks " +
+  "(scripts/jev-backtest.mjs): recall 92.3% (12/13, one near-miss at p=0.29 vs 0.30 threshold), " +
+  "false-positive rate 65-70%, unanswered 0%. Below the 95% bar from task 064, so Jev stays an advisory " +
+  "signal: a candidate is not proof of independence, re-check the real diffs with worktree-preflight before merging.";
 
 /** @param {Record<string, any>} obj */
 function done(obj) {
