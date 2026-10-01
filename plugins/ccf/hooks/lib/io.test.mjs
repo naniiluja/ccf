@@ -263,7 +263,7 @@ test("updatespec-nudge clause E: prunable task files + stop_hook_active false â†
   const parsed = JSON.parse(stdout);
   assert.deepEqual(Object.keys(parsed), ["systemMessage"]);
   const scriptPath = join(HOOKS_DIR, "..", "scripts", "prune-archive.mjs");
-  assert.ok(parsed.systemMessage.includes(`node "${scriptPath}"`), "must carry the absolute script path");
+  assert.ok(parsed.systemMessage.includes(`node "${scriptPath}" --dir "${dir}"`), "must carry the absolute script path and project root");
   assert.ok(parsed.systemMessage.includes("1 archived task file"), "must name the count");
   assert.ok(!parsed.systemMessage.includes("archive-plan.mjs"), "clause D must stay off");
 });
@@ -275,6 +275,22 @@ test("updatespec-nudge clause E: decision-table rows that must stay silent", () 
     assert.equal(status, 0);
     assert.equal(stdout, "", `iterations=${iterations} stop_hook_active=${active}`);
   }
+});
+
+test("updatespec-nudge clause D: fully-closed iteration â†’ archive-plan command carries --dir with the project root", () => {
+  const dir = makeTmpProject();
+  mkdirSync(join(dir, ".claude", "rules"), { recursive: true });
+  mkdirSync(join(dir, ".claude", "plan"), { recursive: true });
+  writeFileSync(
+    join(dir, ".claude", "plan", "PLAN.md"),
+    "## Origin: it-1\n\n| # | Task | Status |\n|---|---|---|\n| 001 | Sample task | done |\n",
+  );
+  const { stdout, status } = runHook("updatespec-nudge.mjs", { cwd: dir, stop_hook_active: false });
+  assert.equal(status, 0);
+  const parsed = JSON.parse(stdout);
+  const scriptPath = join(HOOKS_DIR, "..", "scripts", "archive-plan.mjs");
+  assert.ok(parsed.systemMessage.includes(`node "${scriptPath}" --dir "${dir}" --apply`), "must carry the absolute script path and project root");
+  assert.ok(!parsed.systemMessage.includes("prune-archive.mjs"), "clause E must stay off");
 });
 
 // =================================================================================================

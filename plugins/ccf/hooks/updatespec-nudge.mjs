@@ -14,7 +14,7 @@
 // hooks.json does NOT carry this flag, so the single-channel path stays the shipped behavior.
 
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readStdinJson, emitSystemMessage, emitStopAdvisory, RELAY_IN_USER_LANGUAGE } from "./lib/io.mjs";
 import { specsOlderThanCode } from "./lib/freshness.mjs";
@@ -34,6 +34,7 @@ if (input.stop_hook_active) {
 }
 
 const cwd = String(input.cwd ?? process.cwd());
+const projectRoot = resolve(cwd);
 const rulesDir = join(cwd, ".claude", "rules");
 
 // Only nudge for CCF-managed projects (those with .claude/rules).
@@ -97,7 +98,7 @@ if (committedThisSession(transcriptPath)) {
 const retirable = findRetirableIterationsIn(planFile);
 if (retirable.length > 0) {
   const scriptPath = fileURLToPath(new URL("../scripts/archive-plan.mjs", import.meta.url));
-  const command = `node "${scriptPath}" --apply`;
+  const command = `node "${scriptPath}" --dir "${projectRoot}" --apply`;
   const count = retirable.length;
   advisories.push({
     directive: `<ccf>PLAN.md still holds ${count} iteration(s) whose every task is closed. Tell the user, ${RELAY_IN_USER_LANGUAGE}, that a closed iteration left in PLAN.md is counted as live work by the plan hooks, and that running \`${command}\` retires it into ARCHIVE.md (task files into archive/). Mention they can run it without --apply first to preview.</ccf>`,
@@ -111,7 +112,7 @@ if (retirable.length > 0) {
 const prunable = findPrunableTaskFilesIn(join(cwd, ".claude", "plan"), PRUNE_KEEP_ITERATIONS).prune;
 if (prunable.length > 0) {
   const scriptPath = fileURLToPath(new URL("../scripts/prune-archive.mjs", import.meta.url));
-  const command = `node "${scriptPath}"`;
+  const command = `node "${scriptPath}" --dir "${projectRoot}"`;
   const count = prunable.length;
   advisories.push({
     directive: `<ccf>.claude/plan/archive/ holds ${count} task file(s) of iterations older than the newest ${PRUNE_KEEP_ITERATIONS} in ARCHIVE.md. Tell the user, ${RELAY_IN_USER_LANGUAGE}, that running \`${command}\` previews which files would be pruned (ARCHIVE.md and git history keep the record), and that adding --apply stages their removal with git rm without committing.</ccf>`,
