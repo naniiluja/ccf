@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import {
   extractFiles,
   extractDependsOn,
+  certainEdge,
   expandBraces,
   pathsClash,
   filesOverlap,
@@ -242,6 +243,13 @@ test("extractDependsOn: ids from the task-template `Depends on` line; none-marke
   assert.deepEqual(extractDependsOn("- **Depends on:** none\n"), []);
   assert.deepEqual(extractDependsOn("no such line"), []);
   assert.deepEqual(extractDependsOn(undefined), []);
+});
+
+test("extractDependsOn: ids are lowercased so a mixed-case `Depends on` matches a lowercase task id", () => {
+  assert.deepEqual(extractDependsOn("- **Depends on:** 024A, Task-025B\n"), ["024a", "025b"]);
+  const a = { id: "024b", files: ["x.mjs"], dependsOn: extractDependsOn("- **Depends on:** 024A\n") };
+  const b = { id: "024a", files: ["y.mjs"], dependsOn: [] };
+  assert.deepEqual(certainEdge(a, b), { kind: "declared-dependency" });
 });
 
 test("mergeSliceAnswers: a declared `Depends on` is a certain edge and is never asked, whichever side declares it", () => {
