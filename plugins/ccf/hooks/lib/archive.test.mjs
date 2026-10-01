@@ -24,11 +24,15 @@ const TEMPLATE_PLAN_PATH = join(HERE, "..", "..", "templates", "root", ".claude"
 // REAL-template tests below derive from this instead of each re-reading the file.
 const TEMPLATE_RAW = readFileSync(TEMPLATE_PLAN_PATH, "utf8");
 
-// The three guidance blocks that must always live in the template's preamble (task 050 FAIL A).
+// The guidance blocks that must always live in the template's preamble (task 050 FAIL A).
 const GUIDANCE_PATTERNS = [
   [/Write the status as a \*\*bare word\*\*/, "the bare-word guidance"],
   [/Status: `todo` \/ `in-progress` \/ `in-review` \/ `done` \/ `blocked`/, "the status legend line"],
   [/\*\*Keep this file to the CURRENT iteration\.\*\*/, "the archive-vs-delete guidance"],
+  // Task 072: the retention rule replaced "archive, never delete", so the preamble must say what is kept
+  // and how a pruned task file comes back.
+  [/task files of the newest 10 iterations/, "the retention rule"],
+  [/git log --diff-filter=D --name-only -- \.claude\/plan\/archive\//, "the recovery command"],
 ];
 
 /**

@@ -1,8 +1,7 @@
 # Implementation Plan — CCF (multi-iteration backlog; lead iteration at top)
 
-> **Execution rule: STRICTLY SEQUENTIAL.** Do exactly one task at a time, in order.
-> These tasks are slices sequenced for serial execution (thinnest → richest). Each `Depends on` = the prior task in the queue (serial law), unless a real data dependency is noted.
-> Do not start task N+1 until task N's **gate is GREEN** (implemented + tested + checked).
+> **Execution rule: VERTICAL SLICES, RUN IN WAVES.** `/ccf:cook` runs tasks with no link between them (no `Depends on`, no shared file, no shared hotspot) at the same time, each in its own worktree (`scripts/plan-waves.mjs` computes the split).
+> `Depends on` lists only REAL dependencies, not queue order. A task starts only after every task it depends on has a **GREEN gate** and is merged; each wave's merged result is tested before the next wave starts.
 > The `in-progress`/`in-review` status is read by the session-start hook to re-load context after compact — keep status up to date.
 
 > **Scope of this file: the CURRENT iteration only.** Closed iterations and their postmortems live in

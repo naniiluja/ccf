@@ -82,7 +82,9 @@ If `.claude/plan/` changed (tasks finished, reordered, added), update `PLAN.md` 
 2. Then trim `CLAUDE.md`'s `## Current plan` to the iteration now in flight and let the archive carry the rest. The script deliberately leaves this to you: picking the new lead iteration is judgment, not mechanics.
 3. Leave committing to the user. The script stages the moved files and nothing more (`git-workflow.md`).
 
-Why this matters in both directions: a closed row left in `PLAN.md` is counted as LIVE work by `lib/plan.mjs` (`findActiveTask` / `findNonDoneTasks`) and by the Stop nudge, while deleting the history instead of archiving it would lose a real, auditable record of what shipped and why. Archive, never delete.
+Why this matters in both directions: a closed row left in `PLAN.md` is counted as LIVE work by `lib/plan.mjs` (`findActiveTask` / `findNonDoneTasks`) and by the Stop nudge, while losing the history would lose a real, auditable record of what shipped and why.
+
+**Retention:** `ARCHIVE.md` and git history are permanent; `.claude/plan/archive/` keeps only the task files of the newest 10 iterations in `ARCHIVE.md`. When older ones exist (the Stop nudge's clause E says so), run `node "<plugin-root>/scripts/prune-archive.mjs"` to preview the files to prune and the orphans it keeps, then add `--apply` once the user agrees: it stages a `git rm` per file and never commits. A pruned file comes back with `git log --diff-filter=D --name-only -- .claude/plan/archive/` and then `git show <sha>^:<path>`.
 
 ## Closing (mandatory)
 - **Check harness-level attribution:** confirm `.claude/settings.json` exists with an `attribution` key set (the deterministic, harness-enforced replacement for the deprecated `includeCoAuthoredBy` and for any "never add Co-Authored-By" prose). If the file is missing or `attribution` is absent, **nudge the user** to set it (`attribution.commit` / `attribution.pr` = the trailer text they want, or `""` to suppress). Leave the writing to them, since it changes how every future commit in the repo is attributed.
