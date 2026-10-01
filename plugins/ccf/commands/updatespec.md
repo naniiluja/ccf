@@ -1,7 +1,7 @@
 ---
 description: Refresh the CCF spec (.claude/rules + CLAUDE.md) AND system memory with what was learned this session, so future sessions start fresh and repeat fewer mistakes. Also records new tools with "when to use".
 argument-hint: ""
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, AskUserQuestion
 model: opus
 ---
 
@@ -55,9 +55,22 @@ Write the lessons classified as **memory** in step 1 into this project's memory 
 > **Auto Memory interplay:** Claude Code's `autoMemoryEnabled` (on by default, v2.1.59+) may already have auto-saved notes from this session. This step is the *deliberate curation* pass: review and dedupe what is there, then write the high-signal lessons explicitly rather than trusting the auto-extractor.
 - Each memory is **one file holding one fact**, with frontmatter `name` (kebab-case), `description` (one line, used for recall) and `metadata.type` (`feedback` | `user` | `project` | `reference`).
 - For `feedback` and `project`, follow the body with `**Why:**` and `**How to apply:**` lines. The `**Why:**` is mandatory, not decoration: without it Claude obeys rigidly and stalls on edge cases; with it Claude grasps the intent and handles ambiguous cases on its own.
-- Before creating a file, **look for an existing one** covering the same fact and update that instead; delete memories that turn out to be wrong.
+- **Write-time quality gate, before creating a file.** Ask three questions: would forgetting this cause a repeat mistake, is it specific to this project or user, and does it already exist? A memory that fails the first two is not written. Then compare it with the existing files: an exact match is skipped, a partial overlap is merged into the existing file, and a contradiction is resolved in favor of this session's fact by updating the old file. Delete memories that turn out to be wrong.
 - After writing the file, add **one line** pointing to it in `MEMORY.md` (`- [Title](file.md) — hook`). **`MEMORY.md` is a pure index loaded every session, and only its first 200 lines OR 25KB (whichever comes first) are read**, so keep it to one line per memory, under ~200 characters, with no memory content in it, and prune as it nears the limit. Link related memories by their `name:` slug — `[[name]]`, not the filename.
 - **Memory is point-in-time:** describe a memory by intent or behavior, not by a code location ("auth via middleware in main.go", not "the check at line 42"). A recalled memory reflects what was true when it was written, so verify the file, function or flag still exists before asserting it as fact.
+
+#### 5b. Consolidate (gated)
+Memory lives outside the repository's version control, so a wrong deletion cannot be undone; this pass therefore runs only when a deterministic gate opens, and every change goes through one user confirmation.
+1. Run `node "<plugin-root>/scripts/memory-audit.mjs" --memory-dir <this session's memory directory>`. The script is read-only and prints JSON. The docs define no rule for deriving the directory name, so pass the path you know from your own memory setup.
+2. When `gate` is `false`, say so in one line and end step 5b.
+3. When `gate` is `true` (the `reasons` name which threshold opened it), work through four phases:
+   - **Orient:** read `MEMORY.md` and every memory file.
+   - **Gather signal:** first check each memory against the current code, because a named file, flag or function that no longer exists makes the memory wrong. Then look for duplicates, superseded entries, and the script's `danglingIndex` (index lines pointing at a missing file) and `unindexed` (files the index does not link).
+   - **Consolidate:** propose merges of memories that state the same fact.
+   - **Prune and index:** propose drops for wrong or stale memories.
+4. Print one proposal table with columns file, action (`keep` / `merge into X` / `drop`) and reason. Ask ONCE with `AskUserQuestion`: apply all, choose per row, or skip. Apply only what the user approved, then rewrite `MEMORY.md` to one line per remaining memory.
+
+**Optional Jev column.** When `TYPESAFE_API_KEY` is set, add `--jev` to the step 1 command, and before running it tell the user in one sentence that every memory file, including `user`-type memories, and `MEMORY.md` are sent to api.typesafe.ai. For each file whose JSON entry carries `jev`, add a `jev` column to the table showing `label score` (e.g. `drop 0.82`). The `jev` column never decides an action on its own: your action column stays authoritative, and a Jev label is a hint you may cite or overrule, never by itself a reason to drop. Any top-level `jev` value other than `ok` means no column; continue exactly as without Jev and do not dwell on the status.
 
 ### 6. Sync the plan
 If `.claude/plan/` changed (tasks finished, reordered, added), update `PLAN.md` and each task's status. **This command is the SOLE writer of `done`:** a task that is `in-review` AND has passed `/ccf:check` cleanly becomes `done` here. Cleanly means the report carries no `FAIL:` finding and no `PARTIAL:` line: a review cut off before it covered the whole diff has not passed, so leave that task `in-review`. Every task is implemented directly in the main session and only ever reaches `in-review` there; `/ccf:check` is read-only and never writes status. If a review surfaced findings, leave the task `in-review` or move it back to `in-progress`.
