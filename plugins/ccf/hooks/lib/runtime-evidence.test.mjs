@@ -57,3 +57,12 @@ test("readRuntimeEvidence: garbage input never throws and needs nothing", () => 
     assert.deepEqual(readRuntimeEvidence(g), { touchesUi: false, evidence: "", state: "not-required" });
   }
 });
+
+test("readRuntimeEvidence: Touches UI comes from the second text when given, the evidence from the first", () => {
+  const flipped = task("no", "");
+  const original = task("yes", "");
+  assert.deepEqual(readRuntimeEvidence(flipped, original), { touchesUi: true, evidence: "", state: "empty" });
+  assert.deepEqual(readRuntimeEvidence(task("no", "open / -> renders"), original), { touchesUi: true, evidence: "open / -> renders", state: "ran" });
+  assert.deepEqual(readRuntimeEvidence(task("yes", ""), task("no", null)), { touchesUi: false, evidence: "", state: "not-required" });
+  assert.deepEqual(readRuntimeEvidence(original, undefined), readRuntimeEvidence(original));
+});

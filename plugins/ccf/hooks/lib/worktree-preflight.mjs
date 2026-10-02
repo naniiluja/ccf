@@ -97,7 +97,7 @@ export function assessPreflight(input) {
       const extra = outOfScope(b.actual, [...declared, `.claude/plan/${b.taskFile}`]);
       if (extra.length) problems.push({ kind: "out-of-scope", branch, id, files: extra });
     }
-    if (readRuntimeEvidence(b.taskText).state === "empty") problems.push({ kind: "missing-runtime-evidence", branch, id });
+    if (readRuntimeEvidence(b.taskText, b.uiText).state === "empty") problems.push({ kind: "missing-runtime-evidence", branch, id });
     if (b.mergeClean === false) problems.push({ kind: "merge-conflict", branch, id });
     else if (b.mergeClean !== true) problems.push({ kind: "git-error", branch, id });
   }

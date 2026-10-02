@@ -103,7 +103,7 @@ try {
     // file into a declared path cannot hide the source from the scope and overlap checks.
     const actual = base ? lines(git(dir, ["diff", "--name-only", "--no-renames", base, branch]).stdout) : [];
     const mergeClean = gitOk && base ? mergesCleanly(dir, into, branch) : null;
-    return { branch, id, taskFile, declared, actual, mergeClean, taskText };
+    return { branch, id, taskFile, declared, actual, mergeClean, taskText, uiText: mainText };
   });
 
   /** @type {{ a: string, b: string, clean: boolean | null }[]} */
@@ -116,7 +116,7 @@ try {
   }
 
   const verdict = assessPreflight({ gitOk, branches, pairs });
-  const report = branches.map(({ taskText, ...b }) => ({ ...b, runtimeEvidence: readRuntimeEvidence(taskText) }));
+  const report = branches.map(({ taskText, uiText, ...b }) => ({ ...b, runtimeEvidence: readRuntimeEvidence(taskText, uiText) }));
   done({ ok: true, ready: verdict.ready, into, branches: report, pairs, problems: verdict.problems, note: NOTE });
 } catch {
   done({ ok: false, reason: "error" });

@@ -17,9 +17,9 @@ const evidenceState = (evidence = "") => {
   return /\S\s*(->|→)\s*\S/.test(evidence) ? "ran" : "empty";
 };
 
-export function readRuntimeEvidence(taskText = "") {
+export function readRuntimeEvidence(taskText = "", uiText = taskText) {
   const text = typeof taskText === "string" ? taskText : "";
-  const touchesUi = fieldValue(text, "Touches UI").toLowerCase() === "yes";
+  const touchesUi = fieldValue(typeof uiText === "string" ? uiText : "", "Touches UI").toLowerCase() === "yes";
   const evidence = fieldValue(text, "Runtime evidence");
   return { touchesUi, evidence, state: touchesUi ? evidenceState(evidence) : "not-required" };
 }

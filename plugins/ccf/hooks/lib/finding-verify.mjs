@@ -17,7 +17,6 @@ import { DEFAULT_CAP_BYTES, DEFAULT_THRESHOLD, filterDiffSections, noulValue, wi
  * the `rule:` label that 059's checker format puts on every FAIL; a description may quote other text
  * earlier on the line.
  * @param {any} reportText
- * @returns {FailFinding[]}
  */
 export function parseFailFindings(reportText) {
   if (typeof reportText !== "string") return [];
@@ -34,7 +33,7 @@ export function parseFailFindings(reportText) {
     const text = m[1].trim();
     const loc = /`?([\w@./\\-]+\.\w+):(\d+)`?/.exec(text);
     const quote = /\brule:\s*"([^"]+)"/.exec(text) ?? (/\brepro:/.test(text) ? null : /"([^"]+)"/.exec(text));
-    const repro = /\brepro:\s*"([^"]+)"\s*->\s*"([^"]*)"/.exec(text);
+    const repro = /\brepro:\s*"(.+?)"\s*->\s*"(.*?)"(?=\s*(?:—|$))/.exec(text);
     out.push({
       index: out.length,
       text,

@@ -92,8 +92,6 @@ test("assessPreflight: garbage input never throws and is not ready", () => {
   }
 });
 
-// ---- runtime evidence (task 083) ---------------------------------------------------------------
-
 const UI_EMPTY = "# 7\n- **Touches UI:** yes\n- **Runtime evidence:**\n";
 
 test("assessPreflight: the branch's OWN task file is in scope, another task's file stays out-of-scope", () => {
@@ -101,6 +99,12 @@ test("assessPreflight: the branch's OWN task file is in scope, another task's fi
   assert.deepEqual(own.problems, []);
   const other = assessPreflight({ gitOk: true, branches: [B("7", { actual: ["src/7.js", ".claude/plan/task-8-y.md"] })], pairs: [] });
   assert.deepEqual(other.problems.find((p) => p.kind === "out-of-scope").files, [".claude/plan/task-8-y.md"]);
+});
+
+test("assessPreflight: Touches UI is read from uiText, so a branch flipping it to no still blocks", () => {
+  const flipped = "# 7\n- **Touches UI:** no\n- **Runtime evidence:**\n";
+  const r = assessPreflight({ gitOk: true, branches: [B("7", { taskText: flipped, uiText: UI_EMPTY })], pairs: [] });
+  assert.deepEqual(r.problems, [{ kind: "missing-runtime-evidence", branch: "worktree-ccf-it-7", id: "7" }]);
 });
 
 test("assessPreflight: Touches UI yes with an empty Runtime evidence blocks as missing-runtime-evidence", () => {

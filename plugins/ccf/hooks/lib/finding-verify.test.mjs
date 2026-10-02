@@ -58,6 +58,9 @@ test("parseFailFindings: repro matrix over rule:/repro: presence", () => {
     { name: "repro with empty command", line: '- FAIL: bug — `src/pages.js:2` — repro: "" -> "not ok"', quote: null, repro: null },
     { name: "repro with empty output", line: '- FAIL: bug — `src/pages.js:2` — repro: "npm test" -> ""', quote: null, repro: { command: "npm test", output: "" } },
     { name: "repro without spaces around ->", line: '- FAIL: bug — `src/pages.js:2` — repro:"npm test"->"1 failed"', quote: null, repro: { command: "npm test", output: "1 failed" } },
+    { name: "repro output holding JSON quotes", line: '- FAIL: bug — `a.mjs:3` — repro: "node x.mjs" -> "{"ready":true}" — confidence 80', quote: null, repro: { command: "node x.mjs", output: '{"ready":true}' } },
+    { name: "repro command holding quotes, output at end of line", line: '- FAIL: bug — `a.mjs:3` — repro: "node -e "f(1)"" -> "got "x""', quote: null, repro: { command: 'node -e "f(1)"', output: 'got "x"' } },
+    { name: "quoted output then rule", line: '- FAIL: bug — `a.mjs:3` — repro: "npm test" -> "{"a":1}" — rule: "keep it green"', quote: "keep it green", repro: { command: "npm test", output: '{"a":1}' } },
   ];
   for (const c of cases) {
     const [f] = parseFailFindings(c.line);
