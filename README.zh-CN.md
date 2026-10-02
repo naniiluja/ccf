@@ -43,7 +43,7 @@
 
 - **Hook 是最确定的一层。** 命令和 agent 只是提示词，模型可以选择无视。Hook 是随会话事件运行的脚本，每次必触发：在 plan mode 之外挡住 `/ccf:plan`，代码变了就提醒更新规格，compact 之后自动载入未完成的任务。
 - **Agent 是 6 个只读帮手**：读代码库切片、查官方最佳实践、起草规格、两个做审查，还有一个在你动手前尝试反驳每个阻断性发现。它们都不写代码，代码由你直接在会话里写。
-- **脚本是 8 个命令行工具**，只在你（或某个命令先征得你同意后）启动时才运行，因为它们会改文件或调用外部 API。其中 `prune-archive.mjs` 清理已结束的旧 iteration 的任务文件（archive 和 git 历史仍保留记录），`memory-audit.mjs` 在系统 memory 增长到需要整理时提醒 `/ccf:updatespec`。
+- **脚本是 11 个命令行工具**，只在你（或某个命令先征得你同意后）启动时才运行，因为它们会改文件或调用外部 API。其中 `prune-archive.mjs` 清理已结束的旧 iteration 的任务文件（archive 和 git 历史仍保留记录），`memory-audit.mjs` 在系统 memory 增长到需要整理时提醒 `/ccf:updatespec`，`spec-budget.mjs` 测量每个 session 都要加载的 spec 字节数，`eval-changelog.mjs` 把每个版本的 eval 分数（或未运行的原因）写进 `CHANGELOG.md`。
 - **文档查询内置。** 插件自带 Context7 和 Microsoft Learn（MCP 服务器），设计建议引用真实文档，而不是模型的记忆。
 
 完整内部文档：[plugins/ccf/README.md](./plugins/ccf/README.md)。Hook 需要 Node ≥ 18。

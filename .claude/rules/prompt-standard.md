@@ -134,7 +134,7 @@ Two tables, two different jobs. Do not mix them: a heading groups findings, a ma
 | `### Acceptance criteria` | One line per task criterion: met, not met (Missing or Misunderstood), or not verifiable from the diff, plus an `Extra:` line. |
 | `### Declined to judge` | Mandatory: what the reviewer set aside or scored below 50, with the reason; "none" only when truly nothing. |
 
-A `FAIL:` line in `ccf-spec-checker`'s report carries a verbatim rule or criterion quote and a confidence of 80 or more; 50 to 79 is `WARN:` (the rubric lives in the agent file). The report ends with a `Checked for:` line.
+A `FAIL:` line in `ccf-spec-checker`'s report carries a confidence of 80 or more AND either a verbatim rule or criterion quote (`rule: "..."`) or a reproduction it actually ran (`repro: "<command>" -> "<real output>"`), and analysis without a run command stays at most `WARN:`; 50 to 79 is `WARN:` (the rubric lives in the agent file). The report ends with a `Checked for:` line.
 
 Both ends of this vocabulary must move together. `ccf-spec-checker.md` and `ccf-scope-checker.md` PRODUCE the headings; `check.md` step 6, `cook.md` step 5 and `updatespec.md` step 6 READ them, and `hooks/lib/verify-chain.mjs`'s reason string only names the `FAIL:` and `PARTIAL:` words (it parses no report). Changing one end alone leaves a gate keyed on a marker nobody emits.
 
@@ -146,6 +146,6 @@ The docs describe the two mechanisms separately and never state how they combine
 
 Consequence for the budget, stated in the order that matters: what a session actually PAYS is `CLAUDE.md` plus every `@import`ed rule, i.e. the `wc -c CLAUDE.md .claude/rules/*.md` total minus this file's own bytes (the only rule that is `paths:`-scoped AND not imported). A subtraction that also removed `hooks.md` would be a hypothetical only: `hooks.md` is `@import`ed, so its `paths:` is void and its bytes are paid every session regardless of that frontmatter. Earlier notes carried four different figures in a row for this total (measured mid-task, then prose grew, then nobody re-measured), which is exactly the fixpoint this file must not repeat — so the paid figure is no longer restated in prose here. It lives in the single machine-readable claim below, which `.claude/tests/context-budget.test.mjs` (repo scope, see `.claude/rules/testing.md`) asserts against a real measurement on every run; re-run `wc -c` as the LAST step of any task that touches this set, then update the number in the label, not in a sentence.
 
-<!-- ccf-budget: paid=107429 -->
+<!-- ccf-budget: paid=109182 -->
 
 This file is itself one of the bytes being measured, and it is the one file EXCLUDED from the paid total (it carries `paths:` and is deliberately not `@import`ed) — so editing the label above changes nothing about what it is checked against. Adding an `@import .claude/rules/prompt-standard.md` line to `CLAUDE.md` would break that: the file would re-enter the paid set it is labeling, closing the fixpoint loop this design exists to avoid. `.claude/tests/context-budget.test.mjs` asserts this file stays in the lazy (excluded) set for exactly that reason.
