@@ -39,5 +39,5 @@ Planned 2026-10-02 with `/ccf:plan`, approved by the user. Two lessons applied: 
 | 076 | plan: `references/` for Jev and 5b, Gotchas | skill + references + repo test | repo suite + validate | — | done |
 | 077 | Trigger-style description for 4 commands + 5 agents | frontmatter + repo test | repo suite + validate | — | done |
 | 078 | `ccf-finding-refuter` + `check.md` step 6c | agent + command + repo test | repo + lib suite + validate | 077 | done |
-| 079 | Eval case 08 + "real defect not refuted" grader | evals | offline scaffold + grader RED/GREEN | 078 | todo |
+| 079 | Eval case 08 + "real defect not refuted" grader | evals | offline scaffold + grader RED/GREEN | 078 | in-review |
 | 080 | Spec, README, counts, ccf-budget sync | rules + docs | 3 suites + tsc + validate + codepoint + md5 x9 | 078, 079 | todo |
