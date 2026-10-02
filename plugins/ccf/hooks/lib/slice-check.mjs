@@ -181,7 +181,7 @@ export function extractDependsOn(text = "") {
   const m = /^\s*[-*]?\s*\**depends on:?\**:?\s*(.*)$/im.exec(text);
   if (!m) return [];
   const value = m[1].replace(/<!--.*?-->/g, " ").replace(/`/g, " ");
-  return [...new Set(value.match(/\b[A-Za-z]*\d[\w]*\b/g) ?? [])].map((id) => id.replace(/^task-?/i, ""));
+  return [...new Set(value.match(/\b[A-Za-z]*\d[\w]*\b/g) ?? [])].map((id) => id.replace(/^task-?/i, "").toLowerCase());
 }
 
 /**
