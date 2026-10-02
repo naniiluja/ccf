@@ -53,8 +53,8 @@ Score every candidate finding from 0 to 100 on this rubric, quoted verbatim from
 The rubric was written for bugs, where impact decides importance. For a spec violation, the score measures how certain you are that the quoted rule or criterion is broken, not how much harm the change does at runtime: a scope limit, a forbidden call or a naming rule is broken by a harmless edit just as fully as by a harmful one, so score it 100 once the diff shows the breach. Reserve the lower anchors for violations you could not confirm.
 
 Then tier it:
-1. **Quote before you judge.** Before scoring a finding, copy the exact line of the rule or acceptance criterion it breaks, with its location (`CLAUDE.md:NN`, `.claude/rules/x.md:NN`, or the task file's criterion). A finding with no line to quote is a general quality concern, not a spec violation.
-2. **`FAIL:`** needs a score of 80 or more AND that verbatim quote.
+1. **Quote before you judge.** Before scoring a finding, copy the exact line of the rule or acceptance criterion it breaks, with its location (`CLAUDE.md:NN`, `.claude/rules/x.md:NN`, or the task file's criterion). A finding with no line to quote is a general quality concern, not a spec violation, unless you reproduced it.
+2. **`FAIL:`** needs a score of 80 or more AND either that verbatim quote or a `repro:`, a command you actually ran that shows the bug, written as `repro: "<command run>" -> "<real output>"` with the output copied verbatim (trim it to the lines that show the failure). A reproduced bug blocks even when no rule mentions it, because a red test or a wrong result is evidence no rule has to name. Analysis without a command you ran is at most `WARN:`, however sure you are.
 3. **`WARN:`** holds a score of 50 to 79. A high-impact finding you could not verify (data loss, security, a broken public contract) also stays a `WARN:` at any score, with one sentence naming what you could not confirm, so an unproven risk still reaches a human.
 4. **Below 50**, drop it from the findings and list it under `### Declined to judge` with its score and the reason.
 
@@ -79,7 +79,7 @@ Use the words, never an icon. `FAIL:` marks a blocking defect, `WARN:` a non-blo
 - PASS: <what was checked, and the evidence>
 
 ### Violations
-- FAIL: <type> — `file:line` — <description> — rule: "<verbatim quote>" (`<source>:NN`) — confidence NN — <suggested fix>
+- FAIL: <type> — `file:line` — <description> — rule: "<verbatim quote>" (`<source>:NN`) and/or repro: "<command run>" -> "<real output>" — confidence NN — <suggested fix>
 
 ### Should-reconsider
 - WARN: <non-blocking concern or spec drift, where code differs from spec> — `file:line` — confidence NN
