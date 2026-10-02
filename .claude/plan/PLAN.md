@@ -22,9 +22,9 @@ Grounding: `@import` paths resolve relative to the importing file, accept absolu
 ## Task backlog — fincon-feedback (waves: 081, 082, 085 in parallel, then 084, then 083, then 086)
 | # | Slice | Layers | Gate (tests green) | Depends on | Status |
 |---|-------|--------|--------------------|-----------|--------|
-| 081 | FAIL by reproduction | spec-checker agent + check.md + finding-verify lib + repo latch + eval case 09 | lib + repo suite + tsc + validate | — | todo |
-| 082 | `accepted` status + PENDING.md + session-start reminder | plan lib + session-start hook + templates + init/updatespec + seed PENDING.md | lib + repo suite + tsc + validate + session-start smoke | — | todo |
-| 085 | eval-changelog script + CHANGELOG.md + version latch | lib + script + CHANGELOG + repo latch | 3 suites + tsc + preview smoke | — | todo |
+| 081 | FAIL by reproduction | spec-checker agent + check.md + finding-verify lib + repo latch + eval case 09 | lib + repo suite + tsc + validate | — | in-review |
+| 082 | `accepted` status + PENDING.md + session-start reminder | plan lib + session-start hook + templates + init/updatespec + seed PENDING.md | lib + repo suite + tsc + validate + session-start smoke | — | in-review |
+| 085 | eval-changelog script + CHANGELOG.md + version latch | lib + script + CHANGELOG + repo latch | 3 suites + tsc + preview smoke | — | in-review |
 | 084 | spec-budget script + rule/narrative split | lib + script + updatespec.md + spec-writer agent | 3 suites + tsc + validate + spec-budget smoke | — | todo |
 | 083 | Runtime evidence field in the gate | lib + preflight + templates + plan skill + cook/check/updatespec + repo latches | 3 suites + tsc + validate | 082 | todo |
 | 086 | Spec, docs and count sync | CLAUDE.md + rules + READMEs | 3 suites + tsc + validate + `wc -lc CLAUDE.md` + spec-budget | 081, 082, 083, 084, 085 | todo |
