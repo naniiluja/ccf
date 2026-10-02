@@ -9,7 +9,7 @@ plugins/ccf/
 ├─ .claude-plugin/plugin.json   # manifest
 ├─ .mcp.json                    # microsoft-learn + context7 (HTTP, key-less)
 ├─ commands/                    # 4 slash commands; /ccf:plan is a skill (see skills/)
-├─ agents/                      # 5 subagents, ALL read-only (see below)
+├─ agents/                      # 6 subagents, ALL read-only (see below)
 ├─ skills/                      # plan/ (the /ccf:plan workflow), grill-me/ (internal interview engine)
 ├─ hooks/                       # 7 .mjs hooks + hooks.json + lib/ helpers
 ├─ scripts/                     # 8 human-run CLIs (nothing invokes them automatically)
@@ -18,7 +18,7 @@ plugins/ccf/
 
 ## Agents (all read-only)
 
-All 5 CCF agents are read-only. You implement directly in the main session; `/ccf:cook` runs one built-in general-purpose agent per task in isolated worktrees. A spawned coding agent was measured slower than writing the code yourself with the plan already loaded.
+All 6 CCF agents are read-only. You implement directly in the main session; `/ccf:cook` runs one built-in general-purpose agent per task in isolated worktrees. A spawned coding agent was measured slower than writing the code yourself with the plan already loaded.
 
 Every agent inherits the host project's tools, MCP servers and skills (no per-agent allowlist to maintain), and carries `disallowedTools: Write, Edit, NotebookEdit, Agent, Task`, so no file writes and no nested spawning.
 
@@ -29,6 +29,7 @@ Every agent inherits the host project's tools, MCP servers and skills (no per-ag
 | `ccf-spec-writer` | Drafts spec text from a decisions summary; the main thread writes the files. |
 | `ccf-spec-checker` | Fresh-context reviewer used by `/ccf:check`. |
 | `ccf-scope-checker` | Second reviewer in `/ccf:check`: does the diff stay inside the task's files and criteria, and cover all of them. |
+| `ccf-finding-refuter` | Runs in `/ccf:check` step 6c when a `FAIL:` exists: tries to disprove each one with quoted evidence and returns REFUTED or STANDS. A refuted finding stays `FAIL:` with a note. |
 
 ## Hooks
 

@@ -1,6 +1,6 @@
 ---
 name: ccf-spec-writer
-description: Drafts CLAUDE.md and .claude/rules/*.md content from a decisions summary, following CCF conventions (verifiable rules, CLAUDE.md under 200 lines, @import). Returns proposed file content; the main thread is the one that writes. Used by /ccf:init and /ccf:updatespec.
+description: Use when CLAUDE.md or .claude/rules/*.md content must be drafted from a decisions summary. Drafts it following CCF conventions (verifiable rules, CLAUDE.md under 200 lines, @import). Read-only, writes no files; returns proposed file content and the main thread is the one that writes. Used by /ccf:init and /ccf:updatespec.
 model: sonnet
 effort: medium
 disallowedTools: Write, Edit, NotebookEdit, Agent, Task

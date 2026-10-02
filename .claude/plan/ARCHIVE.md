@@ -33,6 +33,27 @@
 > **⚠️ BULK-CLOSE #1 (by explicit user command "đánh done toàn bộ"):** every open task across ALL iterations (017–019, 022/023/022a, 025a, 028a, 029a, 030/030a, 031/032/032a, 034a) was marked `done` by EXPLICIT user acceptance — NOT by each task's own `/ccf:check` + `/code-review` + (where applicable) live-verify observation. Several were `in-review` (code written, final review NOT run) and several were hanging live-verifies whose real behavior remains **UN-OBSERVED** (they need a plugin reload). This mirrors the 024a/034a precedent but applied in bulk. **Residual risk & how to re-open:** any hook/behavior whose live effect was never observed (022a MCP-inheritance, 025a Explore-inject, 028a auto-verify, 029a effort, 030a Kiro, 032a cook, 034a SubagentStop-gate) rests on unit/smoke/grounding evidence only; if a real-harness behavior later differs, re-open the specific iteration with a captured fixture. Opt-in hooks (`--auto-verify`, `--enforce-tests`) stay default-OFF, so their unobserved close carries no live risk until enabled.
 
 ---
+## Origin: skills-and-refuter (tasks 075 to 080)
+
+Planned 2026-10-02 with `/ccf:plan`, approved by the user. Two lessons applied: a short `SKILL.md` with conditional detail in `references/`, a sourced Gotchas section and a trigger-style `description`; and verifying fanned-out review findings. Grounding (Context7 `/websites/code_claude`): code.claude.com/docs/en/slash-commands, /en/best-practices, /en/workflows. Decisions: refute `FAIL:` findings only (no missed-defect hunt); a refuted `FAIL:` stays `FAIL:` with `Refuted (ccf-finding-refuter): <evidence>` appended, so no marker contract changes; new agent `ccf-finding-refuter` (sonnet, medium, maxTurns 25, read-only leaf), agents 5 to 6; offline test gates, the paid eval is non-blocking; `plan/SKILL.md` must not exceed 15,749 bytes, `grill-me/SKILL.md` at most 4,500 bytes, and only conditional content moves; step 0 of `plan`, the style block, cited step numbers and `discipline: on` stay untouched. Test design discipline is off. No version bump without asking. 074 set to `in-review` (merged in 39ea89b, PR #11).
+
+## Task backlog — skills-and-refuter (waves: 075, 076, 077 in parallel, then 078, 079, 080)
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 075 | grill-me: `references/init-mode.md`, Gotchas, description | skill + references + repo test | repo suite + validate | — | done |
+| 076 | plan: `references/` for Jev and 5b, Gotchas | skill + references + repo test | repo suite + validate | — | done |
+| 077 | Trigger-style description for 4 commands + 5 agents | frontmatter + repo test | repo suite + validate | — | done |
+| 078 | `ccf-finding-refuter` + `check.md` step 6c | agent + command + repo test | repo + lib suite + validate | 077 | done |
+| 079 | Eval case 08 + "real defect not refuted" grader | evals | offline scaffold + grader RED/GREEN | 078 | done |
+| 080 | Spec, README, counts, ccf-budget sync | rules + docs | 3 suites + tsc + validate + codepoint + md5 x9 | 078, 079 | done |
+
+## Closed — skills-and-refuter (2026-10-02)
+Run with `/ccf:cook` in 4 waves (075-077, 078, 079, 080), each task in its own worktree on opus, merged through `worktree-preflight.mjs` + `integrate-wave.mjs`. PR #13. The paid `claude plugin eval` observation of task 079 was NOT run.
+
+- **080's first `/ccf:check` FAILed** on a repo-wide grep criterion (`5 agents|all 5|5 CCF agents` hits only history) whose hits lived in 4 files outside its `Files to touch` (`tooling.md`, `plugins/ccf/README.md`, `README.vi.md`, `README.zh-CN.md`). The worktree agent could not touch them, so it reported GREEN with a caveat. Fixed in-session (a9432d6); re-check clean. Lesson: a grep criterion's `Files to touch` must cover every file the grep can hit.
+- **Refuter step 6c ran via emulation:** the installed plugin cache predated 078, so `ccf-finding-refuter` was run as a `general-purpose` agent reading the agent file. All 3 FAILs came back STANDS. Jev (step 6b) scored all 3 below 0.5 because the stale lines were outside the diff it sees.
+- **Open WARNs carried forward:** case 08 graders `spawned-refuter.md` / `refuted-pattern.md` are unconditional, so a checker that correctly raises no `FAIL:` scores RED; `08/graders/all-refuted.md` is not bullet-anchored; `skills/plan/SKILL.md` still says "next to this file" against `components.md`'s base-directory rule; `plugins/ccf/README.md` and both translations say 8 scripts (9 exist); `CLAUDE.md` sits about 20 bytes under the 12KB cap.
+
 ## Origin: jev-backtest (task 067 đến 069)
 
 Backtest bước 2 còn dang dở của task-064 (`task-064-worktree-parallel-research.md` mục 2c): đo recall của Jev trên phụ thuộc thật, ngưỡng 95% để quyết định có dùng Jev gating song song không. `jev-slice-check.mjs` hiện vẫn ghi "has not been backtested". Người dùng duyệt hướng này ngày 2026-10-01 ("cải tiến harness đáng kể", cho đốt token thoải mái), chọn qua phân tích: `integrate-wave --apply` đã có từ 41e4573, plan-step opt-in nhỏ, tách `hooks.md` (~27KB) rủi ro cao. Ground truth (đo thật ngày 2026-10-01): 63 task file, 13 cặp declared-Depends on mà code không tự bắt được (không trùng file/hotspot) là positive; negative lấy mẫu 60 cặp (seed cố định). Input cho Jev strip dòng Depends on để chống leak label. Live run: recall 92.3% (dưới ngưỡng 95%), FPR 65-70%, unanswered 0% → Jev giữ vai trò advisory, không dùng để gating tự động.

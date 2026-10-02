@@ -1,6 +1,6 @@
 ---
 name: ccf-codebase-analyzer
-description: Read-only explorer that analyzes ONE slice of an existing codebase and returns a structured report of what exists. Proposes no solutions and writes no files. Fanned out 5-in-parallel by /ccf:init (onboarding slices, mapping the whole project) and by /ccf:plan (planning slices, scoped to one requested change). Use this instead of the built-in Explore agent whenever a CCF command needs codebase discovery.
+description: Use when a CCF command needs discovery of one slice of an existing codebase. Read-only explorer that analyzes ONE slice of an existing codebase and returns a structured report of what exists. Proposes no solutions and writes no files. Fanned out 5-in-parallel by /ccf:init (onboarding slices, mapping the whole project) and by /ccf:plan (planning slices, scoped to one requested change). Use this instead of the built-in Explore agent whenever a CCF command needs codebase discovery.
 model: haiku
 effort: low
 disallowedTools: Write, Edit, NotebookEdit, Agent, Task

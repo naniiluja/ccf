@@ -26,4 +26,4 @@ Requested 2026-10-01: closed task files and project memory accumulate with no cl
 | 071 | memory-audit script + gated consolidation step + opt-in Jev column | lib memory-audit + script (askJev) + updatespec.md step 5 + tests (fake Jev server) | lib suite + tsc + validate + smoke on real memory dir | — | in-review |
 | 072 | Lifecycle spec, docs and repo sync | rules + CLAUDE.md + READMEs + preambles + prune of this repo | all suites + tsc + validate + ccf-budget | 070, 071 | in-review |
 | 073 | prune-archive exit code + relative `--dir` (also archive-plan) | 2 scripts + process tests + tooling.md | lib suite + repo suite + tsc + relative-dir smoke | 070 | done |
-| 074 | Clause E prints `--dir` in the prune-archive command | updatespec-nudge + io test | lib suite + tsc | 073 | todo |
+| 074 | Clause E prints `--dir` in the prune-archive command | updatespec-nudge + io test | lib suite + tsc | 073 | in-review |

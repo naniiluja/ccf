@@ -1,6 +1,6 @@
 ---
 name: ccf-spec-checker
-description: Fresh-context reviewer that checks an implementation against the CCF spec — conformance, conventions, SOLID/OOP, spec drift, BE↔FE consistency. Read-only, returns findings with file:line, does NOT fix code. Invoked by /ccf:check, never for coding.
+description: Use when /ccf:check reviews a finished implementation. Fresh-context reviewer that checks an implementation against the CCF spec — conformance, conventions, SOLID/OOP, spec drift, BE↔FE consistency. Read-only, returns findings with file:line, does NOT fix code. Invoked by /ccf:check, never for coding.
 model: opus
 effort: high
 maxTurns: 40

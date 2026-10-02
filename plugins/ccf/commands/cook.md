@@ -1,5 +1,5 @@
 ---
-description: Execute the todo/in-progress backlog in parallel waves, one worktree-isolated agent per task, merge each wave through the preflight gate and integrate-wave, then run /ccf:check once and /ccf:updatespec.
+description: Use only when the user explicitly asks to run the planned backlog, because it merges branches and commits. Executes the todo/in-progress backlog in parallel waves, one worktree-isolated agent per task, merge each wave through the preflight gate and integrate-wave, then run /ccf:check once and /ccf:updatespec.
 argument-hint: "[optional: task range]"
 allowed-tools: Read, Edit, Glob, Grep, Task, Skill, AskUserQuestion, TaskCreate, TaskUpdate, TaskList, Bash
 model: opus

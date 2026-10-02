@@ -42,7 +42,7 @@ Luồng thường dùng: `/ccf:init` → `/ccf:plan` → `/ccf:cook` → `/ccf:c
 Không cần đọc mục này vẫn dùng được CCF. Dành cho ai tò mò.
 
 - **Hook** là lớp chắc chắn nhất. Command và agent chỉ là prompt, model có thể lờ đi. Hook là script chạy theo sự kiện session, lần nào cũng chạy: chặn `/ccf:plan` ngoài plan mode, nhắc cập nhật spec khi code đổi, nạp lại task đang dở sau khi compact.
-- **Agent** là 5 trợ lý chỉ đọc: một đọc từng phần codebase, một tra best practice từ tài liệu chính thức, một soạn thảo spec, hai reviewer soi code. Không ai trong số đó viết code. Bạn viết code trực tiếp trong session.
+- **Agent** là 6 trợ lý chỉ đọc: một đọc từng phần codebase, một tra best practice từ tài liệu chính thức, một soạn thảo spec, hai reviewer soi code, và một tìm cách bác bỏ từng lỗi chặn trước khi bạn xử lý. Không ai trong số đó viết code. Bạn viết code trực tiếp trong session.
 - **Script** là 8 công cụ dòng lệnh chỉ chạy khi bạn (hoặc một lệnh, sau khi hỏi bạn) khởi động, vì chúng sửa file hoặc gọi API bên ngoài. Trong đó: `prune-archive.mjs` dọn file task của các iteration cũ đã xong (archive và lịch sử git vẫn giữ lại), còn `memory-audit.mjs` báo cho `/ccf:updatespec` khi memory hệ thống đã phình đến mức cần dọn.
 - **Tra tài liệu ngay trong plugin.** CCF đi kèm Context7 và Microsoft Learn (MCP server), nên lời khuyên thiết kế trích từ tài liệu thật, không phải từ trí nhớ của model.
 
