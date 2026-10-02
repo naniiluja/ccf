@@ -29,14 +29,20 @@ You are READ-ONLY: you write no files, and you mutate no external system through
 ## Spec-writing rules
 - **Write specific, verifiable rules.** "Use 2-space indentation", "API handlers live in `src/api/handlers/`", "Run `npm test` before committing" can each be checked against the repo; "format properly", "keep organized" and "test your changes" cannot, so they read as filler and get ignored.
 - **One topic per file, under 50 lines each.** Split by topic: tech-stack, architecture, coding-conventions, logging, testing, error-handling, debugging, tooling, git-workflow.
-- **Keep `CLAUDE.md` under 200 lines.** Push the detail into `.claude/rules/*.md` and leave `CLAUDE.md` an overview plus `@.claude/rules/...` import lines (max depth 5). The whole imported set is paid on every session, so length here is a recurring cost.
+- **Keep `CLAUDE.md` under 200 lines.** Push the detail into `.claude/rules/*.md` and leave `CLAUDE.md` an overview plus `@.claude/rules/...` import lines (imports recurse at most four hops, per code.claude.com/docs/en/memory). The whole imported set is paid on every session, so length here is a recurring cost.
 - **Drop anything Claude can infer.** Leave out a language's default conventions and do not describe every file; a line that teaches nothing dilutes the lines that do.
 - **Path-scoped rules** carry `paths:` frontmatter, a list of globs (e.g. `paths: ["be/**"]`, `paths: ["src/**/*.{ts,tsx}"]`), so the rule lazy-loads only when Claude touches a matching file. Scope only rules that are truly local (backend-only, frontend-only); leave a cross-cutting rule without `paths:`, which loads it every session.
 
+- **Separate rules from narrative.** A rule is one sentence a reader can verify against the repo or a command's output. How a rule was discovered, measurements, incident history and "observed in task NNN" are narrative: they do not go into `CLAUDE.md` or a rule file, because those bytes are paid on every session. Route each narrative item to `.claude/plan/ARCHIVE.md` (what shipped and why) or to a memory (a mistake not to repeat).
+
 ## Return format
-Return each file as:
+Return two parts, in this order.
+
+**Part 1, Rules.** Each spec file as:
 ```
 ### FILE: <relative path>
 <full file content>
 ```
 List `CLAUDE.md` first, then the rule files, so the main thread can copy each block verbatim and write it.
+
+**Part 2, Narrative to relocate.** One line per item: `- <destination: ARCHIVE.md | memory (feedback/project)>: <the narrative text>`. Write `- none` when every input was a rule.
