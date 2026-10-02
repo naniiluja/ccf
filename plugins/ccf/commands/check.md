@@ -1,5 +1,5 @@
 ---
-description: Verify an implementation against the CCF spec — conformance, coding conventions, SOLID/OOP, and BE↔FE cross-check. Read-only review.
+description: Use when a task is implemented (in-review) and must be verified against the CCF spec before /ccf:updatespec marks it done — conformance, coding conventions, SOLID/OOP, and BE↔FE cross-check. Read-only review.
 argument-hint: "[optional: path or feature to check]"
 allowed-tools: Read, Glob, Grep, Bash, Task, SendMessage
 model: opus

@@ -1,5 +1,5 @@
 ---
-description: Refresh the CCF spec (.claude/rules + CLAUDE.md) AND system memory with what was learned this session, so future sessions start fresh and repeat fewer mistakes. Also records new tools with "when to use".
+description: Use when a session ends with code or decisions the spec does not reflect yet, or after /ccf:check passes to mark a task done. Refreshes the CCF spec (.claude/rules + CLAUDE.md) AND system memory with what was learned this session, so future sessions start fresh and repeat fewer mistakes. Also records new tools with "when to use".
 argument-hint: ""
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, AskUserQuestion
 model: opus

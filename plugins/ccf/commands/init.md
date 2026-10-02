@@ -1,5 +1,5 @@
 ---
-description: Bootstrap a new project or onboard an existing one into the CCF workflow — generate CLAUDE.md + .claude specs + an initial plan of vertical slices.
+description: Use only when the user explicitly asks to bootstrap a new project or onboard an existing one into the CCF workflow, because it writes the project's spec files. Generates CLAUDE.md + .claude specs + an initial plan of vertical slices.
 argument-hint: "[optional: short description of what you want to build]"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, Skill, AskUserQuestion, WebFetch, mcp__plugin_ccf_context7__resolve-library-id, mcp__plugin_ccf_context7__query-docs, mcp__plugin_ccf_microsoft-learn__*
 model: opus

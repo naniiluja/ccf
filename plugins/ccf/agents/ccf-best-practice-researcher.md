@@ -1,6 +1,6 @@
 ---
 name: ccf-best-practice-researcher
-description: Fetches current best practices for given technologies/patterns from Context7 and Microsoft Learn and returns a concise, CITED recommendation. Read-only, and it drafts no spec and writes no files. Used by /ccf:init and /ccf:plan to ground design decisions.
+description: Use when a design decision needs grounding in current official docs. Fetches current best practices for given technologies/patterns from Context7 and Microsoft Learn and returns a concise, CITED recommendation. Read-only, and it drafts no spec and writes no files. Used by /ccf:init and /ccf:plan to ground design decisions.
 model: sonnet
 effort: medium
 disallowedTools: Write, Edit, NotebookEdit, Agent, Task
