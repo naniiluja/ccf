@@ -166,6 +166,74 @@ test("session-start (source=startup): CCF-managed project → emitContext non-em
   );
 });
 
+const SESSION_START_BASE =
+  "<ccf>This project follows the CCF (Claude Context First) workflow: context-first, spec-driven, " +
+  "parallel by waves (independent tasks run at once, each in its own isolated worktree; linked tasks wait). " +
+  "Ground every design decision in Context7 + Microsoft Learn. Keep CLAUDE.md/.claude always fresh.";
+
+function pendingProject(content) {
+  const dir = makeTmpProject();
+  mkdirSync(join(dir, ".claude", "plan"), { recursive: true });
+  if (content !== null) writeFileSync(join(dir, ".claude", "plan", "PENDING.md"), content);
+  return dir;
+}
+
+function pendingTable(openCount) {
+  const rows = Array.from(
+    { length: openCount },
+    (_, i) => `| R${i + 1} | risk | 0${i + 1} | unobserved thing ${i + 1} | owner | a captured payload | open |`,
+  );
+  return [
+    "| ID | Kind | Task | What | Who | Closing evidence | Status |",
+    "|---|---|---|---|---|---|---|",
+    ...rows,
+    "| R99 | action | 099 | already handled | owner | run log | closed |",
+    "",
+  ].join("\n");
+}
+
+function sessionStartContext(dir, source) {
+  const { stdout, status } = runHook("session-start.mjs", { cwd: dir, source });
+  assert.equal(status, 0);
+  const parsed = JSON.parse(stdout);
+  assertEmitContextShape(parsed, "SessionStart");
+  return parsed.hookSpecificOutput.additionalContext;
+}
+
+test("session-start: no PENDING.md → output identical to the pre-PENDING message", () => {
+  const dir = pendingProject(null);
+  assert.equal(sessionStartContext(dir, "startup"), SESSION_START_BASE + "</ccf>");
+});
+
+test("session-start: PENDING.md with 0 open rows → output identical to having no PENDING.md", () => {
+  const dir = pendingProject(pendingTable(0));
+  assert.equal(sessionStartContext(dir, "startup"), SESSION_START_BASE + "</ccf>");
+});
+
+for (const source of ["startup", "clear", "compact"]) {
+  test(`session-start (source=${source}): 6 open PENDING rows → first 5 listed, 'and 1 more', under 10,000 chars`, () => {
+    const dir = pendingProject(pendingTable(6));
+    const text = sessionStartContext(dir, source);
+    for (const n of [1, 2, 3, 4, 5]) assert.ok(text.includes(`unobserved thing ${n}`), `row ${n}`);
+    assert.ok(!text.includes("unobserved thing 6"));
+    assert.ok(!text.includes("already handled"));
+    assert.ok(text.includes("and 1 more in .claude/plan/PENDING.md"));
+    assert.ok(text.endsWith("</ccf>"));
+    assert.ok(text.length < 10000, `length ${text.length}`);
+  });
+}
+
+test("session-start: a malformed PENDING.md never crashes the hook", () => {
+  const dir = pendingProject("| ID | Status |\n|||\n```\n| x | open | extra | cells |\n\u0000\u0001 not a table\n| Status |\n");
+  assert.ok(sessionStartContext(dir, "startup").endsWith("</ccf>"));
+});
+
+test("session-start: a directory in place of PENDING.md never crashes the hook", () => {
+  const dir = pendingProject(null);
+  mkdirSync(join(dir, ".claude", "plan", "PENDING.md"));
+  assert.equal(sessionStartContext(dir, "startup"), SESSION_START_BASE + "</ccf>");
+});
+
 test("explore-guide-inject: any spawn (matcher-gated by hooks.json, not by this hook) → emitContext non-empty", () => {
   const { stdout, status } = runHook("explore-guide-inject.mjs", { agent_type: "Explore" });
   assert.equal(status, 0);
@@ -231,6 +299,25 @@ test("updatespec-nudge (no flag), clause C (git commit + PLAN.md pending task, t
   // Regression guard (cc-2.1.220-realign correctness fix): same rationale as the clause-B case above —
   // the default single-channel systemMessage must name the action, not just the bare fact.
   assert.ok(parsed.systemMessage.includes("/ccf:check"), "clause C systemMessage must name /ccf:check");
+});
+
+test("updatespec-nudge (no flag), clause C: an `accepted` row is closed and never named", () => {
+  const dir = makeTmpProject();
+  mkdirSync(join(dir, ".claude", "rules"), { recursive: true });
+  mkdirSync(join(dir, ".claude", "plan"), { recursive: true });
+  writeFileSync(
+    join(dir, ".claude", "plan", "PLAN.md"),
+    "| # | Task | Layers | Gate | Predecessor | Status |\n" +
+      "|---|---|---|---|---|---|\n" +
+      "| 001 | Open task | hooks | tsc | — | in-review |\n" +
+      "| 002 | Accepted task | hooks | tsc | — | accepted |\n",
+  );
+  const transcript = transcriptD_gitCommit(dir);
+  const { stdout, status } = runHook("updatespec-nudge.mjs", { cwd: dir, transcript_path: transcript, stop_hook_active: false });
+  assert.equal(status, 0);
+  const parsed = JSON.parse(stdout);
+  assert.ok(parsed.systemMessage.includes("001"));
+  assert.ok(!parsed.systemMessage.includes("002"), "an accepted task must not be named as open work");
 });
 
 /**

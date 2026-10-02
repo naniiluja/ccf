@@ -6,7 +6,14 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { findActiveTask, findNonDoneTasks, findInReviewTask } from "./plan.mjs";
+import {
+  findActiveTask,
+  findNonDoneTasks,
+  findInReviewTask,
+  isClosedStatus,
+  findOpenPendingItems,
+  buildPendingReminder,
+} from "./plan.mjs";
 
 /** Write `content` to a fresh temp file and return its path. */
 function tmpFile(content) {
@@ -397,4 +404,170 @@ test("findInReviewTask: more than one in-review row is ambiguous → null (never
 
 test("findInReviewTask: missing file → null", () => {
   assert.equal(findInReviewTask(join(tmpdir(), "no-such-plan-xyz.md")), null);
+});
+
+for (const [status, closed] of [
+  ["accepted", true],
+  ["Accepted", true],
+  ["ACCEPTED", true],
+  ["done", true],
+  ["dropped", true],
+  ["accept", false],
+  ["accepted-ish", false],
+  ["not accepted", false],
+  ["", false],
+  ["in-review", false],
+]) {
+  test(`isClosedStatus: ${JSON.stringify(status)} → ${closed}`, () => {
+    assert.equal(isClosedStatus(status), closed);
+  });
+}
+
+test("findNonDoneTasks: `accepted` and `**accepted**` rows are closed, never named as open work", () => {
+  const { file, dir } = tmpFile(
+    [
+      "| # | Task | Status |",
+      "|---|---|---|",
+      "| 001 | Plain | accepted |",
+      "| 002 | Bold | **accepted** |",
+      "| 003 | Near miss | accept |",
+      "| 004 | Suffix | accepted-ish |",
+    ].join("\n"),
+  );
+  try {
+    assert.deepEqual(findNonDoneTasks(file).map((r) => r.id), ["003", "004"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const PENDING_HEADER = ["| ID | Kind | Task | What | Who | Closing evidence | Status |", "|---|---|---|---|---|---|---|"];
+
+function pendingRow(n, status, kind = "risk") {
+  return `| P${n} | ${kind} | 0${n} | item ${n} | owner | evidence ${n} | ${status} |`;
+}
+
+function withPending(lines, check) {
+  const dir = mkdtempSync(join(tmpdir(), "ccf-pending-test-"));
+  const file = join(dir, "PENDING.md");
+  writeFileSync(file, lines.join("\n"), "utf8");
+  try {
+    check(file);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("findOpenPendingItems: missing file → []", () => {
+  assert.deepEqual(findOpenPendingItems(join(tmpdir(), "ccf-no-such-dir", "PENDING.md")), []);
+});
+
+test("findOpenPendingItems: a directory in place of the file → []", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ccf-pending-dir-"));
+  try {
+    assert.deepEqual(findOpenPendingItems(dir), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("findOpenPendingItems: header only, empty table → []", () => {
+  withPending(PENDING_HEADER, (file) => assert.deepEqual(findOpenPendingItems(file), []));
+});
+
+test("findOpenPendingItems: only closed rows → []", () => {
+  withPending([...PENDING_HEADER, pendingRow(1, "closed"), pendingRow(2, "closed", "action")], (file) =>
+    assert.deepEqual(findOpenPendingItems(file), []),
+  );
+});
+
+test("findOpenPendingItems: returns the fields of one open row", () => {
+  withPending([...PENDING_HEADER, pendingRow(1, "closed"), pendingRow(2, "open", "action")], (file) =>
+    assert.deepEqual(findOpenPendingItems(file), [{ id: "P2", kind: "action", task: "02", what: "item 2", who: "owner" }]),
+  );
+});
+
+for (const count of [0, 1, 5, 6]) {
+  test(`findOpenPendingItems: ${count} open rows → ${count} items, in file order`, () => {
+    const rows = Array.from({ length: count }, (_, i) => pendingRow(i + 1, "open"));
+    withPending([...PENDING_HEADER, ...rows, pendingRow(9, "closed")], (file) =>
+      assert.deepEqual(
+        findOpenPendingItems(file).map((r) => r.id),
+        rows.map((_, i) => `P${i + 1}`),
+      ),
+    );
+  });
+}
+
+test("findOpenPendingItems: the Status column is found by header, not by position", () => {
+  withPending(
+    [
+      "| Status | ID | Kind | Task | What | Who | Closing evidence |",
+      "|---|---|---|---|---|---|---|",
+      "| open | P1 | risk | 038 | payload | owner | closed |",
+      "| closed | P2 | risk | 039 | agent_type | owner | open |",
+    ],
+    (file) => assert.deepEqual(findOpenPendingItems(file), [{ id: "P1", kind: "risk", task: "038", what: "payload", who: "owner" }]),
+  );
+});
+
+test("findOpenPendingItems: status match is case-insensitive and ignores emphasis, but is anchored", () => {
+  withPending(
+    [...PENDING_HEADER, pendingRow(1, "Open"), pendingRow(2, "**open**"), pendingRow(3, "reopened"), pendingRow(4, "open-ish")],
+    (file) => assert.deepEqual(findOpenPendingItems(file).map((r) => r.id), ["P1", "P2"]),
+  );
+});
+
+test("findOpenPendingItems: a row inside a fenced block is ignored", () => {
+  withPending(
+    ["```", ...PENDING_HEADER, pendingRow(1, "open"), "```", "", ...PENDING_HEADER, pendingRow(2, "open")],
+    (file) => assert.deepEqual(findOpenPendingItems(file).map((r) => r.id), ["P2"]),
+  );
+});
+
+test("findOpenPendingItems: a table with no Status header is not read", () => {
+  withPending(["| ID | Kind | What |", "|---|---|---|", "| P1 | risk | open |"], (file) =>
+    assert.deepEqual(findOpenPendingItems(file), []),
+  );
+});
+
+test("findOpenPendingItems: ragged rows and an unclosed fence never throw", () => {
+  withPending([...PENDING_HEADER, "| P1 | risk |", "|||", "```", pendingRow(2, "open")], (file) =>
+    assert.deepEqual(findOpenPendingItems(file), []),
+  );
+});
+
+function pendingItem(n) {
+  return { id: `P${n}`, kind: "risk", task: `0${n}`, what: `item ${n}`, who: "owner" };
+}
+
+test("buildPendingReminder: no items → empty string", () => {
+  assert.equal(buildPendingReminder([]), "");
+});
+
+test("buildPendingReminder: 1 item names its id, kind, task, what and who, with no 'more' tail", () => {
+  const text = buildPendingReminder([pendingItem(1)]);
+  for (const part of ["P1", "risk", "01", "item 1", "owner", ".claude/plan/PENDING.md"]) assert.ok(text.includes(part), part);
+  assert.ok(!/more in/.test(text));
+});
+
+test("buildPendingReminder: 5 items → all 5 listed, no 'more' tail", () => {
+  const text = buildPendingReminder([1, 2, 3, 4, 5].map(pendingItem));
+  for (const n of [1, 2, 3, 4, 5]) assert.ok(text.includes(`item ${n}`));
+  assert.ok(!/more in/.test(text));
+});
+
+test("buildPendingReminder: 6 items → first 5 listed, then 'and 1 more in .claude/plan/PENDING.md'", () => {
+  const text = buildPendingReminder([1, 2, 3, 4, 5, 6].map(pendingItem));
+  assert.ok(text.includes("item 5"));
+  assert.ok(!text.includes("item 6"));
+  assert.ok(text.includes("and 1 more in .claude/plan/PENDING.md"));
+});
+
+test("buildPendingReminder: huge cells stay far under the 10,000-character additionalContext cap", () => {
+  const big = "x".repeat(50000);
+  const items = Array.from({ length: 40 }, () => ({ id: big, kind: big, task: big, what: big, who: big }));
+  const text = buildPendingReminder(items);
+  assert.ok(text.length < 8000, `length ${text.length}`);
+  assert.ok(text.includes("and 35 more in .claude/plan/PENDING.md"));
 });
