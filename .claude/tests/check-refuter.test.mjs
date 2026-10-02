@@ -8,6 +8,7 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const pluginRoot = join(repoRoot, "plugins", "ccf");
 const agentPath = join(pluginRoot, "agents", "ccf-finding-refuter.md");
 const checkPath = join(pluginRoot, "commands", "check.md");
+const checkerPath = join(pluginRoot, "agents", "ccf-spec-checker.md");
 
 function read(path) {
   return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
@@ -112,4 +113,29 @@ test("review-trace keys only on ccf-spec-checker", () => {
   const source = read(join(pluginRoot, "hooks", "lib", "review-trace.mjs"));
   assert.ok(source.includes("ccf-spec-checker"));
   assert.ok(!source.includes("ccf-finding-refuter"));
+});
+
+function step6Merge(text) {
+  const start = text.indexOf("6. **Merge the reports");
+  assert.ok(start >= 0, "check.md has no step 6");
+  const end = text.indexOf("6b.", start);
+  return text.slice(start, end < 0 ? undefined : end);
+}
+
+test("spec checker lets a real repro: stand in for a rule quote", () => {
+  const { body } = frontmatter(read(checkerPath));
+  assert.ok(body.includes('repro: "<command run>" -> "<real output>"'));
+  assert.match(body, /`FAIL:`\*\* needs a score of 80 or more AND either that verbatim quote or a `repro:`/);
+  assert.match(body, /[Aa]nalysis without a command you ran is at most `WARN:`/);
+});
+
+test("spec checker return format puts repro: on the FAIL line", () => {
+  const { body } = frontmatter(read(checkerPath));
+  const returnFormat = body.slice(body.lastIndexOf("## Return format"));
+  assert.match(returnFormat, /- FAIL: [^\n]*rule: "<verbatim quote>"[^\n]*repro: "<command run>" -> "<real output>"/);
+});
+
+test("check.md step 6 names the condition under which a FAIL: stands", () => {
+  const section = step6Merge(read(checkPath));
+  assert.match(section, /`FAIL:` stands only with a score of 80 or more and either a verbatim rule or criterion quote or a `repro:`/);
 });

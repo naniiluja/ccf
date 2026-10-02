@@ -36,6 +36,28 @@ test("cook.md brief: the agent branches from an explicit base and never enters o
   assert.match(BRIEF, /Never push, merge, rebase or reset/);
 });
 
+test("runtime evidence (083): the brief fills it in the agent's own task file, and the preflight names the block", () => {
+  assert.match(BRIEF, /fill `Runtime evidence` in your OWN task file/);
+  assert.match(BRIEF, /`not run: <reason>`/);
+  assert.match(BRIEF, /the one exception to leaving task files alone/);
+  assert.match(COOK, /`missing-runtime-evidence`/);
+});
+
+test("runtime evidence (083): check.md grades it, updatespec.md caps a not-run UI task at accepted", () => {
+  const CHECK = readFileSync(join(ROOT, "plugins", "ccf", "commands", "check.md"), "utf8");
+  const UPDATESPEC = readFileSync(join(ROOT, "plugins", "ccf", "commands", "updatespec.md"), "utf8");
+  assert.match(CHECK, /an empty `Runtime evidence` is a `FAIL:`/);
+  assert.match(CHECK, /`not run: <reason>` is a `WARN:`/);
+  assert.match(UPDATESPEC, /`Runtime evidence` reads `not run: <reason>` closes only as `accepted`, never `done`/);
+});
+
+test("runtime evidence (083): the task template carries both fields", () => {
+  const TEMPLATE = readFileSync(join(ROOT, "plugins", "ccf", "templates", "root", ".claude", "plan", "task-template.md.tmpl"), "utf8");
+  assert.match(TEMPLATE, /^- \*\*Touches UI:\*\* \{\{TOUCHES_UI\}\}/m);
+  assert.match(TEMPLATE, /^- \*\*Runtime evidence:\*\*/m);
+  assert.match(TEMPLATE, /not run: <reason>/);
+});
+
 test("templates: no generated project inherits the old strictly-sequential law", () => {
   for (const file of templateFiles()) {
     assert.doesNotMatch(readFileSync(file, "utf8"), /STRICTLY SEQUENTIAL|exactly ONE predecessor|no \*\*writing\*\* agents in parallel/, file);

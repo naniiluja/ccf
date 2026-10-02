@@ -15,13 +15,11 @@ import { DEFAULT_CAP_BYTES, DEFAULT_THRESHOLD, filterDiffSections, noulValue, wi
  * Every `- FAIL:` / `* FAIL:` line of a report, outside fenced code blocks (a fence holds a format
  * example, not a finding). The first `path:NN` token is the location. The quoted rule is the span after
  * the `rule:` label that 059's checker format puts on every FAIL; a description may quote other text
- * earlier on the line, so the first double-quoted span is only the fallback for a line without the label.
+ * earlier on the line.
  * @param {any} reportText
- * @returns {FailFinding[]}
  */
 export function parseFailFindings(reportText) {
   if (typeof reportText !== "string") return [];
-  /** @type {FailFinding[]} */
   const out = [];
   let inFence = false;
   for (const raw of reportText.split(/\r?\n/)) {
@@ -34,13 +32,15 @@ export function parseFailFindings(reportText) {
     if (!m) continue;
     const text = m[1].trim();
     const loc = /`?([\w@./\\-]+\.\w+):(\d+)`?/.exec(text);
-    const quote = /\brule:\s*"([^"]+)"/.exec(text) ?? /"([^"]+)"/.exec(text);
+    const quote = /\brule:\s*"([^"]+)"/.exec(text) ?? (/\brepro:/.test(text) ? null : /"([^"]+)"/.exec(text));
+    const repro = /\brepro:\s*"(.+?)"\s*->\s*"(.*?)"(?=\s*(?:—|$))/.exec(text);
     out.push({
       index: out.length,
       text,
       file: loc ? loc[1] : null,
       line: loc ? Number(loc[2]) : null,
       quote: quote ? quote[1] : null,
+      repro: repro ? { command: repro[1], output: repro[2] } : null,
     });
   }
   return out;

@@ -5,6 +5,8 @@
 - **Spec refs:** {{SPEC_REFS}}      <!-- links to related rules/requirements -->
 - **MCP to use:** {{MCP}}           <!-- e.g. supabase, or "none" -->
 - **Gate (must be GREEN before the next slice):** {{GATE}}  <!-- which test types: unit always; integration when crossing a boundary; e2e for the user-visible path -->
+- **Touches UI:** {{TOUCHES_UI}}    <!-- yes when the slice changes anything a user sees or clicks, else no -->
+- **Runtime evidence:**             <!-- the implementer fills this after the gate: `<command/step> -> <observed result>`, or verbatim `not run: <reason>`; empty on a UI task blocks the merge -->
 
 ## Goal (one sentence)
 {{GOAL}}

@@ -27,7 +27,8 @@ const TEMPLATE_RAW = readFileSync(TEMPLATE_PLAN_PATH, "utf8");
 // The guidance blocks that must always live in the template's preamble (task 050 FAIL A).
 const GUIDANCE_PATTERNS = [
   [/Write the status as a \*\*bare word\*\*/, "the bare-word guidance"],
-  [/Status: `todo` \/ `in-progress` \/ `in-review` \/ `done` \/ `blocked`/, "the status legend line"],
+  [/Status: `todo` \/ `in-progress` \/ `in-review` \/ `done` \/ `accepted` \/ `blocked`/, "the status legend line"],
+  [/`accepted`[^\n]*\.claude\/plan\/PENDING\.md/, "the accepted-status meaning, tied to PENDING.md"],
   [/\*\*Keep this file to the CURRENT iteration\.\*\*/, "the archive-vs-delete guidance"],
   // Task 072: the retention rule replaced "archive, never delete", so the preamble must say what is kept
   // and how a pruned task file comes back.
@@ -164,6 +165,24 @@ test("isRetirable: a markdown-emphasised status cell still reads as closed", () 
     L("## Origin — emphasised\n| # | Slice | L | G | D | Status |\n|---|---|---|---|---|---|\n| 001 | s | a | u | — | **done** |"),
   );
   assert.equal(isRetirable(its[0]), true);
+});
+
+test("isRetirable: an iteration whose rows are all `accepted` is retirable", () => {
+  const its = parseIterations(
+    L("## Origin — accepted\n| # | Slice | L | G | D | Status |\n|---|---|---|---|---|---|\n| 001 | s | a | u | — | accepted |\n| 002 | t | a | u | — | Accepted |"),
+  );
+  assert.equal(isRetirable(its[0]), true);
+});
+
+test("isRetirable: a mix of `done` and `accepted` is retirable, `accept` is not", () => {
+  const mixed = parseIterations(
+    L("## Origin — mixed\n| # | Slice | L | G | D | Status |\n|---|---|---|---|---|---|\n| 001 | s | a | u | — | done |\n| 002 | t | a | u | — | accepted |"),
+  );
+  const nearMiss = parseIterations(
+    L("## Origin — near miss\n| # | Slice | L | G | D | Status |\n|---|---|---|---|---|---|\n| 001 | s | a | u | — | done |\n| 002 | t | a | u | — | accept |"),
+  );
+  assert.equal(isRetirable(mixed[0]), true);
+  assert.equal(isRetirable(nearMiss[0]), false);
 });
 
 test("retirePlan: removes exactly the iteration's lines and returns them verbatim", () => {

@@ -44,6 +44,7 @@ description: Conventions for writing CCF plugin commands, agents, and templates 
 - Usage hints use HTML comments `<!-- ... -->` so they don't leak into the final output.
 - A `CLAUDE.md.tmpl` must itself obey the **< 200-line AND < 12KB** + `@import` rule, since it is the mold for another project's spec. Both limits, not just the line count — a template that teaches a project to accumulate one ever-growing paragraph passes the line check and still ships a 25KB per-session tax to every project generated from it (this repo's own `CLAUDE.md` did exactly that: 38 lines, 25KB).
 - Three template branches: `root/` (always used), `backend/` + `frontend/` (only when the target project is fullstack).
+- `root/.claude/plan/` ships `PENDING.md.tmpl` (the `risk`/`action` table an `accepted` task needs, written by `/ccf:init`) and `task-template.md.tmpl` with `Touches UI` + `Runtime evidence`, which `worktree-preflight.mjs` gates.
 
 ## Path-scoped rules (`paths:` frontmatter)
 A rule file WITHOUT `paths:` loads every session (unconditional); WITH `paths:` (a list of glob patterns) it lazy-loads only when Claude touches a matching file. Scope rules that are TRULY local (e.g. backend-only); leave cross-cutting rules global. Glob reference (grounded, `code.claude.com/docs/en/memory`):

@@ -43,6 +43,42 @@ test("parseFailFindings: the `rule:` label wins over an earlier quoted span in t
   assert.equal(parseFailFindings('- FAIL: x — `a.js:1` — says "only quote"')[0].quote, "only quote", "no label → first quoted span");
 });
 
+const RULE_PART = 'rule: "Never use `console.log` in src/." (`.claude/rules/logging.md:2`)';
+const REPRO_PART = 'repro: "node --test test/pages.test.js" -> "not ok 1 - pageCount(10, 5) expected 2 got 3"';
+const REPRO = { command: "node --test test/pages.test.js", output: "not ok 1 - pageCount(10, 5) expected 2 got 3" };
+
+test("parseFailFindings: repro matrix over rule:/repro: presence", () => {
+  const cases = [
+    { name: "rule only", line: `- FAIL: drift — \`src/a.js:4\` — ${RULE_PART} — confidence 90`, quote: "Never use `console.log` in src/.", repro: null },
+    { name: "repro only", line: `- FAIL: bug — \`src/pages.js:2\` — off by one — ${REPRO_PART} — confidence 95`, quote: null, repro: REPRO },
+    { name: "both", line: `- FAIL: bug — \`src/pages.js:2\` — ${RULE_PART} — ${REPRO_PART} — confidence 95`, quote: "Never use `console.log` in src/.", repro: REPRO },
+    { name: "repro before rule", line: `- FAIL: bug — \`src/pages.js:2\` — ${REPRO_PART} — ${RULE_PART}`, quote: "Never use `console.log` in src/.", repro: REPRO },
+    { name: "neither", line: "- FAIL: scope — src/logger.js:1 — file outside the task — confidence 90", quote: null, repro: null },
+    { name: "malformed repro without ->", line: '- FAIL: bug — `src/pages.js:2` — repro: "node --test" "not ok" — confidence 95', quote: null, repro: null },
+    { name: "repro with empty command", line: '- FAIL: bug — `src/pages.js:2` — repro: "" -> "not ok"', quote: null, repro: null },
+    { name: "repro with empty output", line: '- FAIL: bug — `src/pages.js:2` — repro: "npm test" -> ""', quote: null, repro: { command: "npm test", output: "" } },
+    { name: "repro without spaces around ->", line: '- FAIL: bug — `src/pages.js:2` — repro:"npm test"->"1 failed"', quote: null, repro: { command: "npm test", output: "1 failed" } },
+    { name: "repro output holding JSON quotes", line: '- FAIL: bug — `a.mjs:3` — repro: "node x.mjs" -> "{"ready":true}" — confidence 80', quote: null, repro: { command: "node x.mjs", output: '{"ready":true}' } },
+    { name: "repro command holding quotes, output at end of line", line: '- FAIL: bug — `a.mjs:3` — repro: "node -e "f(1)"" -> "got "x""', quote: null, repro: { command: 'node -e "f(1)"', output: 'got "x"' } },
+    { name: "quoted output then rule", line: '- FAIL: bug — `a.mjs:3` — repro: "npm test" -> "{"a":1}" — rule: "keep it green"', quote: "keep it green", repro: { command: "npm test", output: '{"a":1}' } },
+  ];
+  for (const c of cases) {
+    const [f] = parseFailFindings(c.line);
+    assert.ok(f, c.name);
+    assert.equal(f.quote, c.quote, `${c.name}: quote`);
+    assert.deepEqual(f.repro, c.repro, `${c.name}: repro`);
+  }
+});
+
+test("parseFailFindings: a repro: line inside a fenced block is not a finding", () => {
+  const text = ["```", `- FAIL: bug — \`src/pages.js:2\` — ${REPRO_PART}`, "```"].join("\n");
+  assert.deepEqual(parseFailFindings(text), []);
+});
+
+test("parseFailFindings: every finding carries the repro field, null without a repro:", () => {
+  assert.ok(parseFailFindings(REPORT).every((f) => f.repro === null));
+});
+
 test("parseFailFindings: garbage input → empty list, never throws", () => {
   for (const bad of [undefined, null, 42, {}, "", "no findings here"]) assert.deepEqual(parseFailFindings(bad), []);
 });

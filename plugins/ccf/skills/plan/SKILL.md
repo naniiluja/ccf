@@ -67,6 +67,7 @@ Before finalizing, raise the plan to best-practice quality: call Context7 (`reso
 ## 5. Plan output
 Write/append task files `.claude/plan/task-NNN-*.md` (using the task-template). Each task is one right-sized, PR-sized vertical slice, cohesive, with its doc/spec-sync folded in by default per step 4: goal, spec refs, files to touch, test written first, acceptance criteria, and its **`Depends on` predecessors** (`—` when none). Name any MCP the task will need (e.g. a project DB MCP), since that is still a real per-task decision; there is no per-task model or agent choice to record, because every task is implemented directly in this session (step 6). In plan mode, the writing is presented as the plan for approval.
 - **Each slice is a gate:** name the test types that must be GREEN (unit always; integration when it crosses a boundary; e2e/automation for the user-visible path) and the exact command. A task never starts before every task in its `Depends on` has passed its gate. State the gate explicitly in the task file.
+- **Set `Touches UI`** to `yes` when the slice changes anything a user sees or clicks, else `no`, and leave `Runtime evidence` empty for the implementer: a passing test does not prove the screen works, so the merge preflight reports `missing-runtime-evidence` until someone records running it or why not.
 - **Optional Jev slice check.** When `TYPESAFE_API_KEY` is set and the task files exist on disk, read `references/jev-slice-check.md` (next to this file) and follow it; otherwise skip it.
 
 ### 5b. Test-discipline opt-in

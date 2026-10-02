@@ -51,7 +51,7 @@ export function findInReviewTask(file) {
 // synonyms) is a real-world addition seen in production PLAN.md files for a task deliberately
 // abandoned by decision (e.g. "wang chốt BỎ — cơ chế retry không tồn tại") — that is a closed
 // decision, not oversight, and is distinct from "blocked" (still open, waiting on something).
-const CLOSED_STATUS_RE = /^(done|dropped|cancell?ed|won'?t[-\s]?fix|wontfix)$/i;
+const CLOSED_STATUS_RE = /^(done|accepted|dropped|cancell?ed|won'?t[-\s]?fix|wontfix)$/i;
 
 /**
  * True when a status cell means the task is CLOSED (see CLOSED_STATUS_RE). Exported so
@@ -209,4 +209,70 @@ function parseTableRow(line) {
   if (!raw) return null;
   if (isSeparatorRow(raw)) return null; // skip the markdown header separator row itself
   return raw.map((c) => c.replace(/\\\|/g, "|")); // un-escape `\|` inside a cell
+}
+
+const PENDING_FILE_LABEL = ".claude/plan/PENDING.md";
+const MAX_PENDING_ROWS = 5;
+const MAX_PENDING_CELL = 200;
+
+export function findOpenPendingItems(file = "") {
+  let content;
+  try {
+    content = readFileSync(file, "utf8");
+  } catch {
+    return [];
+  }
+  const lines = content.split(/\r?\n/);
+  const items = [];
+  let columns = null;
+  let inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*(```|~~~)/.test(lines[i])) {
+      inFence = !inFence;
+      columns = null;
+      continue;
+    }
+    if (inFence) continue;
+    const cells = parseTableRow(lines[i]);
+    if (!cells) continue;
+    if (isHeaderRow(lines, i)) {
+      columns = pendingColumns(cells);
+      continue;
+    }
+    if (!columns || columns.status >= cells.length) continue;
+    if (!/^open$/i.test(stripEmphasis(cells[columns.status]))) continue;
+    items.push({
+      id: cellAt(cells, columns.id),
+      kind: cellAt(cells, columns.kind),
+      task: cellAt(cells, columns.task),
+      what: cellAt(cells, columns.what),
+      who: cellAt(cells, columns.who),
+    });
+  }
+  return items;
+}
+
+function pendingColumns(headerCells = [""]) {
+  const indexOf = (name = "") => headerCells.findIndex((cell) => cell.toLowerCase() === name);
+  const status = indexOf("status");
+  if (status < 0) return null;
+  return { status, id: indexOf("id"), kind: indexOf("kind"), task: indexOf("task"), what: indexOf("what"), who: indexOf("who") };
+}
+
+function cellAt(cells = [""], index = -1) {
+  return index >= 0 && index < cells.length ? cells[index] : "";
+}
+
+function clip(text = "") {
+  return text.length > MAX_PENDING_CELL ? text.slice(0, MAX_PENDING_CELL - 3) + "..." : text;
+}
+
+export function buildPendingReminder(items = [{ id: "", kind: "", task: "", what: "", who: "" }]) {
+  if (items.length === 0) return "";
+  const shown = items
+    .slice(0, MAX_PENDING_ROWS)
+    .map((item) => `${clip(item.id)} [${clip(item.kind)}] task ${clip(item.task)}: ${clip(item.what)} (who: ${clip(item.who)})`);
+  const rest = items.length - shown.length;
+  const tail = rest > 0 ? `; and ${rest} more in ${PENDING_FILE_LABEL}.` : ".";
+  return ` Open items in ${PENDING_FILE_LABEL} (residual risks and actions waiting on a human): ${shown.join("; ")}${tail}`;
 }

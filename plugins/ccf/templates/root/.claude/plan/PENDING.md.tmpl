@@ -1,0 +1,10 @@
+# Pending — {{PROJECT_NAME}}
+
+> One table for what is still waiting after a task closes: residual risks a task was `accepted` with, and actions only a human can take. It is never archived, so a row outlives the iteration that created it.
+> `Kind`: `risk` (a behavior not yet observed or a known gap the owner accepted) or `action` (a step waiting on a human, e.g. a paid run or a manual check). `Status`: `open` or `closed`, written as a bare word.
+> Close a row only when its `Closing evidence` exists (a captured payload, a run log, a commit), and write that evidence into the cell. The session-start hook reminds the first 5 `open` rows every session.
+> `/ccf:updatespec` writes a `risk` row before it marks a task `accepted`, and closes an `action` row once its closing evidence exists.
+
+| ID | Kind | Task | What | Who | Closing evidence | Status |
+|---|---|---|---|---|---|---|
+<!-- One row per item, e.g. | R1 | risk | 012 | payment webhook retry never observed live | owner | a captured webhook log | open | -->

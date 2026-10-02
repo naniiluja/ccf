@@ -136,6 +136,47 @@ test("worktree-preflight: no worktree-ccf branch, an unknown task id, and --bran
   assert.equal(only.out.ready, true);
 });
 
+test("worktree-preflight: a branch may fill its own task file, and its UI evidence is read from the branch", () => {
+  const dir = makeRepo();
+  write(dir, { ".claude/plan/task-101-a.md": "# 101\n- **Touches UI:** yes\n- **Runtime evidence:**\n\n## Files to touch\n- src/a.js\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "101 touches ui"]);
+  branchWith(dir, "worktree-ccf-it-101", { "src/a.js": "a\n" });
+  const empty = run(dir);
+  assert.equal(empty.out.ready, false);
+  assert.deepEqual(kinds(empty.out), ["missing-runtime-evidence"]);
+
+  branchWith(dir, "worktree-ccf-it-102", {
+    "src/b.js": "b\n",
+    ".claude/plan/task-101-a.md": "# 101\n- **Touches UI:** yes\n- **Runtime evidence:** open / -> renders\n\n## Files to touch\n- src/a.js\n",
+  });
+  git(dir, ["checkout", "-q", "worktree-ccf-it-101"]);
+  write(dir, { ".claude/plan/task-101-a.md": "# 101\n- **Touches UI:** yes\n- **Runtime evidence:** not run: no browser\n\n## Files to touch\n- src/a.js\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "evidence"]);
+  git(dir, ["checkout", "-q", "main"]);
+  const own = run(dir, ["--branches", "worktree-ccf-it-101"]);
+  assert.deepEqual(own.out.problems, []);
+  assert.equal(own.out.ready, true);
+  const other = run(dir, ["--branches", "worktree-ccf-it-102"]);
+  assert.deepEqual(other.out.problems.find((p) => p.kind === "out-of-scope").files, [".claude/plan/task-101-a.md"]);
+});
+
+test("worktree-preflight: a branch that flips its own Touches UI to no is still missing-runtime-evidence", () => {
+  const dir = makeRepo();
+  write(dir, { ".claude/plan/task-103-c.md": "# 103\n- **Touches UI:** yes\n- **Runtime evidence:**\n\n## Files to touch\n- src/c.js\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "103 touches ui"]);
+  branchWith(dir, "worktree-ccf-it-103", {
+    "src/c.js": "c\n",
+    ".claude/plan/task-103-c.md": "# 103\n- **Touches UI:** no\n- **Runtime evidence:**\n\n## Files to touch\n- src/c.js\n",
+  });
+  const r = run(dir, ["--branches", "worktree-ccf-it-103"]);
+  assert.equal(r.out.ready, false);
+  assert.deepEqual(kinds(r.out), ["missing-runtime-evidence"]);
+  assert.equal(r.out.branches[0].runtimeEvidence.touchesUi, true);
+});
+
 test("worktree-preflight: not a git repository → exit 0 with a reason, never a crash", () => {
   const dir = mkdtempSync(join(tmpdir(), "ccf-preflight-nogit-"));
   dirs.push(dir);

@@ -60,6 +60,13 @@ test("Gotchas has at least 5 bullets, each citing a source", () => {
   for (const b of bullets) assert.match(b, /\.md|task \d{3}/);
 });
 
+test("step 5 sets Touches UI and leaves Runtime evidence to the implementer (083)", () => {
+  const step5 = SKILL.slice(SKILL.indexOf("## 5."), SKILL.indexOf("### 5b"));
+  assert.match(step5, /\*\*Set `Touches UI`\*\* to `yes`/);
+  assert.match(step5, /leave `Runtime evidence` empty/);
+  assert.match(step5, /`missing-runtime-evidence`/);
+});
+
 test("description still leads with Use when", () => {
   const description = SKILL.split("\n").find((l) => l.startsWith("description:"));
   assert.match(description.replace(/^description:\s*/, ""), /^"?Use when/);

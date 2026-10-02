@@ -12,7 +12,7 @@ plugins/ccf/
 ├─ agents/                      # 6 subagents, ALL read-only (see below)
 ├─ skills/                      # plan/ (the /ccf:plan workflow), grill-me/ (internal interview engine)
 ├─ hooks/                       # 7 .mjs hooks + hooks.json + lib/ helpers
-├─ scripts/                     # 8 human-run CLIs (nothing invokes them automatically)
+├─ scripts/                     # 11 human-run CLIs (nothing invokes them automatically)
 └─ templates/                   # {{...}} files that /ccf:init instantiates
 ```
 
@@ -66,6 +66,8 @@ Human-run CLIs. File-mutating actions belong here, never in a hook.
 | `worktree-preflight.mjs` | Read-only pre-merge check of a parallel wave (scope, overlap, merge conflicts). |
 | `integrate-wave.mjs` | Merge a wave: preflight, `--no-ff` merge per branch, tests after every merge, reset to last green on red. |
 | `prune-archive.mjs` | Keep the task files of the newest 10 archived iterations; `--apply` stages `git rm` of older ones (default previews; never commits). `ARCHIVE.md` and git history stay the record. |
+| `spec-budget.mjs` | Read-only: measure `CLAUDE.md` plus every recursive `@import` (bytes, lines, depth, total); `/ccf:updatespec` prints it before → after. |
+| `eval-changelog.mjs` | Write the current version's `CHANGELOG.md` entry from the newest eval results, or `--not-run "<reason>"` (`--apply` to write; default previews; never commits). |
 | `memory-audit.mjs` | Read-only: measure a project memory dir and open the consolidation gate for `/ccf:updatespec` step 5b. Opt-in `--jev` + `TYPESAFE_API_KEY` adds an advisory keep/merge/drop label; memory text leaves your machine. |
 
 ## Templates
