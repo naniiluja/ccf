@@ -6,6 +6,7 @@
 // existed (task 064, section 1), so the real diff is what this checks. Pure and defensive, never throws.
 
 import { expandBraces, pathsClash } from "./slice-check.mjs";
+import { readRuntimeEvidence } from "./runtime-evidence.mjs";
 
 /**
  * The task id at the end of a `claude -w ccf-<iteration>-<taskid>` branch (`worktree-ccf-…`).
@@ -93,9 +94,10 @@ export function assessPreflight(input) {
     if (unparseable.length) problems.push({ kind: "unparseable-declared", branch, id, files: unparseable });
     if (declared.length === 0) problems.push({ kind: "no-declared-files", branch, id });
     else {
-      const extra = outOfScope(b.actual, declared);
+      const extra = outOfScope(b.actual, [...declared, `.claude/plan/${b.taskFile}`]);
       if (extra.length) problems.push({ kind: "out-of-scope", branch, id, files: extra });
     }
+    if (readRuntimeEvidence(b.taskText).state === "empty") problems.push({ kind: "missing-runtime-evidence", branch, id });
     if (b.mergeClean === false) problems.push({ kind: "merge-conflict", branch, id });
     else if (b.mergeClean !== true) problems.push({ kind: "git-error", branch, id });
   }

@@ -22,6 +22,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { extractFiles } from "../hooks/lib/slice-check.mjs";
 import { taskIdFromBranch, assessPreflight } from "../hooks/lib/worktree-preflight.mjs";
+import { readRuntimeEvidence } from "../hooks/lib/runtime-evidence.mjs";
 
 const NOTE =
   "Only committed work is visible: commit inside each worktree before running this. " +
@@ -93,13 +94,16 @@ try {
   const branches = names.map((branch) => {
     const id = taskIdFromBranch(branch);
     const taskFile = id ? planFiles.find((f) => f.startsWith(`task-${id}-`) && f.endsWith(".md")) ?? null : null;
-    const declared = taskFile ? extractFiles(readFileSync(join(planDir, taskFile), "utf8")) : [];
+    const mainText = taskFile ? readFileSync(join(planDir, taskFile), "utf8") : "";
+    const declared = taskFile ? extractFiles(mainText) : [];
+    const branchText = taskFile ? git(dir, ["show", `${branch}:.claude/plan/${taskFile}`]) : null;
+    const taskText = branchText && branchText.status === 0 ? branchText.stdout : mainText;
     const base = lines(git(dir, ["merge-base", into, branch]).stdout)[0];
     // --no-renames: a rename is listed as its deleted source AND its new path, so moving an undeclared
     // file into a declared path cannot hide the source from the scope and overlap checks.
     const actual = base ? lines(git(dir, ["diff", "--name-only", "--no-renames", base, branch]).stdout) : [];
     const mergeClean = gitOk && base ? mergesCleanly(dir, into, branch) : null;
-    return { branch, id, taskFile, declared, actual, mergeClean };
+    return { branch, id, taskFile, declared, actual, mergeClean, taskText };
   });
 
   /** @type {{ a: string, b: string, clean: boolean | null }[]} */
@@ -112,7 +116,8 @@ try {
   }
 
   const verdict = assessPreflight({ gitOk, branches, pairs });
-  done({ ok: true, ready: verdict.ready, into, branches, pairs, problems: verdict.problems, note: NOTE });
+  const report = branches.map(({ taskText, ...b }) => ({ ...b, runtimeEvidence: readRuntimeEvidence(taskText) }));
+  done({ ok: true, ready: verdict.ready, into, branches: report, pairs, problems: verdict.problems, note: NOTE });
 } catch {
   done({ ok: false, reason: "error" });
 }

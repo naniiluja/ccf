@@ -82,6 +82,8 @@ If `.claude/plan/` changed (tasks finished, reordered, added), update `PLAN.md` 
 1. At least one `risk` row in `PENDING.md` points to the task (`Task` column). When the risk has no row yet, add it first: `| <next id> | risk | <task id> | <what is unobserved or unproven> | <who can close it> | <the evidence that would close it> | open |`.
 2. The user confirms through `AskUserQuestion`, after you name the task and each of its `open` `risk` rows. Without that answer the task stays `in-review`.
 
+A `Touches UI: yes` task whose `Runtime evidence` reads `not run: <reason>` closes only as `accepted`, never `done`, with a `risk` row naming the unrun check, because its runtime behavior is unobserved however clean the review.
+
 In the same pass, close an `action` row (`Status` becomes `closed`) only when its closing evidence exists, and write that evidence (a run log, a commit, a captured payload) into its `Closing evidence` cell; close a `risk` row the same way. `PENDING.md` is never archived: its rows outlive the iteration, and the session-start hook reminds the `open` ones every session. With no `PENDING.md`, create it from `templates/root/.claude/plan/PENDING.md.tmpl` before writing the first row.
 
 **Write the status as a BARE word** (`done`, `accepted`, `in-review`) with no markdown emphasis around it. `lib/plan.mjs` strips `**bold**`, `*italic*` and `` `code` `` before matching, so a decorated cell is tolerated — write it plain anyway, because the decoration carries no information and it already caused one real misread: a `**done**` row counted as unfinished by the Stop nudge before that stripping existed.
