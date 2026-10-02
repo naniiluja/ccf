@@ -35,9 +35,9 @@ Planned 2026-10-02 with `/ccf:plan`, approved by the user. Two lessons applied: 
 ## Task backlog — skills-and-refuter (waves: 075, 076, 077 in parallel, then 078, 079, 080)
 | # | Slice | Layers | Gate (tests green) | Depends on | Status |
 |---|-------|--------|--------------------|-----------|--------|
-| 075 | grill-me: `references/init-mode.md`, Gotchas, description | skill + references + repo test | repo suite + validate | — | in-review |
-| 076 | plan: `references/` for Jev and 5b, Gotchas | skill + references + repo test | repo suite + validate | — | in-review |
-| 077 | Trigger-style description for 4 commands + 5 agents | frontmatter + repo test | repo suite + validate | — | in-review |
+| 075 | grill-me: `references/init-mode.md`, Gotchas, description | skill + references + repo test | repo suite + validate | — | done |
+| 076 | plan: `references/` for Jev and 5b, Gotchas | skill + references + repo test | repo suite + validate | — | done |
+| 077 | Trigger-style description for 4 commands + 5 agents | frontmatter + repo test | repo suite + validate | — | done |
 | 078 | `ccf-finding-refuter` + `check.md` step 6c | agent + command + repo test | repo + lib suite + validate | 077 | todo |
 | 079 | Eval case 08 + "real defect not refuted" grader | evals | offline scaffold + grader RED/GREEN | 078 | todo |
 | 080 | Spec, README, counts, ccf-budget sync | rules + docs | 3 suites + tsc + validate + codepoint + md5 x9 | 078, 079 | todo |

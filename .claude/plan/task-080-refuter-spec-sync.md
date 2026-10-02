@@ -33,3 +33,9 @@ Every count and rule reflects 6 agents, 9 `run_in_background: false` lines, 9 st
 - `.claude/rules/testing.md`
 - `README.md`
 - `.claude/plan/PLAN.md`
+
+## Carried from `/ccf:check` of 075-077 (WARN, 2026-10-02)
+- `plugins/ccf/skills/plan/references/jev-slice-check.md`: loaded through `Read`, so `${CLAUDE_PLUGIN_ROOT}` is never substituted there and the Glob fallback is the only working path. Record it in the `${CLAUDE_PLUGIN_ROOT}` note (substitution covers the skill body, not its `references/`), or switch to a path relative to the skill base directory.
+- `.claude/tests/descriptions.test.mjs`: asserts only "Read-only"; each agent's other limits ("does NOT fix code", "writes no files", "Proposes no solutions") are unguarded. Consider a per-file limit table.
+- `plugins/ccf/skills/plan/SKILL.md`: says "next to this file" while `grill-me` says "this skill's base directory"; use the base-directory wording in both when writing the `references/` convention.
+- `plan-waves.mjs` names the iteration after the FIRST `## Origin` in `PLAN.md`, so while lifecycle-cleanup is still there wave branches read `worktree-ccf-lifecycle-cleanup-tasks-NNN`. Harmless (preflight matches by id); retiring that iteration fixes it.
