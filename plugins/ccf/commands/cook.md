@@ -71,7 +71,7 @@ Task: {{ID}}, task file `{{TASK_FILE}}`. Branch: `{{BRANCH}}`. Base commit: `{{B
 3. If the task file records `discipline: on`, design the contract-level EP/BVA/decision-table matrix for the public signature first and write the tests from it.
 4. Write the failing test first and run it to confirm it is red.
 5. Implement the minimum that turns it green and meets the acceptance criteria. Build only what the criteria require: no speculative abstraction, no refactor the task did not ask for. Change only the files under `Files to touch` plus their tests; leave `PLAN.md`, other task files, `CLAUDE.md` and `.claude/rules/*` alone unless they are listed, because the merge gate rejects any other file.
-6. Run the gate command the task file names and read the real result.
+6. Run the gate command the task file names and read the real result. If the task file records `Touches UI: yes`, then run the slice for real (start the app, exercise the changed screen) and fill `Runtime evidence` in your OWN task file as `<command/step> -> <observed result>`, or verbatim `not run: <reason>` when you cannot run it. This is the one exception to leaving task files alone, because the preflight blocks the merge while that field is empty.
 7. On GREEN only: `git add` the changed files and `git commit -m "{{ID}}: {{TITLE}}"`. Never push, merge, rebase or reset.
 8. Reply with one first line, then the evidence:
    - `GREEN: {{ID}} {{BRANCH}} <commit sha>`
@@ -86,7 +86,7 @@ Wait until every agent of the wave has reported. A reply that is only an "Async 
 - **All `GREEN:`** → continue.
 
 ### 4c. Preflight gate (mandatory, read-only)
-Run `node "<scripts>/worktree-preflight.mjs" --branches <this wave's branches, comma-separated>`. It checks each branch's real changed files against its task's `Files to touch` plus tests, that no two branches changed the same file, and that `git merge-tree` finds no conflict against HEAD or between any pair. **`ready: false` → STOP**, report every entry of `problems`, and merge nothing. Never merge around a failed preflight; `integrate-wave.mjs` runs the same gate again itself and refuses too.
+Run `node "<scripts>/worktree-preflight.mjs" --branches <this wave's branches, comma-separated>`. It checks each branch's real changed files against its task's `Files to touch` plus tests, that no two branches changed the same file, that a `Touches UI: yes` task has a filled `Runtime evidence` (`missing-runtime-evidence` otherwise), and that `git merge-tree` finds no conflict against HEAD or between any pair. **`ready: false` → STOP**, report every entry of `problems`, and merge nothing. Never merge around a failed preflight; `integrate-wave.mjs` runs the same gate again itself and refuses too.
 
 ### 4d. Merge and test the merged result
 Run `node "<scripts>/integrate-wave.mjs" --branches <same list> --test "<test command>" --apply`. It re-runs the preflight, merges each branch with `git merge --no-ff` in wave order, runs the whole test suite after EACH merge, and only when every merge stayed green removes each worktree (`git worktree remove`, never `--force`) and deletes its branch (`git branch -d`). The tests on the merged result are the only check that catches a semantic conflict, because `merge-tree` sees text only.

@@ -91,3 +91,31 @@ test("assessPreflight: garbage input never throws and is not ready", () => {
     assert.ok(Array.isArray(r.problems));
   }
 });
+
+// ---- runtime evidence (task 083) ---------------------------------------------------------------
+
+const UI_EMPTY = "# 7\n- **Touches UI:** yes\n- **Runtime evidence:**\n";
+
+test("assessPreflight: the branch's OWN task file is in scope, another task's file stays out-of-scope", () => {
+  const own = assessPreflight({ gitOk: true, branches: [B("7", { actual: ["src/7.js", ".claude/plan/task-7-x.md"] })], pairs: [] });
+  assert.deepEqual(own.problems, []);
+  const other = assessPreflight({ gitOk: true, branches: [B("7", { actual: ["src/7.js", ".claude/plan/task-8-y.md"] })], pairs: [] });
+  assert.deepEqual(other.problems.find((p) => p.kind === "out-of-scope").files, [".claude/plan/task-8-y.md"]);
+});
+
+test("assessPreflight: Touches UI yes with an empty Runtime evidence blocks as missing-runtime-evidence", () => {
+  const r = assessPreflight({ gitOk: true, branches: [B("7", { taskText: UI_EMPTY })], pairs: [] });
+  assert.equal(r.ready, false);
+  assert.deepEqual(r.problems, [{ kind: "missing-runtime-evidence", branch: "worktree-ccf-it-7", id: "7" }]);
+});
+
+test("assessPreflight: ran, not run with a reason, a non-UI task and no task text all pass the evidence check", () => {
+  for (const taskText of [
+    "- **Touches UI:** yes\n- **Runtime evidence:** npm run dev -> page renders\n",
+    "- **Touches UI:** yes\n- **Runtime evidence:** not run: no browser\n",
+    "- **Touches UI:** no\n- **Runtime evidence:**\n",
+    undefined,
+  ]) {
+    assert.deepEqual(assessPreflight({ gitOk: true, branches: [B("7", { taskText })], pairs: [] }).problems, [], String(taskText));
+  }
+});
