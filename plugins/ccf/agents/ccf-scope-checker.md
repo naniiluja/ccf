@@ -1,6 +1,6 @@
 ---
 name: ccf-scope-checker
-description: Fresh-context SCOPE reviewer run by /ccf:check in parallel with ccf-spec-checker - checks only whether the diff matches the task's declared scope (files outside `Files to touch`, criteria with no matching change, changes no criterion asks for). Read-only, returns findings with file:line, does NOT fix code and does NOT judge conventions, SOLID or error handling. Invoked by /ccf:check, never for coding.
+description: Use when /ccf:check reviews a finished task and needs its diff compared against the declared scope. Fresh-context SCOPE reviewer run by /ccf:check in parallel with ccf-spec-checker - checks only whether the diff matches the task's declared scope (files outside `Files to touch`, criteria with no matching change, changes no criterion asks for). Read-only, returns findings with file:line, does NOT fix code and does NOT judge conventions, SOLID or error handling. Invoked by /ccf:check, never for coding.
 model: sonnet
 effort: medium
 maxTurns: 25
