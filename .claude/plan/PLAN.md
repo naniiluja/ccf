@@ -27,7 +27,7 @@ Grounding: `@import` paths resolve relative to the importing file, accept absolu
 | 085 | eval-changelog script + CHANGELOG.md + version latch | lib + script + CHANGELOG + repo latch | 3 suites + tsc + preview smoke | — | in-review |
 | 084 | spec-budget script + rule/narrative split | lib + script + updatespec.md + spec-writer agent | 3 suites + tsc + validate + spec-budget smoke | — | in-review |
 | 083 | Runtime evidence field in the gate | lib + preflight + templates + plan skill + cook/check/updatespec + repo latches | 3 suites + tsc + validate | 082 | in-review |
-| 086 | Spec, docs and count sync | CLAUDE.md + rules + READMEs | 3 suites + tsc + validate + `wc -lc CLAUDE.md` + spec-budget | 081, 082, 083, 084, 085 | todo |
+| 086 | Spec, docs and count sync | CLAUDE.md + rules + READMEs | 3 suites + tsc + validate + `wc -lc CLAUDE.md` + spec-budget | 081, 082, 083, 084, 085 | in-review |
 
 ---
 
