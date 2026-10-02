@@ -42,7 +42,7 @@ Typical flow: `/ccf:init` → `/ccf:plan` → `/ccf:cook` → `/ccf:check` → `
 You don't need this section to use CCF. It's here for the curious.
 
 - **Hooks** are the deterministic layer. Commands and agents are prompts, and a model can ignore a prompt. Hooks are scripts that run on session events no matter what: they block `/ccf:plan` outside plan mode, nudge a spec update when code changed, and re-load your in-progress task after a compact.
-- **Agents** are 5 read-only helpers: one reads slices of your codebase, one fetches best practices from official docs, one drafts spec text, two review your work. None of them write code. You write the code, directly in the session.
+- **Agents** are 6 read-only helpers: one reads slices of your codebase, one fetches best practices from official docs, one drafts spec text, two review your work, and one tries to disprove each blocking finding before you act on it. None of them write code. You write the code, directly in the session.
 - **Scripts** are 9 command-line tools that only run when you (or a command, after asking) start them, because they change files or call an outside API. Among them: `prune-archive.mjs` clears out task files of old finished iterations (the archive and git history keep the record), and `memory-audit.mjs` tells `/ccf:updatespec` when the system memory has grown enough to need a cleanup.
 - **Docs lookup built in.** The plugin ships Context7 and Microsoft Learn (MCP servers), so design advice cites real documentation instead of model memory.
 
