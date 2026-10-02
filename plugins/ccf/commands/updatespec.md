@@ -30,6 +30,8 @@ You are running CCF `/ccf:updatespec`. Distill this session's lessons into **two
 
 ## Steps
 
+Before step 1, run `node "<plugin-root>/scripts/spec-budget.mjs" --dir <project root>` and keep its `total` as the **before** figure for the Closing. The script is read-only and prints JSON: every file `CLAUDE.md` loads through recursive `@import` (at most four hops), with its bytes, lines and depth, plus `total`, `claudeMdOver` and `missing` imports.
+
 ### 1. Reflect & classify
 Review this session for lessons, then classify each as **spec** or **memory**:
 - → **Spec**: project conventions and patterns, architecture, tech stack, new tooling — anything derivable from the code or belonging to the repo.
@@ -43,6 +45,7 @@ Find every `CLAUDE.md` and `.claude/rules/*` (root + nested). Each lesson belong
 
 ### 3. Update modularly
 - Write lessons as **specific, verifiable rules**.
+- **Separate rules from narrative before writing.** A rule is one sentence a reader can check against the repo or a command's output ("hooks exit 0 on malformed stdin"). Everything else is narrative: how a rule was found, measurements, incident history, "observed in task NNN". Narrative goes to `.claude/plan/ARCHIVE.md` (the iteration's `## Closed` note) when it records what shipped and why, or to a `feedback`/`project` memory (step 5) when it guards against a repeat mistake. Keep it out of `CLAUDE.md` and the `@import`ed rules, because every byte there is paid on every session; leave at most a pointer to where the narrative lives.
 - Keep each rule file < 50 lines on one topic; create a new `.claude/rules/<topic>.md` when none fits, and add a `@.claude/rules/<topic>.md` import line to the relevant `CLAUDE.md`.
 - Keep every `CLAUDE.md` < 200 lines. You may delegate the drafting to `ccf-spec-writer` via Task **with `run_in_background: false`**, since Claude Code v2.1.198 an omitted `run_in_background` defaults to background and this step needs the draft back before it can write anything.
 - **Show a diff plus a one-line "why"** before writing, then Edit/Write.
@@ -93,6 +96,7 @@ Why this matters in both directions: a closed row left in `PLAN.md` is counted a
 **Retention:** `ARCHIVE.md` and git history are permanent; `.claude/plan/archive/` keeps only the task files of the newest 10 iterations in `ARCHIVE.md`. When older ones exist (the Stop nudge's clause E says so), run `node "<plugin-root>/scripts/prune-archive.mjs"` to preview the files to prune and the orphans it keeps, then add `--apply` once the user agrees: it stages a `git rm` per file and never commits. A pruned file comes back with `git log --diff-filter=D --name-only -- .claude/plan/archive/` and then `git show <sha>^:<path>`.
 
 ## Closing (mandatory)
+- **Report the spec budget, before → after.** Run `node "<plugin-root>/scripts/spec-budget.mjs" --dir <project root>` again and print one line: `spec budget: <before total> → <after total> bytes`, using the `total` you kept before step 1. When `claudeMdOver` is `true` or `missing` is non-empty, say so and name the file, because an over-limit `CLAUDE.md` or a broken import is paid or lost on every session.
 - **Check harness-level attribution:** confirm `.claude/settings.json` exists with an `attribution` key set (the deterministic, harness-enforced replacement for the deprecated `includeCoAuthoredBy` and for any "never add Co-Authored-By" prose). If the file is missing or `attribution` is absent, **nudge the user** to set it (`attribution.commit` / `attribution.pr` = the trailer text they want, or `""` to suppress). Leave the writing to them, since it changes how every future commit in the repo is attributed.
 - **Re-measure the ccf-budget latch after every spec edit, in the CCF plugin repo itself.** This command always rewrites `CLAUDE.md`, a PAID file (it and every file it `@import`s are loaded every session), yet nothing else in the workflow re-measures it. If this session edited `CLAUDE.md` or any `.claude/rules/*.md` while working ON the CCF plugin repo (not a project `/ccf:init` generated), run `node --test .claude/tests/*.test.mjs` after step 3; when the self-consistency check reports drift, re-derive the true byte count with `measurePaidBytes` (`.claude/tests/context-budget.mjs`) and refill the `<!-- ccf-budget: paid=NNN -->` label in `.claude/rules/prompt-standard.md` as the LAST write of the session, never before — refilling it earlier would race any spec edit still to come and leave the label stale again.
 - ASK the user whether to commit and push, and run a git command only after they explicitly agree. If they agree: on the default branch, create a branch first, then use a conventional commit message.
