@@ -7,7 +7,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { readStdinJson, emitContext } from "./lib/io.mjs";
 import { specsOlderThanCode } from "./lib/freshness.mjs";
-import { findActiveTask } from "./lib/plan.mjs";
+import { findActiveTask, findOpenPendingItems, buildPendingReminder } from "./lib/plan.mjs";
 
 const input = await readStdinJson();
 const cwd = String(input.cwd ?? process.cwd());
@@ -46,6 +46,8 @@ if (source === "compact" || source === "clear") {
       ` Read .claude/plan/ (task ${task.id}) to resume exactly where you left off instead of re-reading everything.`;
   }
 }
+
+msg += buildPendingReminder(findOpenPendingItems(join(planDir, "PENDING.md")));
 
 msg += "</ccf>";
 emitContext("SessionStart", msg);

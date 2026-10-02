@@ -8,7 +8,8 @@
 ## Milestones
 {{MILESTONE_LIST}}
 
-> Status: `todo` / `in-progress` / `in-review` / `done` / `blocked`. Lifecycle: `todo → in-progress → in-review → done`. A task becomes `in-review` once its code+test are complete and merged (by `/ccf:cook`, or implemented directly in the session); only `/ccf:updatespec` writes `done` after `/ccf:check` passes.
+> Status: `todo` / `in-progress` / `in-review` / `done` / `accepted` / `blocked`. Lifecycle: `todo → in-progress → in-review → done`. A task becomes `in-review` once its code+test are complete and merged (by `/ccf:cook`, or implemented directly in the session); only `/ccf:updatespec` writes `done` after `/ccf:check` passes.
+> `accepted` is closed like `done` but means the owner accepts closing despite a residual risk: `/ccf:updatespec` writes it only when at least one `risk` row in `.claude/plan/PENDING.md` points to the task and the user confirms. That table also holds actions waiting on a human, survives archiving, and its `open` rows are reminded at every session start.
 > Write the status as a **bare word** — no `**bold**` around it. Emphasis carries no information and the status is matched as a whole word.
 > Per-task detail in `task-NNN-*.md`.
 
