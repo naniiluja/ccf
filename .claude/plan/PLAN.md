@@ -27,17 +27,3 @@ Requested 2026-10-01: closed task files and project memory accumulate with no cl
 | 072 | Lifecycle spec, docs and repo sync | rules + CLAUDE.md + READMEs + preambles + prune of this repo | all suites + tsc + validate + ccf-budget | 070, 071 | in-review |
 | 073 | prune-archive exit code + relative `--dir` (also archive-plan) | 2 scripts + process tests + tooling.md | lib suite + repo suite + tsc + relative-dir smoke | 070 | done |
 | 074 | Clause E prints `--dir` in the prune-archive command | updatespec-nudge + io test | lib suite + tsc | 073 | in-review |
-
-## Origin: skills-and-refuter (tasks 075 to 080)
-
-Planned 2026-10-02 with `/ccf:plan`, approved by the user. Two lessons applied: a short `SKILL.md` with conditional detail in `references/`, a sourced Gotchas section and a trigger-style `description`; and verifying fanned-out review findings. Grounding (Context7 `/websites/code_claude`): code.claude.com/docs/en/slash-commands, /en/best-practices, /en/workflows. Decisions: refute `FAIL:` findings only (no missed-defect hunt); a refuted `FAIL:` stays `FAIL:` with `Refuted (ccf-finding-refuter): <evidence>` appended, so no marker contract changes; new agent `ccf-finding-refuter` (sonnet, medium, maxTurns 25, read-only leaf), agents 5 to 6; offline test gates, the paid eval is non-blocking; `plan/SKILL.md` must not exceed 15,749 bytes, `grill-me/SKILL.md` at most 4,500 bytes, and only conditional content moves; step 0 of `plan`, the style block, cited step numbers and `discipline: on` stay untouched. Test design discipline is off. No version bump without asking. 074 set to `in-review` (merged in 39ea89b, PR #11).
-
-## Task backlog — skills-and-refuter (waves: 075, 076, 077 in parallel, then 078, 079, 080)
-| # | Slice | Layers | Gate (tests green) | Depends on | Status |
-|---|-------|--------|--------------------|-----------|--------|
-| 075 | grill-me: `references/init-mode.md`, Gotchas, description | skill + references + repo test | repo suite + validate | — | done |
-| 076 | plan: `references/` for Jev and 5b, Gotchas | skill + references + repo test | repo suite + validate | — | done |
-| 077 | Trigger-style description for 4 commands + 5 agents | frontmatter + repo test | repo suite + validate | — | done |
-| 078 | `ccf-finding-refuter` + `check.md` step 6c | agent + command + repo test | repo + lib suite + validate | 077 | done |
-| 079 | Eval case 08 + "real defect not refuted" grader | evals | offline scaffold + grader RED/GREEN | 078 | in-review |
-| 080 | Spec, README, counts, ccf-budget sync | rules + docs | 3 suites + tsc + validate + codepoint + md5 x9 | 078, 079 | in-review |

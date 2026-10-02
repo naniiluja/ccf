@@ -40,7 +40,7 @@ CCF is a **Claude Code plugin** that imposes a context-first, spec-driven, wave-
 ## Current plan
 Live queue: `.claude/plan/PLAN.md` — the CURRENT iteration only. Closed history + postmortems: `.claude/plan/ARCHIVE.md`, with their task files in `.claude/plan/archive/`. Those two files are the premortem anchor source; read them together. Do NOT let a closed row sit in `PLAN.md` — `lib/plan.mjs` counts it as live work.
 
-**Live iterations in `PLAN.md`:** lifecycle-cleanup (070-074) and skills-and-refuter (075-080; 075-078 done). Archived before it: 063-066 (second-review-scope + worktree-safety) and the Jev backtest (067-069): recall 92.3% / FPR 65-70% (13+/60-), under the 95% bar, so Jev stays advisory-only. Open follow-ups: plan-step opt-in (`archive/task-064-*` section 5); a paid `claude plugin eval` run.
+**Live iteration in `PLAN.md`:** lifecycle-cleanup (070-074; 073 done, the rest in-review). Archived before it: skills-and-refuter (075-080; open WARNs in its `## Closed` note) and the Jev backtest (067-069): recall 92.3% / FPR 65-70%, under the 95% bar, so Jev stays advisory-only. Open follow-ups: plan-step opt-in (`archive/task-064-*` section 5); a paid `claude plugin eval` run (8 cases).
 
 **Standing machine latches now guarding this repo:** `.claude/tests/context-budget.test.mjs` (the paid-context label — `updatespec.md`'s Closing re-measures it after every spec edit), the `FAIL:` marker asserts in `verify-chain.test.mjs`, and the `PLAN.md.tmpl` preamble latch in `archive.test.mjs` (verified RED on a bug reproduction before being trusted — `testing.md`'s "a latch never seen RED proves nothing" lesson).
 
