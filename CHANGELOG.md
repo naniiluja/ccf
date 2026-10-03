@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.1
+
+eval: not run: grader-only fix for eval case 08-permitted-pattern (regex + grader set); verified offline with synthetic checker outputs, no paid claude plugin eval run
+
 ## 0.15.0
 
 eval: not run: no paid claude plugin eval run on 0.15.0; newest results cover 7 of 9 cases
