@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { promptActivity, startLine, commandActivity, commandResult, testCounts, spawnedTaskId, runningLine, agentDoneLine, doneLine, DEFAULT_START_LINE, DEFAULT_DONE_LINE, VOICE_TIMEOUT_MS, voiceRequest, voiceReply, createVoice, isVoiceOn } from "./rem-lines.mjs";
+import { promptActivity, startLine, commandActivity, commandResult, testCounts, spawnedTaskId, runningLine, agentDoneLine, doneLine, DEFAULT_START_LINE, DEFAULT_DONE_LINE, GREETING, VOICE_TIMEOUT_MS, voiceRequest, voiceReply, createVoice, isVoiceOn } from "./rem-lines.mjs";
 
 const WAVES = [[{ id: "007", title: "login form", taskFile: "task-007-login.md", worktree: "ccf-it-007", branch: "worktree-ccf-it-007" }, { id: "008", title: "", taskFile: "task-008-x.md", worktree: "ccf-it-008", branch: "worktree-ccf-it-008" }]];
 
@@ -67,9 +67,9 @@ test("runningLine / agentDoneLine: name the running tasks with their titles, and
 });
 
 test("doneLine: activity and last result when known, the old line otherwise", () => {
-  assert.equal(doneLine(promptActivity("/ccf:cook 007"), "npm test xanh (12 pass)"), "Rem cook task 007 xong: npm test xanh (12 pass). Bạn xem thử nhé.");
-  assert.equal(doneLine(undefined, "tsc xanh"), "Xong rồi: tsc xanh. Bạn xem thử nhé.");
-  assert.equal(doneLine(promptActivity("/ccf:check"), ""), "Rem soát code theo spec xong rồi, bạn xem thử nhé.");
+  assert.equal(doneLine(promptActivity("/ccf:cook 007"), "npm test xanh (12 pass)"), "Rem cook task 007 xong: npm test xanh (12 pass). Ngài xem thử nhé.");
+  assert.equal(doneLine(undefined, "tsc xanh"), "Xong rồi: tsc xanh. Ngài xem thử nhé.");
+  assert.equal(doneLine(promptActivity("/ccf:check"), ""), "Rem soát code theo spec xong rồi, ngài xem thử nhé.");
   assert.equal(doneLine(undefined, ""), DEFAULT_DONE_LINE);
 });
 
@@ -80,6 +80,15 @@ test("voiceRequest asks Haiku 4.5 for one rewritten line with a time limit and n
   assert.ok(request.maxTokens > 0 && request.maxTokens <= 200);
   assert.equal("effort" in request, false);
   assert.match(request.system, /Rem/);
+  assert.match(request.system, /gọi người dùng là ngài/);
+  assert.doesNotMatch(request.system, /gọi người dùng là bạn/);
+  assert.match(request.system, /hầu gái tận tụy/);
+  assert.match(request.system, /xưng Rem ở ngôi thứ ba/);
+  assert.match(request.system, /dịu dàng và ấm áp/);
+  assert.match(request.system, /em-dash/);
+  assert.match(request.system, /tối đa 100 ký tự/);
+  assert.match(request.system, /Không thêm thông tin mới/);
+  assert.match(request.system, /Không emoji, không markdown, không ngoặc kép/);
   assert.match(request.prompt, /happy/);
   assert.match(request.prompt, /node --test xanh rồi \(5 pass\)! Rem mừng lắm\./);
 });
@@ -129,4 +138,15 @@ test("isVoiceOn is on unless the option is exactly false", () => {
   assert.equal(isVoiceOn({ remAi: true }), true);
   assert.equal(isVoiceOn({ remAi: false }), false);
   assert.equal(isVoiceOn(undefined), true);
+});
+
+test("fixed lines address the user as ngài", () => {
+  assert.equal(GREETING.line, "Rem đây. Ngài cần gì cứ gọi nhé.");
+  assert.equal(DEFAULT_DONE_LINE, "Xong rồi, ngài xem thử nhé.");
+  assert.equal(doneLine(undefined, ""), "Xong rồi, ngài xem thử nhé.");
+});
+
+test("voiceReply rejects a reply with an em-dash, so the fixed line stays", () => {
+  assert.equal(voiceReply("Rem xong task 012 rồi — ngài xem nhé.", "Task 012 xong rồi."), null);
+  assert.equal(voiceReply("Rem xong task 012 rồi, ngài xem nhé.", "Task 012 xong rồi."), "Rem xong task 012 rồi, ngài xem nhé.");
 });

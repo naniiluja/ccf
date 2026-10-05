@@ -296,7 +296,7 @@ export const register: Register = (on, options) => {
       if (isTurnRunning) return
       if ((await $.clock.now()) - lastActiveAt < SLEEP_AFTER_MS) return
       if ((await read($, feeling)).mood === 'sleepy') return
-      await speak($, options, 'sleepy', 'Lâu quá không thấy bạn. Rem chợp mắt một chút nhé.')
+      await speak($, options, 'sleepy', 'Lâu quá không thấy ngài. Rem chợp mắt một chút nhé.')
     })
 
     return next(e)
@@ -386,9 +386,9 @@ export const register: Register = (on, options) => {
     lastActiveAt = await $.clock.now()
 
     if (e.reason === 'aborted') {
-      await speak($, options, 'surprised', 'Ơ, bạn dừng Rem lại à?')
+      await speak($, options, 'surprised', 'Ơ, ngài dừng Rem lại à?')
     } else if (e.reason !== 'answer') {
-      await speak($, options, 'worried', 'Hình như có trục trặc rồi, bạn thử lại giúp Rem nhé.')
+      await speak($, options, 'worried', 'Hình như có trục trặc rồi, ngài thử lại giúp Rem nhé.')
     } else if (['thinking', 'happy', 'worried'].includes((await read($, feeling)).mood)) {
       await speak($, options, lastResult?.failed ? 'worried' : 'happy', doneLine(lastPrompt ?? undefined, lastResult?.outcome ?? ''))
     }
