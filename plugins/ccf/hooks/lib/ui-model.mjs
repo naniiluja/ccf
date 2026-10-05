@@ -38,6 +38,13 @@ export function boardColumns(tasks = [NO_TASK]) {
   return LIFECYCLE.map((column) => ({ column, tasks: tasks.filter((task) => task.column === column) }));
 }
 
+export function withLiveDoing(snapshot = NO_SNAPSHOT, agents = [NO_AGENT]) {
+  if (!snapshot || !Array.isArray(snapshot.tasks)) return snapshot;
+  const running = new Set((Array.isArray(agents) ? agents : []).filter((agent) => !agent.isDone).map((agent) => agent.taskId).filter(Boolean));
+  if (running.size === 0) return snapshot;
+  return { ...snapshot, tasks: snapshot.tasks.map((task) => (running.has(task.id) ? { ...task, column: "in-progress" } : task)) };
+}
+
 export function claudeMdBudget(report = { files: [{ path: "", bytes: 0, lines: 0, depth: 0 }], total: 0, claudeMdOver: false, limits: { lines: 0, bytes: 0 } }) {
   const root = (report?.files ?? []).find((file) => file.depth === 0);
   if (!root) return null;

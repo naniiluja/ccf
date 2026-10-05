@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 
-import { bandLine, boardColumns, boardCommands, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, progressSvg, waveLines, waveRows, wavesFromOutput } from '../lib/ui-model.mjs'
+import { bandLine, boardColumns, boardCommands, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, progressSvg, waveLines, waveRows, wavesFromOutput, withLiveDoing } from '../lib/ui-model.mjs'
 import { GREETING, runningLine, spawnedTaskId } from '../lib/rem-lines.mjs'
 
 export const BOARD = 'ccf-board'
@@ -177,7 +177,7 @@ export function dockWaveRows(elements, lines, window) {
 export function registerCcfUi(on, options) {
   if (options.uiBoard === true) {
     on('ui.render', { component: 'Pane', requestId: BOARD }, async ($, e) =>
-      boardTree(e.surface, $.ui.resolve(e), e.props.bodyColumns ?? 0, await read($, snapshot), command => $.prompt.fill({ text: command })),
+      boardTree(e.surface, $.ui.resolve(e), e.props.bodyColumns ?? 0, withLiveDoing(await read($, snapshot), await read($, agents)), command => $.prompt.fill({ text: command })),
     )
   }
 
