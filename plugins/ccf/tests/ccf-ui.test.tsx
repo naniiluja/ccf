@@ -544,7 +544,16 @@ describe('ccf ui layer', () => {
     await tab.unmount()
   })
 
-  test('waves tab: uiWaves off draws no Button in Rem, and no wave draws none either', { options: { uiBoard: true } }, async ($, on) => {
+  test('waves tab: uiWaves on with no wave yet draws no Button in Rem', { options: ALL_ON }, async ($, on) => {
+    answerScripts(on, [])
+    const clock = mock.clock(on)
+    await dockRem($, clock)
+    const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
+    expect(await dock.find({ type: 'Button' })).toBeUndefined()
+    await dock.unmount()
+  })
+
+  test('waves tab: uiWaves off draws no Button in Rem even after a plan-waves run', { options: { uiBoard: true } }, async ($, on) => {
     answerScripts(on, [])
     const clock = mock.clock(on)
     answerWavesRun(on)

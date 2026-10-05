@@ -142,7 +142,7 @@ export function waveLines(rows = [[{ id: "", title: "", state: "" }]]) {
 
 export function waveSummary(rows = [[{ id: "", title: "", state: "" }]]) {
   const tasks = rows.flat();
-  const count = (state) => tasks.filter((task) => task.state === state).length;
+  const count = (state = "") => tasks.filter((task) => task.state === state).length;
   return {
     waves: rows.map((wave) => ({ title: wave.map((task) => task.id).join(" "), total: wave.length, done: wave.filter((task) => task.state === "done").length })),
     counts: { done: count("done"), running: count("running"), waiting: count("waiting") },
