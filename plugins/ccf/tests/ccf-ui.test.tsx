@@ -452,6 +452,33 @@ describe('ccf ui layer', () => {
     expect(ran.filter(script => script.endsWith('ui-snapshot.mjs')).length).toBe(1)
   })
 
+  test('dock: with no PLAN.md task and no wave the dock says there is no task yet and points to /ccf:plan', { options: { uiBoard: true } }, async ($, on) => {
+    let tasks: typeof SNAPSHOT.tasks = []
+    on('process.run', () => ({ value: { exitCode: 0, stdout: JSON.stringify({ ...SNAPSHOT, active: null, tasks }), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+    on('ui.open', () => ({ value: { isPlaced: true } }))
+    on('session.cwd', () => ({ value: '/project' }))
+
+    await $.command.run(runCommand('ccf-board'))
+    const empty = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
+    expect(await empty.find({ type: 'Text', text: 'Chưa có task nào. Gõ /ccf:plan nhé.' })).toBeDefined()
+    expect(await empty.find({ type: 'Raster', key: 'rem' })).toBeDefined()
+    expect(await empty.find({ type: 'Raster', key: 'progress' })).toBeUndefined()
+    await empty.unmount()
+
+    tasks = SNAPSHOT.tasks
+    await $.command.run(runCommand('ccf-board'))
+    const full = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
+    expect(await full.find({ type: 'Text', text: /Chưa có task nào/ })).toBeUndefined()
+    expect(await full.find({ type: 'Raster', key: 'progress' })).toBeDefined()
+    await full.unmount()
+  })
+
+  test('dock: with the board and the wave map off the dock shows no empty-state line', async ($, on) => {
+    const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
+    expect(await dock.find({ type: 'Text', text: /Chưa có task nào/ })).toBeUndefined()
+    await dock.unmount()
+  })
+
   test('dock: Rem opens 40 columns wide when the board or the wave map is on', { options: { uiBoard: true } }, async ($, on) => {
     const columns: number[] = []
     on('ui.open', ($, e) => {

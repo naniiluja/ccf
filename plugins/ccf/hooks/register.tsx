@@ -3,7 +3,7 @@ import type { CoreEngineInterface, Elements, PluginOptions, Register, RenderElem
 
 import type { Feeling, Mood } from '../types'
 import { SPRITE_COLUMNS, SPRITE_ROWS, encode, pixelsOf } from './sprite'
-import { claudeMdBudget, dockLayout, isPlanWrite, liveAgents, planWavesRequest, scrollWindow, statusText, waveScroll, wavesFromOutput } from './lib/ui-model.mjs'
+import { NO_TASK_LINE, claudeMdBudget, dockIsEmpty, dockLayout, isPlanWrite, liveAgents, planWavesRequest, scrollWindow, statusText, waveScroll, wavesFromOutput } from './lib/ui-model.mjs'
 import {
   BOARD,
   BUDGET_SCRIPT,
@@ -23,7 +23,7 @@ import {
   wantsSnapshot,
   wantsWaves,
 } from './ui/ccf-ui.mjs'
-import { GREETING, agentDoneLine, commandActivity, commandResult, doneLine, promptActivity, startLine } from './lib/rem-lines.mjs'
+import { GREETING, VOICE_DEBOUNCE_MS, agentDoneLine, commandActivity, commandResult, doneLine, isVoiceOn, promptActivity, remVoice, startLine, voiceReply, voiceRequest } from './lib/rem-lines.mjs'
 
 const PANE = 'rem'
 const SLEEP_AFTER_MS = 10 * 60_000
@@ -73,6 +73,27 @@ type CookAgent = { agentId: string; taskId: string; isDone: boolean }
 
 const feel = ($: StateDollar, mood: Mood, line: string) => update($, feeling, () => ({ mood, line }))
 
+async function speak($: CoreEngineInterface, options: PluginOptions, mood: Mood, line: string) {
+  await feel($, mood, line)
+  if (!isVoiceOn(options)) return
+  const turn = remVoice.begin()
+  const known = remVoice.cached(mood, line)
+  if (known !== null) {
+    await feel($, mood, known)
+    return
+  }
+  $.clock.after(VOICE_DEBOUNCE_MS, async () => {
+    try {
+      if (!remVoice.isCurrent(turn)) return
+      const reply = await $.model.complete(voiceRequest(mood, line))
+      const said = reply.isAnswered ? voiceReply(reply.text, line) : null
+      if (said === null) return
+      remVoice.remember(mood, line, said)
+      await update($, feeling, now => (now.mood === mood && now.line === line ? { mood, line: said } : now))
+    } catch {}
+  })
+}
+
 async function dock($: Engine, { isAsked, columns }: { isAsked: boolean; columns: number }): Promise<boolean> {
   const opened = await $.ui.open({ id: PANE, title: 'Rem', columns, rows: SPRITE_ROWS })
   await update($, isDocked, () => opened.isPlaced)
@@ -91,11 +112,12 @@ async function canDock($: StateDollar, isLayoutReady: boolean): Promise<boolean>
   return isLayoutReady && !(await read($, isDocked)) && !(await read($, isDismissed))
 }
 
-async function reactToRun($: StateDollar, activity: Activity, ran: ToolCallResult) {
+async function reactToRun($: CoreEngineInterface, activity: Activity, ran: ToolCallResult, options: PluginOptions) {
   if (ran.deny !== undefined) return null
 
   const result = commandResult(activity, ran.isError === true, shellOutput(ran) || (ran.text ?? ''))
-  await feel($, result.mood as Mood, result.line)
+  if (result.mood === 'thinking') await feel($, 'thinking', result.line)
+  else await speak($, options, result.mood as Mood, result.line)
   return result.mood === 'thinking' ? null : result
 }
 
@@ -112,8 +134,12 @@ const Rem = ({ Raster }: TerminalElements, mood: Mood) => (
 const StatusRow = ({ Text }: TerminalElements, status: string | null) =>
   status !== null ? <Text key="status" dimColor wrap="truncate-end">{status}</Text> : null
 
-const inColumn = (elements: TerminalElements, { mood, line }: Feeling, minHeight: number, band: RenderElement | null, status: string | null) => (
+const EmptyRow = ({ Text }: TerminalElements, isEmpty: boolean) =>
+  isEmpty ? <Text key="no-task" dimColor wrap="truncate-end">{NO_TASK_LINE}</Text> : null
+
+const inColumn = (elements: TerminalElements, { mood, line }: Feeling, minHeight: number, band: RenderElement | null, status: string | null, isEmpty = false) => (
   <elements.Box flexDirection="column" justifyContent="flex-end" minHeight={minHeight}>
+    {EmptyRow(elements, isEmpty)}
     {Bubble(elements, line)}
     {Rem(elements, mood)}
     {band}
@@ -217,7 +243,8 @@ async function dockTree(
   const lines = wantsWaves(options) ? dockWaveLines(await read($, ccfWaves), await read($, ccfAgents), snapshot) : []
   const band = options.uiBand === true ? ((bandTree(elements, snapshot, await read($, ccfWaves), await read($, ccfAgents), options) ?? null) as RenderElement | null) : null
   const status = options.uiStatusLine === true ? await read($, ccfStatusLine) : null
-  if (board === null && lines.length === 0) return { tree: inColumn(elements, now, bodyRows, band, status), region: null }
+  const isEmpty = (options.uiBoard === true || wantsWaves(options)) && dockIsEmpty(snapshot, lines.length)
+  if (isEmpty || (board === null && lines.length === 0)) return { tree: inColumn(elements, now, bodyRows, band, status, isEmpty), region: null }
 
   const layout = dockLayout({ bodyRows, bodyColumns, line: now.line, hasBoard: board !== null, waveLineCount: lines.length, spriteRows: SPRITE_ROWS + (band !== null ? 1 : 0) + (status !== null ? 1 : 0) })
   const window = scrollWindow(lines.length, lines.length > 0 ? await read($, ccfWavesOffset) : 0, layout.waveRows)
@@ -269,7 +296,7 @@ export const register: Register = (on, options) => {
       if (isTurnRunning) return
       if ((await $.clock.now()) - lastActiveAt < SLEEP_AFTER_MS) return
       if ((await read($, feeling)).mood === 'sleepy') return
-      await feel($, 'sleepy', 'Lâu quá không thấy bạn. Rem chợp mắt một chút nhé.')
+      await speak($, options, 'sleepy', 'Lâu quá không thấy bạn. Rem chợp mắt một chút nhé.')
     })
 
     return next(e)
@@ -318,7 +345,8 @@ export const register: Register = (on, options) => {
 
   on('turn.start', async ($, e, next) => {
     isTurnRunning = true
-    await feel($, 'thinking', startLine(lastPrompt))
+    if (lastPrompt !== null) await speak($, options, 'thinking', startLine(lastPrompt))
+    else await feel($, 'thinking', startLine(lastPrompt))
     return next(e)
   })
 
@@ -328,7 +356,7 @@ export const register: Register = (on, options) => {
     if (isWavesRun(e, options)) {
       const ran = await next(e)
       await loadWavesFromRun($, e.command, ran, options)
-      if (activity !== null) lastResult = (await reactToRun($, activity, ran)) ?? lastResult
+      if (activity !== null) lastResult = (await reactToRun($, activity, ran, options)) ?? lastResult
       return ran
     }
     if (isWavesOffRun(e, options)) await noticeWavesOff($, options)
@@ -340,7 +368,7 @@ export const register: Register = (on, options) => {
     if (activity === null) return next(e)
 
     const ran = await next(e)
-    lastResult = (await reactToRun($, activity, ran)) ?? lastResult
+    lastResult = (await reactToRun($, activity, ran, options)) ?? lastResult
     return ran
   })
 
@@ -350,7 +378,7 @@ export const register: Register = (on, options) => {
       const agents: CookAgent[] = await read($, ccfAgents)
       const finished = agents.find(agent => agent.agentId === e.agentId)
       const line = finished ? agentDoneLine(await read($, ccfWaves), agents, finished.taskId) : null
-      if (line !== null) await feel($, 'thinking', line)
+      if (line !== null) await speak($, options, 'thinking', line)
       return next(e)
     }
 
@@ -358,11 +386,11 @@ export const register: Register = (on, options) => {
     lastActiveAt = await $.clock.now()
 
     if (e.reason === 'aborted') {
-      await feel($, 'surprised', 'Ơ, bạn dừng Rem lại à?')
+      await speak($, options, 'surprised', 'Ơ, bạn dừng Rem lại à?')
     } else if (e.reason !== 'answer') {
-      await feel($, 'worried', 'Hình như có trục trặc rồi, bạn thử lại giúp Rem nhé.')
+      await speak($, options, 'worried', 'Hình như có trục trặc rồi, bạn thử lại giúp Rem nhé.')
     } else if (['thinking', 'happy', 'worried'].includes((await read($, feeling)).mood)) {
-      await feel($, lastResult?.failed ? 'worried' : 'happy', doneLine(lastPrompt ?? undefined, lastResult?.outcome ?? ''))
+      await speak($, options, lastResult?.failed ? 'worried' : 'happy', doneLine(lastPrompt ?? undefined, lastResult?.outcome ?? ''))
     }
 
     if (!e.isAborted && e.durationMs > LONG_TURN_MS) {

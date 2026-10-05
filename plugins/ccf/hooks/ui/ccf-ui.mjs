@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 
 import { bandLine, boardColumns, boardCommands, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, progressSvg, waveLines, waveRows, wavesFromOutput } from '../lib/ui-model.mjs'
-import { GREETING, runningLine, spawnedTaskId } from '../lib/rem-lines.mjs'
+import { GREETING, VOICE_DEBOUNCE_MS, isVoiceOn, remVoice, runningLine, spawnedTaskId, voiceReply, voiceRequest } from '../lib/rem-lines.mjs'
 
 export const BOARD = 'ccf-board'
 export const WAVES = 'ccf-waves'
@@ -123,6 +123,27 @@ async function reloadWaves($, source) {
   } catch {}
 }
 
+async function speak($, options, mood, line) {
+  await update($, feeling, () => ({ mood, line }))
+  if (!isVoiceOn(options)) return
+  const turn = remVoice.begin()
+  const known = remVoice.cached(mood, line)
+  if (known !== null) {
+    await update($, feeling, () => ({ mood, line: known }))
+    return
+  }
+  $.clock.after(VOICE_DEBOUNCE_MS, async () => {
+    try {
+      if (!remVoice.isCurrent(turn)) return
+      const reply = await $.model.complete(voiceRequest(mood, line))
+      const said = reply.isAnswered ? voiceReply(reply.text, line) : null
+      if (said === null) return
+      remVoice.remember(mood, line, said)
+      await update($, feeling, now => (now.mood === mood && now.line === line ? { mood, line: said } : now))
+    } catch {}
+  })
+}
+
 async function refreshSnapshot($) {
   try {
     const dir = (await read($, wavesSource))?.dir ?? (await $.session.cwd())
@@ -199,7 +220,7 @@ export function registerCcfUi(on, options) {
       const taskId = started.agentId ? spawnedTaskId(await read($, waves), brief) : null
       if (taskId) await update($, agents, list => [...list, { agentId: started.agentId, taskId, isDone: false }])
       const line = taskId ? runningLine(await read($, waves), await read($, agents)) : null
-      if (line) await update($, feeling, () => ({ mood: 'thinking', line }))
+      if (line) await speak($, options, 'thinking', line)
     } catch {}
     return started
   })

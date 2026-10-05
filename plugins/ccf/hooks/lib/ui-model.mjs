@@ -239,3 +239,9 @@ export function progressSvg(done = 0, total = 0, width = 200) {
   const filled = filledCount(done, total, width);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="8" viewBox="0 0 ${width} 8"><rect x="0" y="0" width="${width}" height="8" rx="4" fill="#6b6b6b" opacity="0.35"/><rect x="0" y="0" width="${filled}" height="8" rx="4" fill="#5fb36b"/></svg>`;
 }
+
+export const NO_TASK_LINE = "Chưa có task nào. Gõ /ccf:plan nhé.";
+
+export function dockIsEmpty(snapshot = NO_SNAPSHOT, waveLineCount = 0) {
+  return waveLineCount === 0 && !((snapshot?.tasks?.length ?? 0) > 0);
+}
