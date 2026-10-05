@@ -20,4 +20,4 @@ Requested 2026-10-05: when the `/ccf:cook` wave map shows in Rem's dock, pressin
 ## Task backlog — waves-tab
 | # | Slice | Layers | Gate (tests green) | Depends on | Status |
 |---|-------|--------|--------------------|-----------|--------|
-| 088 | Press a wave row to open a Waves tab | lib ui-model + ccf-ui rows + register.tsx pane `waves` + mod tests + version sync | ui libs + mod tests + validate + repo suite | — | todo |
+| 088 | Press a wave row to open a Waves tab | lib ui-model + ccf-ui rows + register.tsx pane `waves` + mod tests + version sync | ui libs + mod tests + validate + repo suite | — | in-progress |
