@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.3
+
+Rem now faces the way she walks: the base sprite looks left, so it is mirrored only while she moves right (0.19.2 had it backwards). The happy face keeps its eyes but smiles with a small closed mouth instead of a wide grin.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with tsc (TypeScript 5), claude plugin validate and the repo suite, not on a live pane.
+
 ## 0.19.2
 
 The "Chưa có task nào" hint now sits under the mascot instead of above her bubble. Rem's walk now looks like a walk: the sprite is mirrored when she turns around, one leg lifts per step and the opposite hand swings (`Pose` and `liftLeg`/`swingArms` in sprite.ts). Fixed two Rems on screen after `/reload-plugins`: the dock pane now sets `ccf/isDocked` whenever it renders, so the copy above the chat box hides at once instead of after the next prompt.

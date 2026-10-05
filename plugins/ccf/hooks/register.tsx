@@ -59,7 +59,7 @@ function cellsOf(mood: Mood, pose: Pose): string {
 function poseOf(mood: Mood, { x, dir }: Walk, room: number): Pose {
   if (room <= 0 || mood === 'sleepy') return STANDING
   const stride = x % 4 === 1 ? 'left' : x % 4 === 3 ? 'right' : 'stand'
-  return { stride, isFlipped: dir === -1 }
+  return { stride, isFlipped: dir === 1 }
 }
 
 const feeling = atom({ plugin: 'ccf', key: 'feeling' } as const, GREETING as Feeling)

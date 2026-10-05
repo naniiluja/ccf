@@ -97,7 +97,7 @@ const FACES: Readonly<Record<Mood, readonly Stamp[]>> = {
   happy: [
     { ...EYE, rows: ['ssss', 'snns', 'snns', 'nssn', 'nssn'] },
     { x: 21, y: 26, rows: ['qq', 'qq'] },
-    { ...MOUTH, rows: ['ssssss', 'ssssss', 'sgssgs', 'sggggs'] },
+    { ...MOUTH, rows: ['ssssss', 'ssssss', 'sgssgs', 'ssggss'] },
   ],
   worried: [
     OPEN_EYE,
