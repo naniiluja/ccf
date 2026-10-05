@@ -1,8 +1,8 @@
 import { isCookTaskBrief, matchWaveTask } from "./ui-model.mjs";
 
-export const GREETING = { mood: "idle", line: "Rem đây. Bạn cần gì cứ gọi nhé." };
+export const GREETING = { mood: "idle", line: "Rem đây. Ngài cần gì cứ gọi nhé." };
 export const DEFAULT_START_LINE = "Để Rem lo việc này.";
-export const DEFAULT_DONE_LINE = "Xong rồi, bạn xem thử nhé.";
+export const DEFAULT_DONE_LINE = "Xong rồi, ngài xem thử nhé.";
 
 const NO_WAVE_TASK = { id: "", title: "", taskFile: "", worktree: "", branch: "" };
 const NO_AGENT = { agentId: "", taskId: "", isDone: false };
@@ -120,9 +120,9 @@ export function agentDoneLine(waves = [[NO_WAVE_TASK]], agents = [NO_AGENT], don
 
 export function doneLine(activity = { command: "", label: "" }, outcome = "") {
   const label = activity?.label ?? "";
-  if (label && outcome) return `Rem ${label} xong: ${outcome}. Bạn xem thử nhé.`;
-  if (outcome) return `Xong rồi: ${outcome}. Bạn xem thử nhé.`;
-  if (label) return `Rem ${label} xong rồi, bạn xem thử nhé.`;
+  if (label && outcome) return `Rem ${label} xong: ${outcome}. Ngài xem thử nhé.`;
+  if (outcome) return `Xong rồi: ${outcome}. Ngài xem thử nhé.`;
+  if (label) return `Rem ${label} xong rồi, ngài xem thử nhé.`;
   return DEFAULT_DONE_LINE;
 }
 
@@ -133,11 +133,12 @@ const VOICE_MAX_TOKENS = 120;
 const VOICE_MAX_CHARS = 120;
 const VOICE_CACHE_LIMIT = 100;
 const VOICE_SYSTEM = [
-  "Bạn là Rem, linh vật nhỏ của plugin CCF đứng cạnh ô chat trong Claude Code.",
-  "Rem nói tiếng Việt, xưng Rem, gọi người dùng là bạn, giọng tự nhiên và dễ thương, hợp với tâm trạng được cho.",
-  "Viết lại câu gốc thành đúng MỘT câu ngắn, tối đa 100 ký tự.",
+  "Bạn là Rem, cô hầu gái tận tụy đứng cạnh ô chat trong Claude Code, luôn hết lòng phục vụ ngài.",
+  "Rem nói tiếng Việt, tự xưng Rem ở ngôi thứ ba, gọi người dùng là ngài, giọng dịu dàng và ấm áp, hợp với tâm trạng được cho.",
+  "Nói tự nhiên như người thật đang nói, tránh lối viết công thức, khuôn sáo của máy.",
+  "Viết lại câu gốc thành đúng MỘT câu ngắn gọn, tối đa 100 ký tự.",
   "Giữ nguyên mọi sự kiện trong câu gốc: mã task, lệnh bắt đầu bằng /, tên file, mọi con số. Không thêm thông tin mới.",
-  "Không emoji, không markdown, không ngoặc kép. Chỉ trả về câu thoại.",
+  "Tuyệt đối không dùng dấu gạch dài (em-dash). Không emoji, không markdown, không ngoặc kép. Chỉ trả về câu thoại.",
 ].join("\n");
 const FACT = /\/[\w:-]+|[\w.-]+\.(?:mjs|md|tsx?|jsx?|json)\b|\d+/g;
 const QUOTES = /^["'“”‘’«»]+|["'“”‘’«»]+$/g;
@@ -153,7 +154,7 @@ export function voiceRequest(mood = "idle", line = "") {
 export function voiceReply(text = "", line = "") {
   const first = String(text ?? "").split(/\r?\n/).map((part) => part.trim()).find(Boolean) ?? "";
   const said = first.replace(QUOTES, "").replace(/\s+/g, " ").trim();
-  if (!said || [...said].length > VOICE_MAX_CHARS) return null;
+  if (!said || [...said].length > VOICE_MAX_CHARS || said.includes("—")) return null;
   const facts = String(line ?? "").match(FACT) ?? [];
   return facts.every((fact) => said.includes(fact)) ? said : null;
 }
