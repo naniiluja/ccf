@@ -107,6 +107,17 @@ test("voiceRequest gives Rem her own persona: age, devotion, shyness, chores and
   assert.doesNotMatch(system, /—/);
 });
 
+test("voiceRequest makes her Rem of Re:Zero: Roswaal's mansion, Ram, the oni horn, the morning star, a zero start", () => {
+  const { system } = voiceRequest("idle", "Rem đây.");
+  assert.match(system, /Re:Zero/);
+  assert.match(system, /dinh thự của Roswaal/);
+  assert.match(system, /chị gái Ram/);
+  assert.match(system, /sừng/);
+  assert.match(system, /chùy sao băng/);
+  assert.match(system, /con số không/);
+  assert.match(system, /không bao giờ nhắc tới Subaru/);
+});
+
 test("voiceReply keeps one clean line that carries every fact of the fixed line", () => {
   const line = "npm test lỗi rồi (9 pass, 3 fail). Để Rem xem lại.";
   assert.equal(voiceReply("  \"Ối, npm test có 3 fail trên 9 pass, Rem xem ngay!\"  \nthêm dòng", line), "Ối, npm test có 3 fail trên 9 pass, Rem xem ngay!");
