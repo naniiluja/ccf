@@ -16,10 +16,12 @@ Lazy rule: deliberately NOT `@import`ed from `CLAUDE.md`, so it costs nothing un
 
 ## What it is
 - `hooks/hooks.json` declares `"modules": ["./register.tsx"]` next to `"hooks"`. That loads a Claude Code function-hooks module (early access API, see the `plugin-authoring` skill), a SEPARATE artifact from the 7 `.mjs` command hooks.
-- Entry `hooks/register.tsx` (Rem mascot, dock pane `rem`, walk, mood, voice) imports `hooks/sprite.ts` (pixel art), `hooks/ui/ccf-ui.mjs` (band, board, wave map) and the pure libs `hooks/lib/ui-model.mjs`, `hooks/lib/rem-lines.mjs`. `$.state` atoms are typed in `types/index.d.ts`, which `plugin.json` names in `"types"`.
+- Entry `hooks/register.tsx` (Rem mascot, dock pane `rem`, walk, mood, voice) imports `hooks/sprite.ts` (pixel art), `hooks/ui/ccf-ui.mjs` (band, board, wave rows, Waves tab rows) and the pure libs `hooks/lib/ui-model.mjs`, `hooks/lib/rem-lines.mjs`. `$.state` atoms are typed in `types/index.d.ts`, which `plugin.json` names in `"types"`.
 - `plugin.json` `userConfig` toggles it: `uiBand`, `uiBoard`, `uiWaves`, `uiStatusLine` default `false`; `remAi` defaults `true` and makes one Claude Haiku 4.5 call on the user's account per notable event. That default is the one CCF network call that is not opt-in.
+- Two panes: `rem` (the dock) and `waves` (a tab, opened only when the person presses a wave row; the engine draws the tab strip once two panes are open, so the mod draws no back button). Closing `waves` must not set `isDismissed`: the `ui.close` handler acts only on `id === 'rem'`.
 
 ## Rules
+- Only `Button` is pressable (`onPress`); `Box` and `Text` have no handler. A `Button` takes `plain`, `dimColor` and `key` but no `bold`, `color` or `wrap`, so a pressable row cannot keep a bold accent.
 - The mod is run by the Claude Code mod engine, not by `node`: `.ts`/`.tsx` is allowed here and only here, and `import ... from 'claude-code'` is the engine's module, not an npm dependency. The `.mjs`-only, no-dependency invariant of `hooks.md` still binds every command hook and every `hooks/lib/*.mjs`.
 - The mod sandbox has no Node. Anything needing `node:fs` runs as a CLI through `$.process.run` (`node hooks/lib/ui-snapshot.mjs`, `scripts/plan-waves.mjs`, `scripts/spec-budget.mjs`) and the mod draws its JSON.
 - The mod only READS what CCF already keeps (`PLAN.md`, `PENDING.md`, script output). It writes no file and decides no gate, so every `.mjs` hook behaves the same with the UI on or off.

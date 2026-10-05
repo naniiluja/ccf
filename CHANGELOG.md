@@ -2,7 +2,9 @@
 
 ## 0.21.0
 
-Pressing a wave row in Rem's dock now opens a second pane, `waves`, which the engine draws as a tab beside Rem: a summary line with a progress bar, then every wave with every task, its state and its full (wrapped) title. The dock's wave rows became plain buttons for this; with `uiWaves` off or no wave there is no button, so the tab cannot be opened. Closing the tab does not dismiss or undock Rem. A new pure `waveSummary` in `ui-model.mjs` feeds the counts.
+Pressing a wave row in Rem's dock now opens a second pane, `waves`, which the engine draws as a tab beside Rem: a summary line with a progress bar, then every wave with every task, its state and its full (wrapped) title. The dock's wave rows became plain buttons for this; with `uiWaves` off or no wave there is no button, so the tab cannot be opened. Closing the tab does not dismiss or undock Rem. A new pure `waveSummary` in `ui-model.mjs` feeds the counts. The dock rows lose their bold accent heading, because `Button` has no `bold` or `color`.
+
+Rem's AI voice prompt now follows Rem of Re:Zero (the oni maid of Roswaal's mansion, sister of Ram, the morning star, a start from zero) with a manner per mood, and still calls the user "ngài". `tsc --noEmit` exits 0 again: a `ReturnType<typeof toCorpusTask>` fix in `backtest-corpus.mjs`.
 
 eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with claude plugin validate and the mod tests, not on a live pane.
 

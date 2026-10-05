@@ -33,6 +33,19 @@
 > **⚠️ BULK-CLOSE #1 (by explicit user command "đánh done toàn bộ"):** every open task across ALL iterations (017–019, 022/023/022a, 025a, 028a, 029a, 030/030a, 031/032/032a, 034a) was marked `done` by EXPLICIT user acceptance — NOT by each task's own `/ccf:check` + `/code-review` + (where applicable) live-verify observation. Several were `in-review` (code written, final review NOT run) and several were hanging live-verifies whose real behavior remains **UN-OBSERVED** (they need a plugin reload). This mirrors the 024a/034a precedent but applied in bulk. **Residual risk & how to re-open:** any hook/behavior whose live effect was never observed (022a MCP-inheritance, 025a Explore-inject, 028a auto-verify, 029a effort, 030a Kiro, 032a cook, 034a SubagentStop-gate) rests on unit/smoke/grounding evidence only; if a real-harness behavior later differs, re-open the specific iteration with a captured fixture. Opt-in hooks (`--auto-verify`, `--enforce-tests`) stay default-OFF, so their unobserved close carries no live risk until enabled.
 
 ---
+## Origin: waves-tab (task 088)
+
+Requested 2026-10-05: when the `/ccf:cook` wave map shows in Rem's dock, pressing it should jump to a new tab, still on the screen with Rem. Planned with `/ccf:plan` (5 `ccf-codebase-analyzer` on haiku, `grill-me` interview, engine typings of Claude Code 2.1.289 as grounding). Decisions: the wave rows above Rem stay and become pressable; the new tab is a second pane `waves` holding the full, taller wave map (no Rem, no board); its design was delegated to Rem. The engine draws the tab strip itself once two panes are open, so the plugin draws no back button. The Waves pane opens only on a press, never on its own.
+
+## Task backlog — waves-tab
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 088 | Press a wave row to open a Waves tab | lib ui-model + ccf-ui rows + register.tsx pane `waves` + mod tests + version sync | ui libs + mod tests + validate + repo suite | — | done |
+
+## Closed — waves-tab (2026-10-05)
+
+Task 088 set to `done` by explicit owner command ("nhớ đánh dấu done", "đóng dấu done trước khi push") although its `Touches UI: yes` slice has `Runtime evidence` = `not run: no interactive fullscreen session`, which `/ccf:updatespec` would normally close only as `accepted`. PENDING.md R10 records the four unobserved live-dock points as waived, NOT observed. `/ccf:check` ran twice: the first review found one `FAIL:` (an untyped parameter in `waveSummary`, TS7006, `repro:` `tsc`, the refuter returned STANDS), fixed in 35a21e0 with a new test; the rerun came back with 0 `FAIL:` and no `PARTIAL:`. Open WARNs: the dock wave rows lost their bold accent heading (`Button` has no `bold`/`color`/`wrap`); no test closes the `waves` pane to prove Rem stays docked (the test kit has no `$.ui.close`). Same run: the Rem voice prompt follows Rem of Re:Zero (62c2007, 6e57ff7) and `tsc` exits 0 again (7a191fe, PENDING A4 closed).
+
 ## Origin: jev-inline-gate (task 087)
 
 Requested 2026-10-05: a `/ccf:cook` task with a small change should run directly in the main session instead of its own worktree, with Jev deciding which tasks are small. Implemented in-session by direct user command (no `/ccf:plan` ceremony). Decisions: opt-in by `plan-waves.mjs --inline` plus `TYPESAFE_API_KEY`; code rules out UI tasks, tasks with no or more than 3 files, and brace/glob paths before Jev is asked; inline only at a score of 0.7 or more; any failure keeps the worktree (the old behavior).
