@@ -1,9 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { CoreEngineInterface, Elements, PluginOptions, Register, RenderElement, StateDollar, ToolCallResult } from 'claude-code'
 
-import type { Feeling, Mood } from '../types'
+import type { Feeling, Mood, Walk } from '../types'
 import { SPRITE_COLUMNS, SPRITE_ROWS, encode, pixelsOf } from './sprite'
-import { NO_TASK_LINE, claudeMdBudget, dockIsEmpty, dockLayout, isPlanWrite, liveAgents, planWavesRequest, scrollWindow, statusText, waveScroll, wavesFromOutput } from './lib/ui-model.mjs'
+import { NO_TASK_LINE, claudeMdBudget, dockIsEmpty, dockLayout, isPlanWrite, liveAgents, planWavesRequest, scrollWindow, statusText, walkStep, waveScroll, wavesFromOutput } from './lib/ui-model.mjs'
 import {
   BOARD,
   BUDGET_SCRIPT,
@@ -32,6 +32,7 @@ const HAIR = '#7fb2f0'
 const CCF_SCRIPT_LIMIT_MS = 15_000
 const CCF_NOTICE_MS = 8000
 const DOCK_COLUMNS = 40
+const WALK_TICK_MS = 500
 const GOODBYE = 'Rem đi nghỉ đây. Gõ /rem để gọi lại.'
 
 const KAOMOJI: Readonly<Record<Mood, string>> = {
@@ -64,6 +65,7 @@ const ccfAgents = atom({ plugin: 'ccf', key: 'agents' } as const, [])
 const ccfWavesSource = atom({ plugin: 'ccf', key: 'wavesSource' } as const, null)
 const hasNoticedWavesOff = atom({ plugin: 'ccf', key: 'hasNoticedWavesOff' } as const, false)
 const ccfWavesOffset = atom({ plugin: 'ccf', key: 'wavesOffset' } as const, 0)
+const remWalk = atom({ plugin: 'ccf', key: 'walk' } as const, { x: 0, dir: 1 } as Walk)
 
 type Engine = Pick<CoreEngineInterface, 'ui' | 'state'>
 type TerminalElements = Elements['terminal']
@@ -127,8 +129,10 @@ const Bubble = ({ Box, Text }: TerminalElements, line: string) => (
   </Box>
 )
 
-const Rem = ({ Raster }: TerminalElements, mood: Mood) => (
-  <Raster key="rem" columns={SPRITE_COLUMNS} rows={SPRITE_ROWS} cells={cellsOf(mood)} />
+const Rem = ({ Raster, Box }: TerminalElements, mood: Mood, x = 0) => (
+  <Box key="rem-walk" marginLeft={x}>
+    <Raster key="rem" columns={SPRITE_COLUMNS} rows={SPRITE_ROWS} cells={cellsOf(mood)} />
+  </Box>
 )
 
 const StatusRow = ({ Text }: TerminalElements, status: string | null) =>
@@ -137,11 +141,11 @@ const StatusRow = ({ Text }: TerminalElements, status: string | null) =>
 const EmptyRow = ({ Text }: TerminalElements, isEmpty: boolean) =>
   isEmpty ? <Text key="no-task" dimColor wrap="truncate-end">{NO_TASK_LINE}</Text> : null
 
-const inColumn = (elements: TerminalElements, { mood, line }: Feeling, minHeight: number, band: RenderElement | null, status: string | null, isEmpty = false) => (
+const inColumn = (elements: TerminalElements, { mood, line }: Feeling, minHeight: number, band: RenderElement | null, status: string | null, x: number, isEmpty = false) => (
   <elements.Box flexDirection="column" justifyContent="flex-end" minHeight={minHeight}>
     {EmptyRow(elements, isEmpty)}
     {Bubble(elements, line)}
-    {Rem(elements, mood)}
+    {Rem(elements, mood, x)}
     {band}
     {StatusRow(elements, status)}
   </elements.Box>
@@ -243,8 +247,9 @@ async function dockTree(
   const lines = wantsWaves(options) ? dockWaveLines(await read($, ccfWaves), await read($, ccfAgents), snapshot) : []
   const band = options.uiBand === true ? ((bandTree(elements, snapshot, await read($, ccfWaves), await read($, ccfAgents), options) ?? null) as RenderElement | null) : null
   const status = options.uiStatusLine === true ? await read($, ccfStatusLine) : null
+  const x = Math.min((await read($, remWalk)).x, Math.max(0, bodyColumns - SPRITE_COLUMNS))
   const isEmpty = (options.uiBoard === true || wantsWaves(options)) && dockIsEmpty(snapshot, lines.length)
-  if (isEmpty || (board === null && lines.length === 0)) return { tree: inColumn(elements, now, bodyRows, band, status, isEmpty), region: null }
+  if (isEmpty || (board === null && lines.length === 0)) return { tree: inColumn(elements, now, bodyRows, band, status, x, isEmpty), region: null }
 
   const layout = dockLayout({ bodyRows, bodyColumns, line: now.line, hasBoard: board !== null, waveLineCount: lines.length, spriteRows: SPRITE_ROWS + (band !== null ? 1 : 0) + (status !== null ? 1 : 0) })
   const window = scrollWindow(lines.length, lines.length > 0 ? await read($, ccfWavesOffset) : 0, layout.waveRows)
@@ -255,7 +260,7 @@ async function dockTree(
       {lines.length > 0 ? [...dockWaveRows(elements, lines, window), dockDivider(elements, bodyColumns, 'wave-divider')] : null}
       <Box flexGrow={1} />
       {Bubble(elements, now.line)}
-      {Rem(elements, now.mood)}
+      {Rem(elements, now.mood, x)}
       {band}
       {StatusRow(elements, status)}
     </Box>
@@ -279,6 +284,7 @@ export const register: Register = (on, options) => {
   let isFullscreenLayout = false
   let hasTriedDock = false
   let waveRegion: WaveRegion | null = null
+  let walkRoom = 0
   let lastPrompt: ReturnType<typeof promptActivity> = null
   let lastResult: Awaited<ReturnType<typeof reactToRun>> = null
   const dockColumns = options.uiBoard === true || wantsWaves(options) ? DOCK_COLUMNS : SPRITE_COLUMNS
@@ -297,6 +303,12 @@ export const register: Register = (on, options) => {
       if ((await $.clock.now()) - lastActiveAt < SLEEP_AFTER_MS) return
       if ((await read($, feeling)).mood === 'sleepy') return
       await speak($, options, 'sleepy', 'Lâu quá không thấy ngài. Rem chợp mắt một chút nhé.')
+    })
+
+    $.clock.every(WALK_TICK_MS, async () => {
+      if (walkRoom <= 0 || !(await read($, isDocked))) return
+      if ((await read($, feeling)).mood === 'sleepy') return
+      await update($, remWalk, now => walkStep(now, walkRoom))
     })
 
     return next(e)
@@ -405,6 +417,7 @@ export const register: Register = (on, options) => {
 
     if (e.surface === 'terminal') {
       const elements = $.ui.resolve(e)
+      walkRoom = e.props.placement === 'dock' ? Math.max(0, e.props.bodyColumns - SPRITE_COLUMNS) : 0
       if (e.props.placement !== 'dock') {
         waveRegion = null
         return inRow(elements, now)

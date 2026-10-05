@@ -272,3 +272,17 @@ test("dockIsEmpty is true only when no wave line and no PLAN.md task exist", () 
   assert.match(NO_TASK_LINE, /\/ccf:plan/);
   assert.ok([...NO_TASK_LINE].length <= 36);
 });
+
+import { walkStep } from "./ui-model.mjs";
+
+test("walkStep moves one cell and bounces at both edges", () => {
+  assert.deepEqual(walkStep({ x: 0, dir: 1 }, 5), { x: 1, dir: 1 });
+  assert.deepEqual(walkStep({ x: 5, dir: 1 }, 5), { x: 4, dir: -1 });
+  assert.deepEqual(walkStep({ x: 0, dir: -1 }, 5), { x: 1, dir: 1 });
+  assert.deepEqual(walkStep({ x: 3, dir: -1 }, 5), { x: 2, dir: -1 });
+});
+
+test("walkStep stays home when there is no room, and clamps after a resize", () => {
+  assert.deepEqual(walkStep({ x: 4, dir: 1 }, 0), { x: 0, dir: 1 });
+  assert.deepEqual(walkStep({ x: 9, dir: 1 }, 3), { x: 2, dir: -1 });
+});

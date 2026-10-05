@@ -245,3 +245,12 @@ export const NO_TASK_LINE = "Chưa có task nào. Gõ /ccf:plan nhé.";
 export function dockIsEmpty(snapshot = NO_SNAPSHOT, waveLineCount = 0) {
   return waveLineCount === 0 && !((snapshot?.tasks?.length ?? 0) > 0);
 }
+
+export function walkStep({ x = 0, dir = 1 } = {}, room = 0) {
+  if (!(room > 0)) return { x: 0, dir: 1 };
+  const clamped = Math.min(Math.max(0, x), room);
+  const next = clamped + dir;
+  if (next > room) return { x: room - 1, dir: -1 };
+  if (next < 0) return { x: Math.min(1, room), dir: 1 };
+  return { x: next, dir };
+}

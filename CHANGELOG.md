@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.1
+
+Rem walks left and right inside the dock pane: every 500ms she takes one cell and turns around at either edge (`walkStep` in lib/ui-model.mjs, `ccf/walk` atom). She stands still when the pane is no wider than the sprite or when she is asleep.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with claude plugin validate and the ui-model unit tests (31/31). Two Jev script tests (finding-verify-script, completion-evidence) fail on a clean main too.
+
 ## 0.19.0
 
 Cook now marks wave tasks in-progress in PLAN.md before they start (one PLAN.md commit per wave) and the board refreshes to show it, instead of jumping straight from todo to in-review. Rem's spoken lines are AI-generated at runtime: the template line shows instantly, then Haiku rewrites it via the plugin engine after a short debounce, keeping every fact from the original (task codes, /commands, filenames, numbers); failures keep the template line, and a `remAi` flag turns it off. The dock pane shows "Chưa có task nào. Gõ /ccf:plan nhé." when there is no wave and no board task.
