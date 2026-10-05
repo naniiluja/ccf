@@ -53,14 +53,18 @@ const runCommand = (command: string) => ({
 
 const ALL_ON = { uiBand: true, uiBoard: true, uiWaves: true, uiStatusLine: true }
 
-function answerScripts(on: On, ran: string[]) {
+function answerScripts(on: On, ran: string[], argvs: string[][] = [], opened?: string[]) {
   on('process.run', ($, e) => {
     const script = e.argv[1] ?? ''
     ran.push(script)
+    argvs.push([...e.argv])
     const body = script.endsWith('ui-snapshot.mjs') ? SNAPSHOT : script.endsWith('spec-budget.mjs') ? BUDGET : script.endsWith('plan-waves.mjs') ? WAVES : {}
     return { value: { exitCode: 0, stdout: JSON.stringify(body), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
-  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.open', ($, e) => {
+    opened?.push(e.id)
+    return { value: { isPlaced: true } }
+  })
   on('session.cwd', () => ({ value: '/project' }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
 }
@@ -152,16 +156,21 @@ describe('ccf ui layer', () => {
     expect(lines.at(-1)).toBe('CCF · spec older than code: /ccf:updatespec · CLAUDE.md 7.4/12KB, 40 lines · paid 59.6KB')
   })
 
-  test('wave map: /ccf:cook loads plan-waves.mjs and tracks each worktree agent', { options: ALL_ON }, async ($, on) => {
+  test('wave map: submitting /ccf:cook runs no script, the step 2 plan-waves.mjs call loads the waves', { options: ALL_ON }, async ($, on) => {
     const ran: string[] = []
-    answerScripts(on, ran)
+    const opened: string[] = []
+    answerScripts(on, ran, [], opened)
     const clock = mock.clock(on)
     on('prompt.submit', ($, e) => ({ text: e.text }))
+    on('tool.call', () => ({ result: { stdout: JSON.stringify(WAVES, null, 2), stderr: '', interrupted: false }, text: JSON.stringify(WAVES) }))
     on('agent.spawn', ($, e) => ({ model: 'sonnet', agentId: e.description.includes('070') ? 'agent-070' : 'agent-071' }))
 
     await $.prompt.submit({ text: '/ccf:cook' } as never)
     await clock.advance(10)
-    expect(ran.some(script => script.endsWith('plan-waves.mjs'))).toBe(true)
+    expect(ran.some(script => script.endsWith('plan-waves.mjs'))).toBe(false)
+
+    await $.tool.call({ tool: 'Bash', command: 'node "/cache/ccf/scripts/plan-waves.mjs" --tasks 070,071,072' })
+    expect(opened).toContain('ccf-waves')
 
     await $.agent.spawn({ prompt: 'Implement .claude/plan/task-070-prune-archive.md', description: 'task 070' } as never)
     await $.agent.spawn({ prompt: 'Implement .claude/plan/task-071-memory-audit.md', description: 'task 071' } as never)
@@ -172,6 +181,80 @@ describe('ccf ui layer', () => {
     expect(await map.find({ type: 'Text', text: /◉ 071 memory-audit · running/ })).toBeDefined()
     expect(await map.find({ type: 'Text', text: /○ 072 spec sync · waiting/ })).toBeDefined()
     await map.unmount()
+  })
+
+  test('wave map: a plan-waves.mjs call that fails or says no-plan loads nothing', { options: ALL_ON }, async ($, on) => {
+    answerScripts(on, [])
+    on('tool.call', () => ({ result: { stdout: JSON.stringify({ ok: false, reason: 'no-plan' }), stderr: '', interrupted: false }, text: '' }))
+
+    await $.tool.call({ tool: 'Bash', command: 'node /cache/ccf/scripts/plan-waves.mjs --tasks 070' })
+
+    const map = await $.ui.mount({ surface: 'terminal', ...pane('ccf-waves', 80) })
+    expect(await map.find({ type: 'Text', text: /No \/ccf:cook wave in this session yet/ })).toBeDefined()
+    await map.unmount()
+  })
+
+  test('/ccf-waves reloads with the --dir and --tasks of the last plan-waves.mjs call and keeps agent state', { options: ALL_ON }, async ($, on) => {
+    const argvs: string[][] = []
+    answerScripts(on, [], argvs)
+    on('tool.call', () => ({ result: { stdout: JSON.stringify(WAVES), stderr: '', interrupted: false }, text: JSON.stringify(WAVES) }))
+    on('agent.spawn', () => ({ model: 'sonnet', agentId: 'agent-070' }))
+
+    await $.tool.call({ tool: 'Bash', command: 'node "/cache/ccf/scripts/plan-waves.mjs" --dir "/work/my app" --tasks 070,071,072' })
+    await $.agent.spawn({ prompt: 'Implement .claude/plan/task-070-prune-archive.md', description: 'task 070' } as never)
+
+    expect((await $.command.run(runCommand('ccf-waves'))).text).toMatch(/CCF wave map opened/)
+    const reload = argvs.find(argv => (argv[1] ?? '').endsWith('plan-waves.mjs'))
+    expect(reload?.slice(2)).toEqual(['--dir', '/work/my app', '--tasks', '070,071,072'])
+
+    const map = await $.ui.mount({ surface: 'terminal', ...pane('ccf-waves', 80) })
+    expect(await map.find({ type: 'Text', text: /◉ 070 prune-archive · running/ })).toBeDefined()
+    await map.unmount()
+  })
+
+  test('/ccf-waves with no /ccf:cook yet loads the waves from the session folder', { options: { uiWaves: true } }, async ($, on) => {
+    const argvs: string[][] = []
+    answerScripts(on, [], argvs)
+
+    await $.command.run(runCommand('ccf-waves'))
+    expect(argvs.find(argv => (argv[1] ?? '').endsWith('plan-waves.mjs'))?.slice(2)).toEqual(['--dir', '/project'])
+
+    const map = await $.ui.mount({ surface: 'terminal', ...pane('ccf-waves', 80) })
+    expect(await map.find({ type: 'Text', text: /○ 072 spec sync · waiting/ })).toBeDefined()
+    await map.unmount()
+  })
+
+  test('uiWaves off: /ccf:cook shows one toast per session naming the option', async ($, on) => {
+    const ran: string[] = []
+    answerScripts(on, ran)
+    const toasts: string[] = []
+    on('ui.toast', ($, e) => {
+      toasts.push(e.text)
+      return { value: undefined }
+    })
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+
+    await $.prompt.submit({ text: '/ccf:plan add x' } as never)
+    expect(toasts).toEqual([])
+    await $.prompt.submit({ text: '/ccf:cook' } as never)
+    await $.prompt.submit({ text: '/ccf:cook 070' } as never)
+
+    expect(toasts.length).toBe(1)
+    expect(toasts[0]).toMatch(/wave map is off.*uiWaves/)
+    expect(ran).toEqual([])
+  })
+
+  test('uiWaves on: /ccf:cook shows no wave-map toast', { options: { uiWaves: true } }, async ($, on) => {
+    answerScripts(on, [])
+    const toasts: string[] = []
+    on('ui.toast', ($, e) => {
+      toasts.push(e.text)
+      return { value: undefined }
+    })
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+
+    await $.prompt.submit({ text: '/ccf:cook' } as never)
+    expect(toasts.filter(text => /uiWaves/.test(text))).toEqual([])
   })
 
   test('a failing CCF script leaves the engine band and the mascot untouched', { options: ALL_ON }, async ($, on) => {

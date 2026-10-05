@@ -3,15 +3,17 @@ import type { CoreEngineInterface, Elements, PluginOptions, Register, RenderElem
 
 import type { Feeling, Mood } from '../types'
 import { SPRITE_COLUMNS, SPRITE_ROWS, encode, pixelsOf } from './sprite'
-import { claudeMdBudget, statusText } from './lib/ui-model.mjs'
+import { claudeMdBudget, planWavesRequest, statusText, wavesFromOutput } from './lib/ui-model.mjs'
 import {
   BOARD,
   BUDGET_SCRIPT,
   COOK,
   SNAPSHOT_SCRIPT,
   WAVES,
-  WAVES_SCRIPT,
+  WAVES_OFF_NOTICE,
   bandTree,
+  isWavesRun,
+  shellOutput,
   registerCcfUi,
   wantsSnapshot,
   wantsWaves,
@@ -24,6 +26,7 @@ const SLEEP_AFTER_MS = 10 * 60_000
 const LONG_TURN_MS = 30_000
 const HAIR = '#7fb2f0'
 const CCF_SCRIPT_LIMIT_MS = 15_000
+const CCF_NOTICE_MS = 8000
 const GOODBYE = 'Rem đi nghỉ đây. Gõ /rem để gọi lại.'
 
 const KAOMOJI: Readonly<Record<Mood, string>> = {
@@ -53,6 +56,8 @@ const ccfSnapshot = atom({ plugin: 'ccf', key: 'snapshot' } as const, null)
 const ccfBudget = atom({ plugin: 'ccf', key: 'budget' } as const, null)
 const ccfWaves = atom({ plugin: 'ccf', key: 'waves' } as const, [])
 const ccfAgents = atom({ plugin: 'ccf', key: 'agents' } as const, [])
+const ccfWavesSource = atom({ plugin: 'ccf', key: 'wavesSource' } as const, null)
+const hasNoticedWavesOff = atom({ plugin: 'ccf', key: 'hasNoticedWavesOff' } as const, false)
 
 type Engine = Pick<CoreEngineInterface, 'ui' | 'state'>
 type TerminalElements = Elements['terminal']
@@ -125,12 +130,25 @@ async function refreshCcf($: CoreEngineInterface, options: PluginOptions) {
   $.ui.status(now ? statusText(now.specStale, size ?? undefined) : undefined)
 }
 
-async function loadCcfWaves($: CoreEngineInterface) {
-  const plan = await runCcfScript($, WAVES_SCRIPT)
-  const found = plan?.ok === true && Array.isArray(plan.waves) ? plan.waves : []
-  await update($, ccfAgents, () => [])
-  await update($, ccfWaves, () => found)
-  if (found.length > 0) await $.ui.open({ id: WAVES, title: 'CCF waves' })
+async function noticeWavesOff($: CoreEngineInterface, text: string, options: PluginOptions) {
+  try {
+    if (wantsWaves(options) || !COOK.test(text) || (await read($, hasNoticedWavesOff))) return
+    await update($, hasNoticedWavesOff, () => true)
+    $.ui.toast(WAVES_OFF_NOTICE, { timeoutMs: CCF_NOTICE_MS })
+  } catch {}
+}
+
+async function loadWavesFromRun($: CoreEngineInterface, command: string, ran: ToolCallResult) {
+  try {
+    const found = wavesFromOutput(shellOutput(ran))
+    if (!found) return
+    const { dir, tasks } = planWavesRequest(command)
+    const source = { dir: dir ?? (await $.session.cwd()), tasks: tasks ?? null }
+    await update($, ccfWavesSource, () => source)
+    await update($, ccfAgents, () => [])
+    await update($, ccfWaves, () => found)
+    if (found.length > 0) await $.ui.open({ id: WAVES, title: 'CCF waves' })
+  } catch {}
 }
 
 async function ccfSessionStart($: CoreEngineInterface, options: PluginOptions) {
@@ -138,12 +156,6 @@ async function ccfSessionStart($: CoreEngineInterface, options: PluginOptions) {
     if (options.uiBoard === true) await $.command.register({ name: BOARD, description: 'Open the CCF board: PLAN.md tasks by status and open PENDING.md risks' })
     if (wantsWaves(options)) await $.command.register({ name: WAVES, description: 'Open the CCF wave map of the current /ccf:cook run' })
     if (wantsSnapshot(options)) $.clock.after(1, () => refreshCcf($, options))
-  } catch {}
-}
-
-function ccfPromptSubmit($: CoreEngineInterface, text: string, options: PluginOptions) {
-  try {
-    if (wantsWaves(options) && COOK.test(text)) $.clock.after(1, () => loadCcfWaves($))
   } catch {}
 }
 
@@ -202,7 +214,7 @@ export const register: Register = (on, options) => {
   })
 
   on('prompt.submit', async ($, e, next) => {
-    ccfPromptSubmit($, e.text, options)
+    await noticeWavesOff($, e.text, options)
     if (await canDock($, isFullscreenLayout && !hasTriedDock)) {
       hasTriedDock = true
       await dock($, { isAsked: true })
@@ -246,6 +258,11 @@ export const register: Register = (on, options) => {
   })
 
   on('tool.call', async ($, e, next) => {
+    if (isWavesRun(e, options)) {
+      const ran = await next(e)
+      await loadWavesFromRun($, e.command, ran)
+      return ran
+    }
     if ((e.tool !== 'PowerShell' && e.tool !== 'Bash') || !BUILD.test(e.command)) return next(e)
 
     const ran = await next(e)

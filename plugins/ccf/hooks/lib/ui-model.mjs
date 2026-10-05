@@ -75,6 +75,36 @@ export function matchWaveTask(waves = [[NO_WAVE_TASK]], text = "") {
   return null;
 }
 
+const PLAN_WAVES_RUN = /plan-waves\.mjs(["'\s]|$)/;
+
+export function isPlanWavesRun(command = "") {
+  return PLAN_WAVES_RUN.test(String(command ?? ""));
+}
+
+function flagValue(command = "", flag = "") {
+  const found = command.match(new RegExp(`${flag}\\s+(?:"([^"]*)"|'([^']*)'|([^\\s"';|&>]+))`));
+  if (!found) return undefined;
+  return found[1] ?? found[2] ?? found[3];
+}
+
+export function planWavesRequest(command = "") {
+  const text = String(command ?? "");
+  return { dir: flagValue(text, "--dir"), tasks: flagValue(text, "--tasks") };
+}
+
+export function wavesFromOutput(output = "") {
+  const text = String(output ?? "");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end < start) return null;
+  try {
+    const plan = JSON.parse(text.slice(start, end + 1));
+    return plan?.ok === true && Array.isArray(plan.waves) ? plan.waves : null;
+  } catch {
+    return null;
+  }
+}
+
 export function waveRows(waves = [[NO_WAVE_TASK]], agents = [NO_AGENT]) {
   return waves.map((wave) =>
     wave.map((task) => {

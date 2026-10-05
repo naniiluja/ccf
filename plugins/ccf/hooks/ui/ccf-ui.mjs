@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 
-import { bandLine, boardColumns, boardCommands, matchWaveTask, progressCells, progressSvg, waveRows } from '../lib/ui-model.mjs'
+import { bandLine, boardColumns, boardCommands, isPlanWavesRun, matchWaveTask, progressCells, progressSvg, waveRows, wavesFromOutput } from '../lib/ui-model.mjs'
 
 export const BOARD = 'ccf-board'
 export const WAVES = 'ccf-waves'
@@ -8,16 +8,19 @@ export const COOK = /^\s*\/ccf:cook(\s|$)/
 export const SNAPSHOT_SCRIPT = 'hooks/lib/ui-snapshot.mjs'
 export const BUDGET_SCRIPT = 'scripts/spec-budget.mjs'
 export const WAVES_SCRIPT = 'scripts/plan-waves.mjs'
+export const WAVES_OFF_NOTICE = 'CCF wave map is off, so /ccf:cook shows no /ccf-waves pane. Turn on uiWaves for the ccf plugin in /config.'
 
 const ACCENT = '#7fb2f0'
 const BAR_COLUMNS = 20
 const BAR_PIXELS = 200
 const WIDE_BOARD_COLUMNS = 80
 const STATE_GLYPH = { waiting: '○', running: '◉', done: '●' }
+const WAVES_SCRIPT_LIMIT_MS = 15_000
 
 const snapshot = atom({ plugin: 'ccf', key: 'snapshot' }, null)
 const waves = atom({ plugin: 'ccf', key: 'waves' }, [])
 const agents = atom({ plugin: 'ccf', key: 'agents' }, [])
+const wavesSource = atom({ plugin: 'ccf', key: 'wavesSource' }, null)
 
 export function wantsSnapshot(options) {
   return options.uiBand === true || options.uiBoard === true || options.uiStatusLine === true
@@ -103,6 +106,25 @@ function wavesTree(elements, plan, running) {
   )
 }
 
+export function shellOutput(ran) {
+  if (ran.deny !== undefined || ran.isError === true) return ''
+  return typeof ran.result?.stdout === 'string' ? ran.result.stdout : ran.text ?? ''
+}
+
+async function reloadWaves($, source) {
+  try {
+    const dir = source?.dir ?? (await $.session.cwd())
+    const tasks = source?.tasks ? ['--tasks', source.tasks] : []
+    const ran = await $.process.run(['node', `${$.plugin.root}/${WAVES_SCRIPT}`, '--dir', dir, ...tasks], { cwd: dir, timeoutMs: WAVES_SCRIPT_LIMIT_MS })
+    const found = wavesFromOutput(ran.stdout)
+    if (found) await update($, waves, () => found)
+  } catch {}
+}
+
+export function isWavesRun(e, options) {
+  return wantsWaves(options) && (e.tool === 'Bash' || e.tool === 'PowerShell') && isPlanWavesRun(e.command)
+}
+
 export function registerCcfUi(on, options) {
   if (options.uiBoard === true) {
     on('ui.render', { component: 'Pane', requestId: BOARD }, async ($, e) =>
@@ -121,6 +143,7 @@ export function registerCcfUi(on, options) {
     })
 
     on('command.run', { command: WAVES }, async $ => {
+      await reloadWaves($, await read($, wavesSource))
       const opened = await $.ui.open({ id: WAVES, title: 'CCF waves' })
       return { text: opened.isPlaced ? 'CCF wave map opened.' : `CCF wave map could not be placed: ${opened.reason}` }
     })
