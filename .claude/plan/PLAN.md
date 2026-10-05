@@ -13,6 +13,15 @@
 > iterations, so they must read `ARCHIVE.md` as well as this file.
 ---
 
+## Origin: jev-inline-gate (task 087)
+
+Requested 2026-10-05: a `/ccf:cook` task with a small change should run directly in the main session instead of its own worktree, with Jev deciding which tasks are small. Implemented in-session by direct user command (no `/ccf:plan` ceremony). Decisions: opt-in by `plan-waves.mjs --inline` plus `TYPESAFE_API_KEY`; code rules out UI tasks, tasks with no or more than 3 files, and brace/glob paths before Jev is asked; inline only at a score of 0.7 or more; any failure keeps the worktree (the old behavior).
+
+## Task backlog — jev-inline-gate
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 087 | Jev inline gate for small cook tasks | lib inline-gate + plan-waves `--inline` + cook.md 4a0 + spec sync | all suites + tsc + validate + ccf-budget | — | in-review |
+
 ## Origin: lifecycle-cleanup (tasks 070 to 072)
 
 Requested 2026-10-01: closed task files and project memory accumulate with no cleanup. Planned with `/ccf:plan` (5 analyzers on haiku, interview, Context7 grounding on code.claude.com/docs/en/memory). Decisions: keep the task files of the newest 10 archived iterations (by position in ARCHIVE.md), prune older ones, keep orphans (task-001 to task-009 map to no iteration) and report them; ARCHIVE.md + git history stay the permanent record. Memory gets a consolidation pass in `/ccf:updatespec` only when `memory-audit.mjs` opens the gate (more than 20 `feedback` files, or MEMORY.md at 150+ lines or 20KB+), with one preview + one `AskUserQuestion` before anything is merged or dropped. Test design discipline is on. Task ids 067 to 069 are reserved for the Jev backtest work on PR #8.

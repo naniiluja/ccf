@@ -81,7 +81,7 @@ Human-run CLIs. File-mutating actions belong here, never in a hook.
 | `jev-slice-check.mjs` | Advisory: ask Jev which open tasks depend on each other (needs `TYPESAFE_API_KEY`). |
 | `jev-backtest.mjs` | Backtest Jev's dependency recall against the archived task corpus (needs `TYPESAFE_API_KEY`). |
 | `jev-verify-findings.mjs` | Advisory: ask Jev whether each `FAIL:` in a `/ccf:check` report is really in the diff. Annotates only. |
-| `plan-waves.mjs` | Print the wave split for the backlog. |
+| `plan-waves.mjs` | Print the wave split for the backlog; `--inline` lets Jev mark small tasks to run in the main session. |
 | `worktree-preflight.mjs` | Read-only pre-merge check of a parallel wave (scope, overlap, merge conflicts). |
 | `integrate-wave.mjs` | Merge a wave: preflight, `--no-ff` merge per branch, tests after every merge, reset to last green on red. |
 | `prune-archive.mjs` | Keep the task files of the newest 10 archived iterations; `--apply` stages `git rm` of older ones (default previews; never commits). `ARCHIVE.md` and git history stay the record. |
