@@ -84,7 +84,7 @@ function mulberry32(seed) {
 export function buildCorpus({ archiveDir, archiveMd, maxNegatives = 60, seed = 20261001 } = {}) {
   const loaded = loadTaskFiles(archiveDir);
   const { names, iterationOf } = mapIterations(archiveMd);
-  /** @type {Map<string, ReturnType<toCorpusTask>[]>} */
+  /** @type {Map<string, ReturnType<typeof toCorpusTask>[]>} */
   const byIter = new Map();
   let ungrouped = 0;
   for (const item of loaded) {
