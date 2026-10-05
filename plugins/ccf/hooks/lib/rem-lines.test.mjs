@@ -93,6 +93,20 @@ test("voiceRequest asks Haiku 4.5 for one rewritten line with a time limit and n
   assert.match(request.prompt, /node --test xanh rồi \(5 pass\)! Rem mừng lắm\./);
 });
 
+test("voiceRequest gives Rem her own persona: age, devotion, shyness, chores and a manner per mood", () => {
+  const { system } = voiceRequest("worried", "Hình như có trục trặc rồi.");
+  assert.match(system, /17 tuổi/);
+  assert.match(system, /tộc Quỷ/);
+  assert.match(system, /anh hùng của Rem/);
+  assert.match(system, /hay thẹn/);
+  assert.match(system, /dọn dẹp|quét|chỉ rối|mùi khét/);
+  for (const mood of ["idle", "thinking", "happy", "worried", "sleepy", "surprised"]) {
+    assert.match(system, new RegExp(`${mood}:`), `manner for ${mood}`);
+  }
+  assert.match(system, /Không lặp lại/);
+  assert.doesNotMatch(system, /—/);
+});
+
 test("voiceReply keeps one clean line that carries every fact of the fixed line", () => {
   const line = "npm test lỗi rồi (9 pass, 3 fail). Để Rem xem lại.";
   assert.equal(voiceReply("  \"Ối, npm test có 3 fail trên 9 pass, Rem xem ngay!\"  \nthêm dòng", line), "Ối, npm test có 3 fail trên 9 pass, Rem xem ngay!");
