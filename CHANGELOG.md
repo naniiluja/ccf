@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.16.1
+
+Fix wave map timing and the silent-off UX from 0.16.0: the wave map no longer loads at /ccf:cook submit time (when the session cwd has no PLAN.md yet); instead the mod hooks tool.call, catches the orchestrator's own plan-waves.mjs run and parses that call's JSON stdout, so the map uses the right task list, dir and timing. /ccf-waves reloads the wave when invoked. Running /ccf:cook with uiWaves off now shows an 8-second toast pointing at the userConfig flag (once per session).
+
+eval: not run: small bug-fix follow-up to 0.16.0, verified by plugin tests and node tests.
+
+## 0.16.0
+
+Add rem-mascot pixel-art mascot and an opt-in CCF UI layer via Claude Code mods: /rem toggles Rem with mood-based expressions (idle/thinking/happy/worried/sleepy/surprised, kaomoji on desktop); userConfig flags uiBand (active PLAN.md task above the prompt), uiBoard (/ccf-board kanban from PLAN.md + PENDING.md risks), uiWaves (/ccf-waves worktree agent map from plan-waves.mjs), uiStatusLine (spec freshness + CLAUDE.md budget). UI reads existing data sources only, pane buttons only prefill commands, and a failing mod never breaks CCF's deterministic gates.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; this feature was verified with claude plugin validate, 14/14 plugin tests and the node suite.
+
 ## 0.15.1
 
 | case | pass | mean score | cost |
