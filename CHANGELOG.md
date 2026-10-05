@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.0
+
+Jev-gated inline cook: tasks classified by Jev as small and low-risk now run directly in the session instead of an isolated git worktree. plan-waves.mjs emits per-task mode, modeReason and inlineScore; lib/inline-gate.mjs applies hard exclusions first (touches UI, more than 3 files, unparseable paths), then asks Jev, inline at score >= 0.7. Missing key or any Jev failure falls back to a worktree without blocking. Default behavior unchanged.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not the cook orchestrator; verified with claude plugin validate, 30/30 plugin tests and the node suite.
+
+
 ## 0.17.0
 
 Wave map visibility fixes plus a merged dock pane, from TUI feedback on 0.16.1:
