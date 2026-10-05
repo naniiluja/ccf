@@ -11,7 +11,9 @@ plugins/ccf/
 ├─ commands/                    # 4 slash commands; /ccf:plan is a skill (see skills/)
 ├─ agents/                      # 6 subagents, ALL read-only (see below)
 ├─ skills/                      # plan/ (the /ccf:plan workflow), grill-me/ (internal interview engine)
-├─ hooks/                       # 7 .mjs hooks + hooks.json + lib/ helpers
+├─ hooks/                       # 7 .mjs hooks + hooks.json + lib/ helpers; register.tsx + ui/ = the mod (UI layer)
+├─ types/                       # $.state contract of the mod (plugin.json "types")
+├─ tests/                       # mod tests, run by `claude plugin test`
 ├─ scripts/                     # 11 human-run CLIs (nothing invokes them automatically)
 └─ templates/                   # {{...}} files that /ccf:init instantiates
 ```
@@ -51,6 +53,23 @@ Manual test:
 echo '{"prompt":"/ccf:plan","permission_mode":"default"}' | node hooks/plan-mode-guard.mjs
 # exit 2 + stderr saying plan mode is required
 ```
+
+## UI layer (function-hooks mod, opt-in)
+
+`hooks/hooks.json` also names `"modules": ["./register.tsx"]`, a Claude Code function-hooks module. It adds the Rem mascot (`/rem`) and a CCF UI layer that only reads what CCF already keeps: `PLAN.md`, `PENDING.md`, `scripts/plan-waves.mjs`, `scripts/spec-budget.mjs` and the freshness check in `hooks/lib/freshness.mjs`. The mod sandbox has no Node, so it runs `node hooks/lib/ui-snapshot.mjs` and those scripts through `$.process.run` and draws their JSON.
+
+**Tested against Claude Code 2.1.289.** The function-hooks API is early access and can change between releases; re-run `claude plugin validate plugins/ccf` and `claude plugin test plugins/ccf` before trusting it on a newer build.
+
+Every CCF UI piece is off by default. Turn one on in `/config` (the plugin's `userConfig` rows):
+
+| Option | What it shows |
+|---|---|
+| `uiBand` | A line above the prompt: the active task, its lifecycle step and the next command, e.g. `070 ●━━●━━◉━━○ in-review · next: /ccf:check`. |
+| `uiBoard` | `/ccf-board`: a pane with `todo` / `in-progress` / `in-review` / `done` columns and the open risks in `PENDING.md`. Its buttons only prefill a command in the prompt (`$.prompt.fill`); you press Enter. |
+| `uiWaves` | On `/ccf:cook`, the wave split from `plan-waves.mjs` and each worktree agent as it spawns and finishes (`/ccf-waves`). |
+| `uiStatusLine` | Whether the spec is older than the code, plus the `CLAUDE.md` size from `spec-budget.mjs`. |
+
+Progress bars use `Raster` on the terminal and `Svg` on desktop, which has no `Raster`. Nothing in the UI layer writes a file or decides a gate: a failing mod hook is skipped and a refused tree is replaced by the engine's own drawing, so the `.mjs` hooks above behave the same with the UI on or off.
 
 ## Scripts
 
