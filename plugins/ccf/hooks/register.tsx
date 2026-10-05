@@ -3,7 +3,7 @@ import type { CoreEngineInterface, Elements, PluginOptions, Register, RenderElem
 
 import type { Feeling, Mood } from '../types'
 import { SPRITE_COLUMNS, SPRITE_ROWS, encode, pixelsOf } from './sprite'
-import { claudeMdBudget, dockLayout, liveAgents, planWavesRequest, scrollWindow, statusText, waveScroll, wavesFromOutput, withLiveDoing } from './lib/ui-model.mjs'
+import { claudeMdBudget, dockLayout, isPlanWrite, liveAgents, planWavesRequest, scrollWindow, statusText, waveScroll, wavesFromOutput } from './lib/ui-model.mjs'
 import {
   BOARD,
   BUDGET_SCRIPT,
@@ -213,7 +213,7 @@ async function dockTree(
   options: PluginOptions,
 ): Promise<{ tree: RenderElement; region: WaveRegion | null }> {
   const snapshot = options.uiBoard === true || options.uiBand === true || wantsWaves(options) ? await read($, ccfSnapshot) : null
-  const board = options.uiBoard === true ? withLiveDoing(snapshot, await read($, ccfAgents)) : null
+  const board = options.uiBoard === true ? snapshot : null
   const lines = wantsWaves(options) ? dockWaveLines(await read($, ccfWaves), await read($, ccfAgents), snapshot) : []
   const band = options.uiBand === true ? ((bandTree(elements, snapshot, await read($, ccfWaves), await read($, ccfAgents), options) ?? null) as RenderElement | null) : null
   const status = options.uiStatusLine === true ? await read($, ccfStatusLine) : null
@@ -332,6 +332,11 @@ export const register: Register = (on, options) => {
       return ran
     }
     if (isWavesOffRun(e, options)) await noticeWavesOff($, options)
+    if (wantsSnapshot(options) && e.agentId === undefined && isPlanWrite(e.tool, String((e as { file_path?: unknown }).file_path ?? ''))) {
+      const ran = await next(e)
+      $.clock.after(1, () => refreshCcf($, options))
+      return ran
+    }
     if (activity === null) return next(e)
 
     const ran = await next(e)

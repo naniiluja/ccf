@@ -26,7 +26,7 @@ import {
   wrappedRows,
   dockLayout,
   boardSummary,
-  withLiveDoing,
+  isPlanWrite,
 } from "./ui-model.mjs";
 
 test("columnOf maps statuses to the four lifecycle columns", () => {
@@ -82,30 +82,6 @@ test("boardColumns groups tasks in lifecycle order", () => {
   const columns = boardColumns(SNAPSHOT.tasks);
   assert.deepEqual(columns.map((c) => c.column), ["todo", "in-progress", "in-review", "done"]);
   assert.deepEqual(columns.map((c) => c.tasks.map((t) => t.id)), [["075"], [], ["070"], ["073"]]);
-});
-
-test("withLiveDoing moves a task with a running agent to the doing column", () => {
-  const live = withLiveDoing(SNAPSHOT, [{ agentId: "a1", taskId: "075", isDone: false }]);
-  assert.deepEqual(boardColumns(live.tasks).map((c) => c.tasks.map((t) => t.id)), [[], ["075"], ["070"], ["073"]]);
-  assert.equal(boardSummary(live).counts, "todo 0 · doing 1 · review 1 · done 1");
-  assert.equal(SNAPSHOT.tasks[2].column, "todo");
-});
-
-test("withLiveDoing overrides the PLAN.md column while the agent runs", () => {
-  const live = withLiveDoing(SNAPSHOT, [{ agentId: "a1", taskId: "070", isDone: false }]);
-  assert.deepEqual(boardColumns(live.tasks).map((c) => c.tasks.map((t) => t.id)), [["075"], ["070"], [], ["073"]]);
-});
-
-test("withLiveDoing follows PLAN.md once the agent is done", () => {
-  const live = withLiveDoing(SNAPSHOT, [{ agentId: "a1", taskId: "075", isDone: true }, { agentId: "a2", taskId: "070", isDone: true }]);
-  assert.deepEqual(boardColumns(live.tasks).map((c) => c.tasks.map((t) => t.id)), [["075"], [], ["070"], ["073"]]);
-});
-
-test("withLiveDoing keeps the board unchanged without a running agent", () => {
-  assert.equal(withLiveDoing(SNAPSHOT, []), SNAPSHOT);
-  assert.equal(withLiveDoing(SNAPSHOT, [{ agentId: "a1", taskId: "999", isDone: false }]).tasks.map((t) => t.column).join(), "in-review,done,todo");
-  assert.equal(withLiveDoing(null, [{ agentId: "a1", taskId: "075", isDone: false }]), null);
-  assert.equal(withLiveDoing(SNAPSHOT, null), SNAPSHOT);
 });
 
 test("claudeMdBudget reads the depth-0 file of spec-budget output", () => {
@@ -271,4 +247,15 @@ test("boardSummary condenses the board into a headline and per-column counts", (
   });
   assert.equal(boardSummary({ ...SNAPSHOT, openRisks: 1 }).headline, "1/3 closed · 1 risk");
   assert.equal(boardSummary(null).headline, "0/0 closed · 0 risks");
+});
+
+test("isPlanWrite is true only for a file-write tool on .claude/plan/PLAN.md", () => {
+  assert.equal(isPlanWrite("Edit", "/project/.claude/plan/PLAN.md"), true);
+  assert.equal(isPlanWrite("Write", "C:\\project\\.claude\\plan\\PLAN.md"), true);
+  assert.equal(isPlanWrite("MultiEdit", ".claude/plan/PLAN.md"), true);
+  assert.equal(isPlanWrite("Read", "/project/.claude/plan/PLAN.md"), false);
+  assert.equal(isPlanWrite("Edit", "/project/.claude/plan/task-070-a.md"), false);
+  assert.equal(isPlanWrite("Edit", "/project/.claude/plan/ARCHIVE.md"), false);
+  assert.equal(isPlanWrite("Edit", "/project/docs/PLAN.md"), false);
+  assert.equal(isPlanWrite("Edit", undefined), false);
 });

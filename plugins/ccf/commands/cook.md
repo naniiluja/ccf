@@ -49,13 +49,15 @@ Call **`TaskList`** first, since an earlier run may have left entries to reuse o
 2. **`.gitignore`:** make sure it lists `.claude/worktrees/`, adding the line with Edit if missing, so the agents' worktrees never show up as untracked files in the main checkout.
 3. **Test command:** find the command that runs the project's whole test suite (the task gates, `.claude/rules/testing.md`, `package.json` scripts). `integrate-wave.mjs` runs it after every merge.
 4. **Ask once with `AskUserQuestion`**, one call with two questions:
-   - Confirm the waves, the test command, and that this run commits on the current branch: one base snapshot now (only if the tree has changes), one `--no-ff` merge commit per worktree task, one commit per inline task, and one `PLAN.md` status commit per wave. Nothing is pushed. CCF commits only with the user's consent, and a worktree sees only committed files, so without the snapshot the agents would start without the plan.
+   - Confirm the waves, the test command, and that this run commits on the current branch: one base snapshot now (only if the tree has changes), one `--no-ff` merge commit per worktree task, one commit per inline task, and one `PLAN.md` in-progress commit and one `PLAN.md` status commit per wave. Nothing is pushed. CCF commits only with the user's consent, and a worktree sees only committed files, so without the snapshot the agents would start without the plan.
    - Which model the task agents run. Recommend the session's own model, since each agent implements a whole task with no one to ask; offer `sonnet` as the cheaper choice for small, well-specified tasks. Accept an alias only, never a dated model ID.
    - If `AskUserQuestion` is unavailable, stop and tell the user: this run commits, so it cannot proceed on a default.
 5. After a yes, commit the base snapshot if needed (`git add -A && git commit -m "chore(plan): base snapshot for /ccf:cook"`), then record `BASE=$(git rev-parse HEAD)`.
 
 ## 4. Run one wave
 Take the first wave that still has open tasks. `TaskUpdate` each of its entries to `in_progress`.
+
+Before any task of the wave starts, inline or worktree, write `in-progress` (a bare word) into the `PLAN.md` status cell of each wave task that reads `todo`. Leave a cell that already reads `in-progress`, `in-review`, `done` or `accepted` untouched, because starting a wave never moves a task backwards. If a cell changed, commit `PLAN.md` alone (`chore(plan): wave <n> in-progress`) and set `BASE=$(git rev-parse HEAD)`, because step 4d refuses a dirty tracked tree and an inline commit takes only its own files. Step 4e turns these cells into `in-review`; a task of a stopped wave stays `in-progress`, started but not merged.
 
 ### 4a0. Inline tasks first, in this session
 Implement each `mode: "inline"` task of the wave yourself, one at a time, on the current branch, following the brief below from step 2 onward (no branch switch, no worktree). Commit only its `Files to touch` plus their tests with `git commit -m "<id>: <title>"`, so the tree is clean before step 4d. A red gate, or a change that turns out to need a file outside `Files to touch`, is a `RED:` for the wave: STOP as in step 4b. Wave members are proven independent, so the worktree agents need none of these commits. A wave with no `worktree`-mode task skips steps 4a to 4d.
