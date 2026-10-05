@@ -17,5 +17,5 @@
     "bin/**/*.mjs",
     ".claude/tests/**/*.mjs"
   ],
-  "exclude": ["**/*.test.mjs"]
+  "exclude": ["**/*.test.mjs", "plugins/ccf/hooks/ui/**"]
 }
