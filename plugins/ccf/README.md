@@ -65,8 +65,8 @@ Every CCF UI piece is off by default. Turn one on in `/config` (the plugin's `us
 | Option | What it shows |
 |---|---|
 | `uiBand` | A line above the prompt: the active task, its lifecycle step and the next command, e.g. `070 ●━━●━━◉━━○ in-review · next: /ccf:check`. |
-| `uiBoard` | `/ccf-board`: a pane with `todo` / `in-progress` / `in-review` / `done` columns and the open risks in `PENDING.md`. Its buttons only prefill a command in the prompt (`$.prompt.fill`); you press Enter. |
-| `uiWaves` | On `/ccf:cook`, the wave split read from the output of its own `plan-waves.mjs` call and each worktree agent as it spawns and finishes (`/ccf-waves`, which re-reads the split before opening). While it is off, `/ccf:cook` shows a one-time toast saying so. |
+| `uiBoard` | `/ccf-board`: a pane with `todo` / `in-progress` / `in-review` / `done` columns and the open risks in `PENDING.md`. Its buttons only prefill a command in the prompt (`$.prompt.fill`); you press Enter. While Rem is docked (fullscreen), the top of Rem's 40-column pane also shows a progress bar and one count per column. |
+| `uiWaves` | On `/ccf:cook`, the wave split read from the output of its own `plan-waves.mjs` call and each worktree agent as it spawns and finishes; a task `PLAN.md` already shows `in-review` or `done` reads as done. While Rem is docked, the map sits in Rem's pane and scrolls on its own (`.. +N` marks hidden rows); otherwise it opens as `/ccf-waves`, with a toast naming the reason and `/ccf-waves` when the terminal is too narrow to place it unasked. While it is off, `/ccf:cook` or its `plan-waves.mjs` call shows a one-time toast saying so. |
 | `uiStatusLine` | Whether the spec is older than the code, plus the `CLAUDE.md` size from `spec-budget.mjs`. |
 
 Progress bars use `Raster` on the terminal and `Svg` on desktop, which has no `Raster`. Nothing in the UI layer writes a file or decides a gate: a failing mod hook is skipped and a refused tree is replaced by the engine's own drawing, so the `.mjs` hooks above behave the same with the UI on or off.

@@ -51,9 +51,38 @@ const runCommand = (command: string) => ({
   presentation: { isFullscreen: false, columns: 120 },
 }) as const
 
+const dockPane = (bodyRows: number) => ({
+  plugin: 'ccf',
+  component: 'Pane',
+  requestId: 'rem',
+  props: { title: 'Rem', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows }, view: {} },
+}) as const
+
+const runRemFullscreen = () => ({
+  command: 'rem',
+  args: '',
+  origin: { kind: 'composer' },
+  presentation: { isFullscreen: true, columns: 130 },
+}) as const
+
+const wavesRun = (command = 'node "/cache/ccf/scripts/plan-waves.mjs" --tasks 070,071,072') => ({ tool: 'Bash', command }) as const
+
+function answerWavesRun(on: On) {
+  on('tool.call', () => ({ result: { stdout: JSON.stringify(WAVES), stderr: '', interrupted: false }, text: JSON.stringify(WAVES) }))
+}
+
+function collectToasts(on: On) {
+  const toasts: string[] = []
+  on('ui.toast', ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  return toasts
+}
+
 const ALL_ON = { uiBand: true, uiBoard: true, uiWaves: true, uiStatusLine: true }
 
-function answerScripts(on: On, ran: string[], argvs: string[][] = [], opened?: string[]) {
+function answerScripts(on: On, ran: string[], argvs: string[][] = [], opened?: string[], waitReason?: string) {
   on('process.run', ($, e) => {
     const script = e.argv[1] ?? ''
     ran.push(script)
@@ -63,7 +92,7 @@ function answerScripts(on: On, ran: string[], argvs: string[][] = [], opened?: s
   })
   on('ui.open', ($, e) => {
     opened?.push(e.id)
-    return { value: { isPlaced: true } }
+    return waitReason === undefined ? { value: { isPlaced: true } } : { value: { isPlaced: false, reason: waitReason } }
   })
   on('session.cwd', () => ({ value: '/project' }))
   on('turn.complete', ($, e) => ({ text: e.answer }))
@@ -277,5 +306,172 @@ describe('ccf ui layer', () => {
     const board = await $.ui.mount({ surface: 'terminal', ...pane('ccf-board', 120) })
     expect(await board.find({ type: 'Text', text: /PLAN\.md was not found/ })).toBeDefined()
     await board.unmount()
+  })
+
+  test('wave map: an unasked open that waits undrawn says why and how to open it', { options: { uiWaves: true } }, async ($, on) => {
+    const opened: string[] = []
+    answerScripts(on, [], [], opened, 'an unasked pane needs 144 columns, the terminal has 120')
+    const toasts = collectToasts(on)
+    answerWavesRun(on)
+
+    await $.tool.call(wavesRun())
+
+    expect(opened).toEqual(['ccf-waves'])
+    expect(toasts).toEqual(['CCF wave map is waiting: an unasked pane needs 144 columns, the terminal has 120. Type /ccf-waves to open it.'])
+  })
+
+  test('wave map: an open that is placed shows no waiting toast', { options: { uiWaves: true } }, async ($, on) => {
+    answerScripts(on, [])
+    const toasts = collectToasts(on)
+    answerWavesRun(on)
+
+    await $.tool.call(wavesRun())
+    expect(toasts.filter(text => /waiting/.test(text))).toEqual([])
+  })
+
+  test('uiWaves off: a plan-waves.mjs run from a cook the model started toasts once per session', async ($, on) => {
+    const ran: string[] = []
+    answerScripts(on, ran)
+    const toasts = collectToasts(on)
+    answerWavesRun(on)
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+
+    await $.prompt.submit({ text: 'chạy lại cook đi' } as never)
+    expect(toasts).toEqual([])
+    await $.tool.call(wavesRun())
+    await $.tool.call(wavesRun())
+
+    expect(toasts.length).toBe(1)
+    expect(toasts[0]).toMatch(/wave map is off.*uiWaves/)
+    expect(ran).toEqual([])
+  })
+
+  test('uiWaves off: /ccf:cook inside a sentence toasts, a longer command name does not', async ($, on) => {
+    answerScripts(on, [])
+    const toasts = collectToasts(on)
+    on('prompt.submit', ($, e) => ({ text: e.text }))
+
+    await $.prompt.submit({ text: 'chạy /ccf:cookbook đi' } as never)
+    expect(toasts).toEqual([])
+    await $.prompt.submit({ text: 'chạy /ccf:cook đi' } as never)
+    expect(toasts.length).toBe(1)
+  })
+
+  test('wave map: a task PLAN.md shows in-review is done with no agent seen, read from the plan-waves --dir', { options: { uiWaves: true } }, async ($, on) => {
+    const argvs: string[][] = []
+    answerScripts(on, [], argvs)
+    const clock = mock.clock(on)
+    answerWavesRun(on)
+
+    await $.tool.call(wavesRun('node "/cache/ccf/scripts/plan-waves.mjs" --dir /work/app --tasks 070,071,072'))
+    await clock.advance(10)
+
+    expect(argvs.find(argv => (argv[1] ?? '').endsWith('ui-snapshot.mjs'))?.slice(2)).toEqual(['--dir', '/work/app'])
+    const map = await $.ui.mount({ surface: 'terminal', ...pane('ccf-waves', 80) })
+    expect(await map.find({ type: 'Text', text: /● 070 prune-archive · done/ })).toBeDefined()
+    expect(await map.find({ type: 'Text', text: /○ 071 memory-audit · waiting/ })).toBeDefined()
+    await map.unmount()
+  })
+
+  test('wave map: a second plan-waves.mjs run keeps the agents still running', { options: { uiWaves: true } }, async ($, on) => {
+    answerScripts(on, [])
+    answerWavesRun(on)
+    on('agent.spawn', ($, e) => ({ model: 'sonnet', agentId: e.description.includes('071') ? 'agent-071' : 'agent-072' }))
+
+    await $.tool.call(wavesRun())
+    await $.agent.spawn({ prompt: 'Implement .claude/plan/task-071-memory-audit.md', description: 'task 071' } as never)
+    await $.agent.spawn({ prompt: 'Implement .claude/plan/task-072-spec-sync.md', description: 'task 072' } as never)
+    await $.turn.complete(finishTurn('agent-072'))
+    await $.tool.call(wavesRun())
+
+    const map = await $.ui.mount({ surface: 'terminal', ...pane('ccf-waves', 80) })
+    expect(await map.find({ type: 'Text', text: /◉ 071 memory-audit · running/ })).toBeDefined()
+    expect(await map.find({ type: 'Text', text: /○ 072 spec sync · waiting/ })).toBeDefined()
+    await map.unmount()
+  })
+
+  test('wave map: a cook task agent spawned before any plan-waves.mjs run reloads the waves and is tracked', { options: { uiWaves: true } }, async ($, on) => {
+    const ran: string[] = []
+    answerScripts(on, ran)
+    on('agent.spawn', () => ({ model: 'sonnet', agentId: 'agent-071' }))
+
+    await $.agent.spawn({ prompt: 'Explore the repo', description: 'explore' } as never)
+    expect(ran.filter(script => script.endsWith('plan-waves.mjs'))).toEqual([])
+
+    await $.agent.spawn({ prompt: 'Task: 071, task file `task-071-memory-audit.md`. Branch: `worktree-ccf-lc-071`.', description: 'task 071' } as never)
+    expect(ran.filter(script => script.endsWith('plan-waves.mjs')).length).toBe(1)
+
+    const map = await $.ui.mount({ surface: 'terminal', ...pane('ccf-waves', 80) })
+    expect(await map.find({ type: 'Text', text: /◉ 071 memory-audit · running/ })).toBeDefined()
+    await map.unmount()
+  })
+
+  test('dock: Rem opens 40 columns wide when the board or the wave map is on', { options: { uiBoard: true } }, async ($, on) => {
+    const columns: number[] = []
+    on('ui.open', ($, e) => {
+      columns.push(e.columns ?? 0)
+      return { value: { isPlaced: true } }
+    })
+
+    await $.command.run(runRemFullscreen())
+    expect(columns).toEqual([40])
+  })
+
+  test('dock: one Rem pane holds the board summary, the wave map and Rem, and the wave map opens no pane of its own', { options: ALL_ON }, async ($, on) => {
+    const opened: string[] = []
+    answerScripts(on, [], [], opened)
+    const clock = mock.clock(on)
+    answerWavesRun(on)
+
+    await $.command.run(runRemFullscreen())
+    await $.tool.call(wavesRun())
+    await clock.advance(10)
+    expect(opened).toEqual(['rem'])
+
+    const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
+    expect(await dock.find({ type: 'Raster', key: 'progress' })).toBeDefined()
+    expect(await dock.find({ type: 'Raster', key: 'rem' })).toBeDefined()
+    const headline = await dock.find({ type: 'Text', text: '1/3 closed · 8 risks' })
+    expect(headline?.props.wrap).toBe('truncate-end')
+    expect(await dock.find({ type: 'Text', text: 'todo 1 · doing 0 · review 1 · done 1' })).toBeDefined()
+    expect(await dock.find({ type: 'Text', text: 'wave 2' })).toBeDefined()
+    const task = await dock.find({ type: 'Text', text: '● 070 prune-archive' })
+    expect(task?.props.wrap).toBe('truncate-end')
+    expect(await dock.find({ type: 'Text', text: /^\.\. \+/ })).toBeUndefined()
+    await dock.unmount()
+
+    const inline = await $.ui.mount({ surface: 'terminal', ...pane('rem', 80) })
+    expect(await inline.find({ type: 'Raster', key: 'progress' })).toBeUndefined()
+    expect(await inline.find({ type: 'Raster', key: 'rem' })).toBeDefined()
+    await inline.unmount()
+  })
+
+  test('dock: a short dock shows a window of the wave map with .. +N marks for the hidden rows', { options: ALL_ON }, async ($, on) => {
+    answerScripts(on, [])
+    const clock = mock.clock(on)
+    answerWavesRun(on)
+
+    await $.command.run(runRemFullscreen())
+    await $.tool.call(wavesRun())
+    await clock.advance(10)
+
+    const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(25) })
+    expect(await dock.find({ type: 'Text', text: 'wave 1' })).toBeDefined()
+    expect(await dock.find({ type: 'Text', text: '.. +2' })).toBeDefined()
+    expect(await dock.find({ type: 'Text', text: 'wave 2' })).toBeUndefined()
+    await dock.unmount()
+  })
+
+  test('dock: with Rem put away by /rem, the wave map opens as its own pane again', { options: ALL_ON }, async ($, on) => {
+    const opened: string[] = []
+    answerScripts(on, [], [], opened)
+    answerWavesRun(on)
+    on('ui.close', () => ({ value: undefined }))
+
+    await $.command.run(runRemFullscreen())
+    expect((await $.command.run(runRemFullscreen())).text).toMatch(/đi nghỉ/)
+    await $.tool.call(wavesRun())
+
+    expect(opened).toEqual(['rem', 'ccf-waves'])
   })
 })

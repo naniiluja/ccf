@@ -3,7 +3,7 @@ import type { CoreEngineInterface, Elements, PluginOptions, Register, RenderElem
 
 import type { Feeling, Mood } from '../types'
 import { SPRITE_COLUMNS, SPRITE_ROWS, encode, pixelsOf } from './sprite'
-import { claudeMdBudget, planWavesRequest, statusText, wavesFromOutput } from './lib/ui-model.mjs'
+import { claudeMdBudget, dockLayout, liveAgents, planWavesRequest, scrollWindow, statusText, waveScroll, wavesFromOutput } from './lib/ui-model.mjs'
 import {
   BOARD,
   BUDGET_SCRIPT,
@@ -12,6 +12,11 @@ import {
   WAVES,
   WAVES_OFF_NOTICE,
   bandTree,
+  dockBoardRows,
+  dockDivider,
+  dockWaveLines,
+  dockWaveRows,
+  isWavesOffRun,
   isWavesRun,
   shellOutput,
   registerCcfUi,
@@ -27,6 +32,7 @@ const LONG_TURN_MS = 30_000
 const HAIR = '#7fb2f0'
 const CCF_SCRIPT_LIMIT_MS = 15_000
 const CCF_NOTICE_MS = 8000
+const DOCK_COLUMNS = 40
 const GOODBYE = 'Rem đi nghỉ đây. Gõ /rem để gọi lại.'
 
 const KAOMOJI: Readonly<Record<Mood, string>> = {
@@ -58,14 +64,16 @@ const ccfWaves = atom({ plugin: 'ccf', key: 'waves' } as const, [])
 const ccfAgents = atom({ plugin: 'ccf', key: 'agents' } as const, [])
 const ccfWavesSource = atom({ plugin: 'ccf', key: 'wavesSource' } as const, null)
 const hasNoticedWavesOff = atom({ plugin: 'ccf', key: 'hasNoticedWavesOff' } as const, false)
+const ccfWavesOffset = atom({ plugin: 'ccf', key: 'wavesOffset' } as const, 0)
 
 type Engine = Pick<CoreEngineInterface, 'ui' | 'state'>
 type TerminalElements = Elements['terminal']
+type WaveRegion = { top: number; rows: number; total: number }
 
 const feel = ($: StateDollar, mood: Mood, line: string) => update($, feeling, () => ({ mood, line }))
 
-async function dock($: Engine, { isAsked }: { isAsked: boolean }): Promise<boolean> {
-  const opened = await $.ui.open({ id: PANE, title: 'Rem', columns: SPRITE_COLUMNS, rows: SPRITE_ROWS })
+async function dock($: Engine, { isAsked, columns }: { isAsked: boolean; columns: number }): Promise<boolean> {
+  const opened = await $.ui.open({ id: PANE, title: 'Rem', columns, rows: SPRITE_ROWS })
   await update($, isDocked, () => opened.isPlaced)
   if (!opened.isPlaced && isAsked) $.ui.toast(`Rem chưa đứng cạnh ô chat được: ${opened.reason}`, { timeoutMs: 8000 })
   return opened.isPlaced
@@ -112,7 +120,7 @@ const inRow = (elements: TerminalElements, { mood, line }: Feeling) => (
 
 async function runCcfScript($: CoreEngineInterface, script: string) {
   try {
-    const cwd = await $.session.cwd()
+    const cwd = (await read($, ccfWavesSource))?.dir ?? (await $.session.cwd())
     const ran = await $.process.run(['node', `${$.plugin.root}/${script}`, '--dir', cwd], { cwd, timeoutMs: CCF_SCRIPT_LIMIT_MS })
     return JSON.parse(ran.stdout)
   } catch {
@@ -130,24 +138,28 @@ async function refreshCcf($: CoreEngineInterface, options: PluginOptions) {
   $.ui.status(now ? statusText(now.specStale, size ?? undefined) : undefined)
 }
 
-async function noticeWavesOff($: CoreEngineInterface, text: string, options: PluginOptions) {
+async function noticeWavesOff($: CoreEngineInterface, options: PluginOptions) {
   try {
-    if (wantsWaves(options) || !COOK.test(text) || (await read($, hasNoticedWavesOff))) return
+    if (wantsWaves(options) || (await read($, hasNoticedWavesOff))) return
     await update($, hasNoticedWavesOff, () => true)
     $.ui.toast(WAVES_OFF_NOTICE, { timeoutMs: CCF_NOTICE_MS })
   } catch {}
 }
 
-async function loadWavesFromRun($: CoreEngineInterface, command: string, ran: ToolCallResult) {
+async function loadWavesFromRun($: CoreEngineInterface, command: string, ran: ToolCallResult, options: PluginOptions) {
   try {
     const found = wavesFromOutput(shellOutput(ran))
     if (!found) return
     const { dir, tasks } = planWavesRequest(command)
     const source = { dir: dir ?? (await $.session.cwd()), tasks: tasks ?? null }
     await update($, ccfWavesSource, () => source)
-    await update($, ccfAgents, () => [])
+    await update($, ccfAgents, liveAgents)
+    await update($, ccfWavesOffset, () => 0)
     await update($, ccfWaves, () => found)
-    if (found.length > 0) await $.ui.open({ id: WAVES, title: 'CCF waves' })
+    $.clock.after(1, () => refreshCcf($, options))
+    if (found.length === 0 || (await read($, isDocked))) return
+    const opened = await $.ui.open({ id: WAVES, title: 'CCF waves' })
+    if (!opened.isPlaced) $.ui.toast(`CCF wave map is waiting: ${opened.reason}. Type /ccf-waves to open it.`, { timeoutMs: CCF_NOTICE_MS })
   } catch {}
 }
 
@@ -162,7 +174,9 @@ async function ccfSessionStart($: CoreEngineInterface, options: PluginOptions) {
 async function ccfTurnComplete($: CoreEngineInterface, agentId: string | undefined, options: PluginOptions) {
   try {
     if (agentId !== undefined) {
-      if (wantsWaves(options)) await update($, ccfAgents, list => list.map(agent => (agent.agentId === agentId ? { ...agent, isDone: true } : agent)))
+      if (!wantsWaves(options)) return
+      await update($, ccfAgents, list => list.map(agent => (agent.agentId === agentId ? { ...agent, isDone: true } : agent)))
+      $.clock.after(1, () => refreshCcf($, options))
     } else if (wantsSnapshot(options)) {
       $.clock.after(1, () => refreshCcf($, options))
     }
@@ -176,6 +190,33 @@ async function ccfBand($: CoreEngineInterface, e: { surface: string; props: { ha
   } catch {
     return null
   }
+}
+
+async function dockTree(
+  $: StateDollar,
+  elements: TerminalElements,
+  now: Feeling,
+  { bodyRows, bodyColumns }: { bodyRows: number; bodyColumns: number },
+  options: PluginOptions,
+): Promise<{ tree: RenderElement; region: WaveRegion | null }> {
+  const snapshot = options.uiBoard === true || wantsWaves(options) ? await read($, ccfSnapshot) : null
+  const board = options.uiBoard === true ? snapshot : null
+  const lines = wantsWaves(options) ? dockWaveLines(await read($, ccfWaves), await read($, ccfAgents), snapshot) : []
+  if (board === null && lines.length === 0) return { tree: inColumn(elements, now, bodyRows), region: null }
+
+  const layout = dockLayout({ bodyRows, bodyColumns, line: now.line, hasBoard: board !== null, waveLineCount: lines.length, spriteRows: SPRITE_ROWS })
+  const window = scrollWindow(lines.length, lines.length > 0 ? await read($, ccfWavesOffset) : 0, layout.waveRows)
+  const { Box } = elements
+  const tree = (
+    <Box flexDirection="column" minHeight={bodyRows}>
+      {board !== null ? [...dockBoardRows(elements, board, layout.boardRows), dockDivider(elements, bodyColumns, 'board-divider')] : null}
+      {lines.length > 0 ? [...dockWaveRows(elements, lines, window), dockDivider(elements, bodyColumns, 'wave-divider')] : null}
+      <Box flexGrow={1} />
+      {Bubble(elements, now.line)}
+      {Rem(elements, now.mood)}
+    </Box>
+  )
+  return { tree, region: lines.length > 0 ? { top: layout.waveTop, rows: window.end - window.start, total: lines.length } : null }
 }
 
 export const register: Register = (on, options) => {
@@ -193,6 +234,8 @@ export const register: Register = (on, options) => {
   let isTurnRunning = false
   let isFullscreenLayout = false
   let hasTriedDock = false
+  let waveRegion: WaveRegion | null = null
+  const dockColumns = options.uiBoard === true || wantsWaves(options) ? DOCK_COLUMNS : SPRITE_COLUMNS
 
   on('session.start', async ($, e, next) => {
     await ccfSessionStart($, options)
@@ -200,7 +243,7 @@ export const register: Register = (on, options) => {
     await $.command.register({ name: 'rem', description: 'Gọi Rem ra đứng cạnh ô chat, hoặc cho Rem đi nghỉ' })
 
     $.clock.after(2000, async () => {
-      if (await canDock($, isFullscreenLayout && !hasTriedDock)) await dock($, { isAsked: false })
+      if (await canDock($, isFullscreenLayout && !hasTriedDock)) await dock($, { isAsked: false, columns: dockColumns })
     })
 
     $.clock.every(60_000, async () => {
@@ -214,10 +257,10 @@ export const register: Register = (on, options) => {
   })
 
   on('prompt.submit', async ($, e, next) => {
-    await noticeWavesOff($, e.text, options)
+    if (COOK.test(e.text)) await noticeWavesOff($, options)
     if (await canDock($, isFullscreenLayout && !hasTriedDock)) {
       hasTriedDock = true
-      await dock($, { isAsked: true })
+      await dock($, { isAsked: true, columns: dockColumns })
     }
     return next(e)
   })
@@ -231,7 +274,7 @@ export const register: Register = (on, options) => {
 
     if (e.presentation.isFullscreen) {
       await update($, isDismissed, () => false)
-      return { text: (await dock($, { isAsked: true })) ? 'Rem ra đứng cạnh ô chat rồi.' : 'Rem vẫn đứng phía trên ô chat, lý do ở thông báo vừa hiện.' }
+      return { text: (await dock($, { isAsked: true, columns: dockColumns })) ? 'Rem ra đứng cạnh ô chat rồi.' : 'Rem vẫn đứng phía trên ô chat, lý do ở thông báo vừa hiện.' }
     }
 
     const wasDismissed = await read($, isDismissed)
@@ -260,9 +303,10 @@ export const register: Register = (on, options) => {
   on('tool.call', async ($, e, next) => {
     if (isWavesRun(e, options)) {
       const ran = await next(e)
-      await loadWavesFromRun($, e.command, ran)
+      await loadWavesFromRun($, e.command, ran, options)
       return ran
     }
+    if (isWavesOffRun(e, options)) await noticeWavesOff($, options)
     if ((e.tool !== 'PowerShell' && e.tool !== 'Bash') || !BUILD.test(e.command)) return next(e)
 
     const ran = await next(e)
@@ -297,11 +341,26 @@ export const register: Register = (on, options) => {
 
     if (e.surface === 'terminal') {
       const elements = $.ui.resolve(e)
-      return e.props.placement === 'dock' ? inColumn(elements, now, e.props.scroll.bodyRows) : inRow(elements, now)
+      if (e.props.placement !== 'dock') {
+        waveRegion = null
+        return inRow(elements, now)
+      }
+      const drawn = await dockTree($, elements, now, { bodyRows: e.props.scroll.bodyRows, bodyColumns: e.props.bodyColumns }, options)
+      waveRegion = drawn.region
+      return drawn.tree
     }
 
     const { Text } = $.ui.resolve(e)
     return <Text color={HAIR}>{KAOMOJI[now.mood]} Rem: {now.line}</Text>
+  })
+
+  on('ui.scroll', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+    const region = waveRegion
+    const offset = await read($, ccfWavesOffset)
+    const moved = region === null ? null : waveScroll(region, offset, e.by, e.pointer !== undefined, e.pointer?.row ?? 0)
+    if (moved === null) return next(e)
+    if (moved !== offset) await update($, ccfWavesOffset, () => moved)
+    return {}
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

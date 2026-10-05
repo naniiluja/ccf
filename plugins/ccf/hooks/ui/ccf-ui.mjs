@@ -1,10 +1,10 @@
 import { atom, read, update } from 'claude-code'
 
-import { bandLine, boardColumns, boardCommands, isPlanWavesRun, matchWaveTask, progressCells, progressSvg, waveRows, wavesFromOutput } from '../lib/ui-model.mjs'
+import { bandLine, boardColumns, boardCommands, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, matchWaveTask, progressCells, progressSvg, waveLines, waveRows, wavesFromOutput } from '../lib/ui-model.mjs'
 
 export const BOARD = 'ccf-board'
 export const WAVES = 'ccf-waves'
-export const COOK = /^\s*\/ccf:cook(\s|$)/
+export const COOK = /(^|\s)\/ccf:cook(\s|$)/
 export const SNAPSHOT_SCRIPT = 'hooks/lib/ui-snapshot.mjs'
 export const BUDGET_SCRIPT = 'scripts/spec-budget.mjs'
 export const WAVES_SCRIPT = 'scripts/plan-waves.mjs'
@@ -23,7 +23,7 @@ const agents = atom({ plugin: 'ccf', key: 'agents' }, [])
 const wavesSource = atom({ plugin: 'ccf', key: 'wavesSource' }, null)
 
 export function wantsSnapshot(options) {
-  return options.uiBand === true || options.uiBoard === true || options.uiStatusLine === true
+  return options.uiBand === true || options.uiBoard === true || options.uiStatusLine === true || options.uiWaves === true
 }
 
 export function wantsWaves(options) {
@@ -33,7 +33,7 @@ export function wantsWaves(options) {
 export function bandTree(elements, now, plan, running, options) {
   const line = bandLine(now)
   if (!line) return null
-  const count = wantsWaves(options) ? waveRows(plan, running).flat().filter(task => task.state === 'running').length : 0
+  const count = wantsWaves(options) ? waveRows(plan, running, closedTaskIds(now)).flat().filter(task => task.state === 'running').length : 0
   const suffix = count > 0 ? ` · ${count} worktree agent${count === 1 ? '' : 's'} running` : ''
   return h(elements.Text, { dimColor: true, wrap: 'truncate-end' }, `${line.text}${suffix}`)
 }
@@ -64,7 +64,7 @@ function boardTree(surface, elements, bodyColumns, now, fill) {
       Box,
       { flexDirection: 'row', gap: 1 },
       ...(bar ? [bar] : []),
-      h(Text, null, `${closed}/${now.tasks.length} closed · ${now.openRisks} open risk${now.openRisks === 1 ? '' : 's'} in PENDING.md`),
+      h(Text, { wrap: 'truncate-end' }, `${closed}/${now.tasks.length} closed · ${now.openRisks} open risk${now.openRisks === 1 ? '' : 's'} in PENDING.md`),
     ),
     h(
       Box,
@@ -86,9 +86,9 @@ function boardTree(surface, elements, bodyColumns, now, fill) {
   )
 }
 
-function wavesTree(elements, plan, running) {
+function wavesTree(elements, plan, running, now) {
   const { Box, Text } = elements
-  const rows = waveRows(plan, running)
+  const rows = waveRows(plan, running, closedTaskIds(now))
   if (rows.length === 0) return h(Text, { dimColor: true }, 'No /ccf:cook wave in this session yet.')
   return h(
     Box,
@@ -121,8 +121,55 @@ async function reloadWaves($, source) {
   } catch {}
 }
 
+function isShellPlanWavesRun(e) {
+  return (e.tool === 'Bash' || e.tool === 'PowerShell') && isPlanWavesRun(e.command)
+}
+
 export function isWavesRun(e, options) {
-  return wantsWaves(options) && (e.tool === 'Bash' || e.tool === 'PowerShell') && isPlanWavesRun(e.command)
+  return wantsWaves(options) && isShellPlanWavesRun(e)
+}
+
+export function isWavesOffRun(e, options) {
+  return !wantsWaves(options) && isShellPlanWavesRun(e)
+}
+
+export function dockWaveLines(plan, running, now) {
+  return waveLines(waveRows(plan, running, closedTaskIds(now)))
+}
+
+export function dockDivider(elements, bodyColumns, key) {
+  return h(elements.Text, { key, dimColor: true, wrap: 'truncate-end' }, '─'.repeat(Math.max(1, bodyColumns)))
+}
+
+export function dockBoardRows(elements, now, rows) {
+  const { Box, Raster, Text } = elements
+  const summary = boardSummary(now)
+  const head = h(
+    Box,
+    { key: 'board-head', flexDirection: 'row', gap: 1 },
+    h(Raster, { key: 'progress', columns: BAR_COLUMNS, rows: 1, cells: progressCells(summary.closed, summary.total, BAR_COLUMNS) }),
+    h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, { wrap: 'truncate-end' }, summary.headline)),
+  )
+  return rows > 1 ? [head, h(Text, { key: 'board-counts', dimColor: true, wrap: 'truncate-end' }, summary.counts)] : [head]
+}
+
+export function dockWaveRows(elements, lines, window) {
+  const { Box, Text } = elements
+  const shown = lines.slice(window.start, window.end)
+  const last = shown.length - 1
+  return shown.map((line, index) => {
+    const mark = last === 0
+      ? hiddenMark(window.hiddenAbove + window.hiddenBelow)
+      : index === 0 ? hiddenMark(window.hiddenAbove) : index === last ? hiddenMark(window.hiddenBelow) : ''
+    const text = line.isHeading ? line.text : `${STATE_GLYPH[line.state]} ${line.text}`
+    const style = line.isHeading ? { bold: true, color: ACCENT } : { dimColor: line.state === 'done' }
+    return h(
+      Box,
+      { key: `wave-line-${window.start + index}`, flexDirection: 'row', gap: 1 },
+      h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, { ...style, wrap: 'truncate-end' }, text)),
+      ...(mark ? [h(Text, { dimColor: true }, mark)] : []),
+    )
+  })
 }
 
 export function registerCcfUi(on, options) {
@@ -136,7 +183,9 @@ export function registerCcfUi(on, options) {
     on('agent.spawn', async ($, e, next) => {
       const started = await next(e)
       try {
-        const taskId = started.agentId ? matchWaveTask(await read($, waves), `${e.description}\n${e.name ?? ''}\n${e.prompt}`) : null
+        const brief = `${e.description}\n${e.name ?? ''}\n${e.prompt}`
+        if (started.agentId && (await read($, waves)).length === 0 && isCookTaskBrief(brief)) await reloadWaves($, await read($, wavesSource))
+        const taskId = started.agentId ? matchWaveTask(await read($, waves), brief) : null
         if (taskId) await update($, agents, list => [...list, { agentId: started.agentId, taskId, isDone: false }])
       } catch {}
       return started
@@ -149,7 +198,7 @@ export function registerCcfUi(on, options) {
     })
 
     on('ui.render', { component: 'Pane', requestId: WAVES }, async ($, e) =>
-      wavesTree($.ui.resolve(e), await read($, waves), await read($, agents)),
+      wavesTree($.ui.resolve(e), await read($, waves), await read($, agents), await read($, snapshot)),
     )
   }
 }
