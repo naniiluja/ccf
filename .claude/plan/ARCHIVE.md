@@ -33,6 +33,38 @@
 > **⚠️ BULK-CLOSE #1 (by explicit user command "đánh done toàn bộ"):** every open task across ALL iterations (017–019, 022/023/022a, 025a, 028a, 029a, 030/030a, 031/032/032a, 034a) was marked `done` by EXPLICIT user acceptance — NOT by each task's own `/ccf:check` + `/code-review` + (where applicable) live-verify observation. Several were `in-review` (code written, final review NOT run) and several were hanging live-verifies whose real behavior remains **UN-OBSERVED** (they need a plugin reload). This mirrors the 024a/034a precedent but applied in bulk. **Residual risk & how to re-open:** any hook/behavior whose live effect was never observed (022a MCP-inheritance, 025a Explore-inject, 028a auto-verify, 029a effort, 030a Kiro, 032a cook, 034a SubagentStop-gate) rests on unit/smoke/grounding evidence only; if a real-harness behavior later differs, re-open the specific iteration with a captured fixture. Opt-in hooks (`--auto-verify`, `--enforce-tests`) stay default-OFF, so their unobserved close carries no live risk until enabled.
 
 ---
+## Origin: jev-inline-gate (task 087)
+
+Requested 2026-10-05: a `/ccf:cook` task with a small change should run directly in the main session instead of its own worktree, with Jev deciding which tasks are small. Implemented in-session by direct user command (no `/ccf:plan` ceremony). Decisions: opt-in by `plan-waves.mjs --inline` plus `TYPESAFE_API_KEY`; code rules out UI tasks, tasks with no or more than 3 files, and brace/glob paths before Jev is asked; inline only at a score of 0.7 or more; any failure keeps the worktree (the old behavior).
+
+## Task backlog — jev-inline-gate
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 087 | Jev inline gate for small cook tasks | lib inline-gate + plan-waves `--inline` + cook.md 4a0 + spec sync | all suites + tsc + validate + ccf-budget | — | done |
+
+## Closed — jev-inline-gate (2026-10-05)
+
+Bulk-closed by explicit owner command ("close toàn bộ"), the third bulk-close: every `in-review` row was set to `done` WITHOUT a `/ccf:check` run, so `done` here does not mean reviewed. The same command closed PENDING.md R1 to R9 as waived, not observed.
+
+## Origin: lifecycle-cleanup (tasks 070 to 072)
+
+Requested 2026-10-01: closed task files and project memory accumulate with no cleanup. Planned with `/ccf:plan` (5 analyzers on haiku, interview, Context7 grounding on code.claude.com/docs/en/memory). Decisions: keep the task files of the newest 10 archived iterations (by position in ARCHIVE.md), prune older ones, keep orphans (task-001 to task-009 map to no iteration) and report them; ARCHIVE.md + git history stay the permanent record. Memory gets a consolidation pass in `/ccf:updatespec` only when `memory-audit.mjs` opens the gate (more than 20 `feedback` files, or MEMORY.md at 150+ lines or 20KB+), with one preview + one `AskUserQuestion` before anything is merged or dropped. Test design discipline is on. Task ids 067 to 069 are reserved for the Jev backtest work on PR #8.
+
+> **Jev classification of memories: IN task 071 (user decision 2026-10-01, reversing the planning-time deferral).** Opt-in by `--jev` on `memory-audit.mjs` AND `TYPESAFE_API_KEY`; asked only when the gate is open; adds an advisory `jev` column (label + score, highest of three keep/merge/drop answers, tie-break toward the least destructive) to the preview table only. The model's proposal and the single `AskUserQuestion` confirmation stay the only path to a change. Missing key, API error, timeout or a state over 80KB falls back silently to the flow without Jev (status in the JSON, no column). The user consented to sending `user`-type memories to api.typesafe.ai for this; step 5b still states it in one sentence before each `--jev` run. Accuracy caveat kept on record: about 68% on this repo's harness backtest, so the label is a hint, never a reason to drop.
+
+## Task backlog — lifecycle-cleanup (waves: 070 and 071 in parallel, then 072)
+| # | Slice | Layers | Gate (tests green) | Depends on | Status |
+|---|-------|--------|--------------------|-----------|--------|
+| 070 | prune-archive script + Stop clause E | lib archive + script + updatespec-nudge + tests | lib suite + tsc + preview smoke (25 prune / 9 orphans) | — | done |
+| 071 | memory-audit script + gated consolidation step + opt-in Jev column | lib memory-audit + script (askJev) + updatespec.md step 5 + tests (fake Jev server) | lib suite + tsc + validate + smoke on real memory dir | — | done |
+| 072 | Lifecycle spec, docs and repo sync | rules + CLAUDE.md + READMEs + preambles + prune of this repo | all suites + tsc + validate + ccf-budget | 070, 071 | done |
+| 073 | prune-archive exit code + relative `--dir` (also archive-plan) | 2 scripts + process tests + tooling.md | lib suite + repo suite + tsc + relative-dir smoke | 070 | done |
+| 074 | Clause E prints `--dir` in the prune-archive command | updatespec-nudge + io test | lib suite + tsc | 073 | done |
+
+## Closed — lifecycle-cleanup (2026-10-05)
+
+Bulk-closed by explicit owner command ("close toàn bộ"), the third bulk-close: every `in-review` row was set to `done` WITHOUT a `/ccf:check` run, so `done` here does not mean reviewed. The same command closed PENDING.md R1 to R9 as waived, not observed.
+
 ## Origin: fincon-feedback (tasks 081 to 086)
 
 Planned 2026-10-02 with `/ccf:plan` (5 `ccf-codebase-analyzer` on haiku, `grill-me` interview, Context7 `code.claude.com/docs/en/memory` + `/en/hooks`), approved by the user in full. The fincon project exposed five gaps: a reviewer cannot `FAIL:` a reproduced bug no rule mentions; `done` conflates "really finished" with "owner accepts closing despite residual risk"; work waiting on a human has no structured home; the spec bloats as narrative mixes into rules; a UI slice can pass the gate with nobody running it; evals are not tied to a release. Kept: clean-context reviewer, mandatory grounding, the refuter never deletes or downgrades a `FAIL:`. Test design discipline is on (`discipline: on` in every task). The paid `claude plugin eval` runs in no gate; it is recorded as an `action` row in `.claude/plan/PENDING.md`. Cleaning this repo's own spec is deferred to the next iteration.
