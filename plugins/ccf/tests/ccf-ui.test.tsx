@@ -51,6 +51,13 @@ const dockPane = (bodyRows: number) => ({
   props: { title: 'Rem', isFocused: false, bodyColumns: 40, placement: 'dock', scroll: { offset: 0, bodyRows }, view: {} },
 }) as const
 
+const wavesPane = (bodyColumns = 60) => ({
+  plugin: 'ccf',
+  component: 'Pane',
+  requestId: 'waves',
+  props: { title: 'Waves', isFocused: false, bodyColumns, placement: 'inline', scroll: { offset: 0, bodyRows: 30 }, view: {} },
+}) as const
+
 const wavesRun = (command = 'node "/cache/ccf/scripts/plan-waves.mjs" --tasks 070,071,072') => ({ tool: 'Bash', command }) as const
 
 function answerWavesRun(on: On) {
@@ -165,9 +172,9 @@ describe('ccf ui layer', () => {
     await $.turn.complete(finishTurn('agent-070'))
 
     const map = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
-    expect(await map.find({ type: 'Text', text: /● 070 prune-archive/ })).toBeDefined()
-    expect(await map.find({ type: 'Text', text: /◉ 071 memory-audit/ })).toBeDefined()
-    expect(await map.find({ type: 'Text', text: /○ 072 spec sync/ })).toBeDefined()
+    expect(await map.find({ type: 'Button', text: /● 070 prune-archive/ })).toBeDefined()
+    expect(await map.find({ type: 'Button', text: /◉ 071 memory-audit/ })).toBeDefined()
+    expect(await map.find({ type: 'Button', text: /○ 072 spec sync/ })).toBeDefined()
     await map.unmount()
   })
 
@@ -180,7 +187,7 @@ describe('ccf ui layer', () => {
     await $.tool.call({ tool: 'Bash', command: 'node /cache/ccf/scripts/plan-waves.mjs --tasks 070' })
 
     const map = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
-    expect(await map.find({ type: 'Text', text: /wave 1/ })).toBeUndefined()
+    expect(await map.find({ type: 'Button', text: /wave 1/ })).toBeUndefined()
     await map.unmount()
   })
 
@@ -277,8 +284,8 @@ describe('ccf ui layer', () => {
 
     expect(argvs.find(argv => (argv[1] ?? '').endsWith('ui-snapshot.mjs'))?.slice(2)).toEqual(['--dir', '/work/app'])
     const map = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
-    expect(await map.find({ type: 'Text', text: /● 070 prune-archive/ })).toBeDefined()
-    expect(await map.find({ type: 'Text', text: /○ 071 memory-audit/ })).toBeDefined()
+    expect(await map.find({ type: 'Button', text: /● 070 prune-archive/ })).toBeDefined()
+    expect(await map.find({ type: 'Button', text: /○ 071 memory-audit/ })).toBeDefined()
     await map.unmount()
   })
 
@@ -296,8 +303,8 @@ describe('ccf ui layer', () => {
     await $.tool.call(wavesRun())
 
     const map = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
-    expect(await map.find({ type: 'Text', text: /◉ 071 memory-audit/ })).toBeDefined()
-    expect(await map.find({ type: 'Text', text: /○ 072 spec sync/ })).toBeDefined()
+    expect(await map.find({ type: 'Button', text: /◉ 071 memory-audit/ })).toBeDefined()
+    expect(await map.find({ type: 'Button', text: /○ 072 spec sync/ })).toBeDefined()
     await map.unmount()
   })
 
@@ -315,7 +322,7 @@ describe('ccf ui layer', () => {
     expect(ran.filter(script => script.endsWith('plan-waves.mjs')).length).toBe(1)
 
     const map = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
-    expect(await map.find({ type: 'Text', text: /◉ 071 memory-audit/ })).toBeDefined()
+    expect(await map.find({ type: 'Button', text: /◉ 071 memory-audit/ })).toBeDefined()
     await map.unmount()
   })
 
@@ -426,9 +433,9 @@ describe('ccf ui layer', () => {
     const headline = await dock.find({ type: 'Text', text: '1/3 closed · 8 risks' })
     expect(headline?.props.wrap).toBe('truncate-end')
     expect(await dock.find({ type: 'Text', text: 'todo 1 · doing 0 · review 1 · done 1' })).toBeDefined()
-    expect(await dock.find({ type: 'Text', text: 'wave 2' })).toBeDefined()
-    const task = await dock.find({ type: 'Text', text: '● 070 prune-archive' })
-    expect(task?.props.wrap).toBe('truncate-end')
+    expect(await dock.find({ type: 'Button', text: 'wave 2' })).toBeDefined()
+    const task = await dock.find({ type: 'Button', text: '● 070 prune-archive' })
+    expect(task?.props.plain).toBe(true)
     expect(await dock.find({ type: 'Text', text: /^\.\. \+/ })).toBeUndefined()
     await dock.unmount()
 
@@ -448,9 +455,9 @@ describe('ccf ui layer', () => {
     await clock.advance(10)
 
     const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(25) })
-    expect(await dock.find({ type: 'Text', text: 'wave 1' })).toBeDefined()
+    expect(await dock.find({ type: 'Button', text: 'wave 1' })).toBeDefined()
     expect(await dock.find({ type: 'Text', text: '.. +4' })).toBeDefined()
-    expect(await dock.find({ type: 'Text', text: 'wave 2' })).toBeUndefined()
+    expect(await dock.find({ type: 'Button', text: 'wave 2' })).toBeUndefined()
     await dock.unmount()
   })
 
@@ -494,6 +501,57 @@ describe('ccf ui layer', () => {
     const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
     expect(await dock.find({ type: 'Text', text: LINE })).toBeDefined()
     expect(await dock.find({ type: 'Raster', key: 'rem' })).toBeDefined()
+    await dock.unmount()
+  })
+
+  test('waves tab: pressing a wave row opens pane waves; the pane draws the whole map', { options: ALL_ON }, async ($, on) => {
+    const opened: string[] = []
+    answerScripts(on, [], [], opened)
+    const clock = mock.clock(on)
+    answerWavesRun(on)
+
+    await dockRem($, clock)
+    await $.tool.call(wavesRun())
+    await clock.advance(10)
+
+    const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
+    const row = await dock.find({ key: 'wave-line-1' })
+    expect(row?.type).toBe('Button')
+    expect(row?.props.plain).toBe(true)
+    await dock.press({ key: 'wave-line-1' })
+    expect(opened).toEqual(['rem', 'waves'])
+    await dock.unmount()
+
+    const tab = await $.ui.mount({ surface: 'terminal', ...wavesPane() })
+    expect(await tab.find({ type: 'Text', text: '2 wave · 1 xong · 0 đang chạy · 2 chờ' })).toBeDefined()
+    expect(await tab.find({ type: 'Raster', key: 'progress' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: 'wave 1 · 2 task · 1 xong' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: 'wave 2 · 1 task · 0 xong' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: '● 070' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: 'prune-archive' })).toBeDefined()
+    expect(await tab.find({ type: 'Text', text: /^─+$/ })).toBeDefined()
+    await tab.unmount()
+
+    const desktop = await $.ui.mount({ surface: 'desktop', ...wavesPane() } as never)
+    expect(await desktop.find({ type: 'Text', text: '2 wave' })).toBeDefined()
+    await desktop.unmount()
+  })
+
+  test('waves tab: with no wave the pane says so', { options: ALL_ON }, async ($, on) => {
+    answerScripts(on, [])
+    const tab = await $.ui.mount({ surface: 'terminal', ...wavesPane() })
+    expect(await tab.find({ type: 'Text', text: 'Chưa có wave nào. Chạy /ccf:cook.' })).toBeDefined()
+    await tab.unmount()
+  })
+
+  test('waves tab: uiWaves off draws no Button in Rem, and no wave draws none either', { options: { uiBoard: true } }, async ($, on) => {
+    answerScripts(on, [])
+    const clock = mock.clock(on)
+    answerWavesRun(on)
+    await dockRem($, clock)
+    await $.tool.call(wavesRun())
+    const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
+    expect(await dock.find({ type: 'Button' })).toBeUndefined()
     await dock.unmount()
   })
 })

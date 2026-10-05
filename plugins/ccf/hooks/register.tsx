@@ -15,6 +15,9 @@ import {
   dockDivider,
   dockWaveLines,
   dockWaveRows,
+  NO_WAVES_LINE,
+  wavesTabLines,
+  wavesTabRows,
   isWavesOffRun,
   isWavesRun,
   shellOutput,
@@ -25,6 +28,7 @@ import {
 import { GREETING, VOICE_DEBOUNCE_MS, agentDoneLine, commandActivity, commandResult, doneLine, isVoiceOn, promptActivity, remVoice, startLine, voiceReply, voiceRequest } from './lib/rem-lines.mjs'
 
 const PANE = 'rem'
+const PANE_WAVES = 'waves'
 const SLEEP_AFTER_MS = 10 * 60_000
 const LONG_TURN_MS = 30_000
 const HAIR = '#7fb2f0'
@@ -260,7 +264,7 @@ async function dockTree(
   const tree = (
     <Box flexDirection="column" minHeight={bodyRows}>
       {board !== null ? [...dockBoardRows(elements, board, layout.boardRows), dockDivider(elements, bodyColumns, 'board-divider')] : null}
-      {lines.length > 0 ? [...dockWaveRows(elements, lines, window), dockDivider(elements, bodyColumns, 'wave-divider')] : null}
+      {lines.length > 0 ? [...dockWaveRows(elements, lines, window, () => { void $.ui.open({ id: PANE_WAVES, title: 'Waves' }) }), dockDivider(elements, bodyColumns, 'wave-divider')] : null}
       <Box flexGrow={1} />
       {Bubble(elements, now.line)}
       {Rem(elements, now.mood, x, pose)}
@@ -411,6 +415,17 @@ export const register: Register = (on, options) => {
 
     const { Text } = $.ui.resolve(e)
     return <Text color={HAIR}>{KAOMOJI[now.mood]} Rem: {now.line}</Text>
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE_WAVES }, async ($, e) => {
+    const rows = wavesTabLines(await read($, ccfWaves), await read($, ccfAgents), await read($, ccfSnapshot))
+    if (e.surface === 'terminal') {
+      const elements = $.ui.resolve(e)
+      const { Box } = elements
+      return <Box flexDirection="column">{wavesTabRows(elements, rows, e.props.bodyColumns)}</Box>
+    }
+    const { Text } = $.ui.resolve(e)
+    return <Text>{rows.length === 0 ? NO_WAVES_LINE : `${rows.length} wave`}</Text>
   })
 
   on('ui.scroll', { component: 'Pane', requestId: PANE }, async ($, e, next) => {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.0
+
+Pressing a wave row in Rem's dock now opens a second pane, `waves`, which the engine draws as a tab beside Rem: a summary line with a progress bar, then every wave with every task, its state and its full (wrapped) title. The dock's wave rows became plain buttons for this; with `uiWaves` off or no wave there is no button, so the tab cannot be opened. Closing the tab does not dismiss or undock Rem. A new pure `waveSummary` in `ui-model.mjs` feeds the counts.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with claude plugin validate and the mod tests, not on a live pane.
+
 ## 0.20.0
 
 Removed the `/ccf-board`, `/ccf-waves` and `/rem` commands: Rem now lives only in the dock, which already shows the board summary and the wave map. The standalone board and wave panes, the "waiting" toast that pointed to `/ccf-waves`, and the unused `boardCommands` and `progressSvg` helpers are gone. The `uiBoard` and `uiWaves` options stay and now only control what the dock shows. A person closing the dock still keeps Rem away until the next session.

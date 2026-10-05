@@ -6,7 +6,7 @@
 - **MCP to use:** none
 - **Gate (must be GREEN before the next slice):** `node --test plugins/ccf/hooks/lib/ui-model.test.mjs plugins/ccf/hooks/lib/ui-snapshot.test.mjs plugins/ccf/hooks/lib/rem-lines.test.mjs`; `cd plugins/ccf && claude plugin test .` (mod, 39 today); `claude plugin validate plugins/ccf`; `node --test .claude/tests/*.test.mjs` (needs a CHANGELOG entry for the new version). The two Jev cases already red on `main` (PENDING.md A5) are out of scope.
 - **Touches UI:** yes
-- **Runtime evidence:**
+- **Runtime evidence:** `claude plugin test .` -> 42 pass, 0 fail (press by key on `wave-line-1` calls `$.ui.open` with id `waves`; the Waves pane draws summary, headings, tasks, dividers, empty line). Live dock: not run: this agent has no interactive fullscreen Claude Code session.
 
 ## Goal (one sentence)
 In Rem's dock, pressing any wave row of the `/ccf:cook` wave map opens (or shows) a second pane `waves` that the engine draws as a tab beside Rem, holding the full wave map.
