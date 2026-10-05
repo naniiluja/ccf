@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.4
+
+Rem docks again after `/clear` and `/new`: `session.start` now resets `hasTriedDock` (it stayed true from the first dock, so no automatic dock ever ran in the new session) and tries twice, at 2s and 5s, and the first prompt-area render that reports a fullscreen layout docks her at once, so a new session no longer waits for a timer.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with tsc (TypeScript 5), claude plugin validate and the repo suite, not on a live pane.
+
 ## 0.19.3
 
 Rem now faces the way she walks: the base sprite looks left, so it is mirrored only while she moves right (0.19.2 had it backwards). The happy face keeps its eyes but smiles with a small closed mouth instead of a wide grin.

@@ -294,6 +294,7 @@ export const register: Register = (on, options) => {
   let isTurnRunning = false
   let isFullscreenLayout = false
   let hasTriedDock = false
+  let hasAutoDocked = false
   let waveRegion: WaveRegion | null = null
   let walkRoom = 0
   let lastPrompt: ReturnType<typeof promptActivity> = null
@@ -305,9 +306,13 @@ export const register: Register = (on, options) => {
     lastActiveAt = await $.clock.now()
     await $.command.register({ name: 'rem', description: 'Gọi Rem ra đứng cạnh ô chat, hoặc cho Rem đi nghỉ' })
 
-    $.clock.after(2000, async () => {
-      if (await canDock($, isFullscreenLayout && !hasTriedDock)) await dock($, { isAsked: false, columns: dockColumns })
-    })
+    hasTriedDock = false
+    hasAutoDocked = false
+    for (const delayMs of [2000, 5000]) {
+      $.clock.after(delayMs, async () => {
+        if (await canDock($, isFullscreenLayout && !hasTriedDock)) await dock($, { isAsked: false, columns: dockColumns })
+      })
+    }
 
     $.clock.every(60_000, async () => {
       if (isTurnRunning) return
@@ -459,6 +464,12 @@ export const register: Register = (on, options) => {
     if (e.surface === 'terminal' && e.viewport !== undefined) isFullscreenLayout = e.viewport.isFullscreen === true
 
     const docked = await read($, isDocked)
+    if (isFullscreenLayout && !hasAutoDocked && !docked && !(await read($, isDismissed))) {
+      hasAutoDocked = true
+      $.clock.after(0, async () => {
+        if (await canDock($, true)) await dock($, { isAsked: false, columns: dockColumns })
+      })
+    }
     const band = e.surface === 'terminal' && docked ? null : await ccfBand($, e, $.ui.resolve(e) as TerminalElements, options)
     const now = await read($, feeling)
     const isHidden = e.props.hasSurvey || docked || (await read($, isDismissed))
