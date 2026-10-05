@@ -406,6 +406,52 @@ describe('ccf ui layer', () => {
     await map.unmount()
   })
 
+  test('board: a PLAN.md write in the main session refreshes the snapshot, another file does not', { options: { uiBoard: true } }, async ($, on) => {
+    let status = 'todo'
+    const ran: string[] = []
+    on('process.run', ($, e) => {
+      const script = e.argv[1] ?? ''
+      ran.push(script)
+      const body = { ...SNAPSHOT, tasks: SNAPSHOT.tasks.map(task => (task.id === '075' ? { ...task, status, column: status } : task)) }
+      return { value: { exitCode: 0, stdout: JSON.stringify(body), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    })
+    on('ui.open', () => ({ value: { isPlaced: true } }))
+    on('session.cwd', () => ({ value: '/project' }))
+    on('tool.call', () => ({ result: '', text: '' }))
+    const clock = mock.clock(on)
+
+    await $.command.run(runCommand('ccf-board'))
+    status = 'in-progress'
+    await $.tool.call({ tool: 'Edit', file_path: '/project/src/a.ts', old_string: 'a', new_string: 'b' } as never)
+    await clock.advance(10)
+    expect(ran.filter(script => script.endsWith('ui-snapshot.mjs')).length).toBe(1)
+
+    await $.tool.call({ tool: 'Edit', file_path: '/project/.claude/plan/PLAN.md', old_string: '| todo |', new_string: '| in-progress |' } as never)
+    await clock.advance(10)
+    expect(ran.filter(script => script.endsWith('ui-snapshot.mjs')).length).toBe(2)
+
+    const board = await $.ui.mount({ surface: 'terminal', ...pane('ccf-board', 100) })
+    expect(await board.find({ type: 'Text', text: 'in-progress (1)' })).toBeDefined()
+    expect(await board.find({ type: 'Text', text: '075 new slice' })).toBeDefined()
+    expect(await board.find({ type: 'Text', text: 'todo (0)' })).toBeDefined()
+    await board.unmount()
+  })
+
+  test('board: a cook task agent spawn refreshes the snapshot, an unrelated spawn does not', { options: { uiBoard: true } }, async ($, on) => {
+    const ran: string[] = []
+    answerScripts(on, ran)
+    on('agent.spawn', () => ({ model: 'sonnet', agentId: 'agent-071' }))
+    const clock = mock.clock(on)
+
+    await $.agent.spawn({ prompt: 'Explore the repo', description: 'explore' } as never)
+    await clock.advance(10)
+    expect(ran.filter(script => script.endsWith('ui-snapshot.mjs'))).toEqual([])
+
+    await $.agent.spawn({ prompt: 'Task: 071, task file `task-071-memory-audit.md`. Branch: `worktree-ccf-lc-071`.', description: 'task 071' } as never)
+    await clock.advance(10)
+    expect(ran.filter(script => script.endsWith('ui-snapshot.mjs')).length).toBe(1)
+  })
+
   test('dock: Rem opens 40 columns wide when the board or the wave map is on', { options: { uiBoard: true } }, async ($, on) => {
     const columns: number[] = []
     on('ui.open', ($, e) => {

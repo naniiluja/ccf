@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 
-import { bandLine, boardColumns, boardCommands, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, progressSvg, waveLines, waveRows, wavesFromOutput, withLiveDoing } from '../lib/ui-model.mjs'
+import { bandLine, boardColumns, boardCommands, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, progressSvg, waveLines, waveRows, wavesFromOutput } from '../lib/ui-model.mjs'
 import { GREETING, runningLine, spawnedTaskId } from '../lib/rem-lines.mjs'
 
 export const BOARD = 'ccf-board'
@@ -123,6 +123,15 @@ async function reloadWaves($, source) {
   } catch {}
 }
 
+async function refreshSnapshot($) {
+  try {
+    const dir = (await read($, wavesSource))?.dir ?? (await $.session.cwd())
+    const ran = await $.process.run(['node', `${$.plugin.root}/${SNAPSHOT_SCRIPT}`, '--dir', dir], { cwd: dir, timeoutMs: WAVES_SCRIPT_LIMIT_MS })
+    const found = JSON.parse(ran.stdout)
+    if (found?.ok === true) await update($, snapshot, () => found)
+  } catch {}
+}
+
 function isShellPlanWavesRun(e) {
   return (e.tool === 'Bash' || e.tool === 'PowerShell') && isPlanWavesRun(e.command)
 }
@@ -177,7 +186,7 @@ export function dockWaveRows(elements, lines, window) {
 export function registerCcfUi(on, options) {
   if (options.uiBoard === true) {
     on('ui.render', { component: 'Pane', requestId: BOARD }, async ($, e) =>
-      boardTree(e.surface, $.ui.resolve(e), e.props.bodyColumns ?? 0, withLiveDoing(await read($, snapshot), await read($, agents)), command => $.prompt.fill({ text: command })),
+      boardTree(e.surface, $.ui.resolve(e), e.props.bodyColumns ?? 0, await read($, snapshot), command => $.prompt.fill({ text: command })),
     )
   }
 
@@ -186,6 +195,7 @@ export function registerCcfUi(on, options) {
     try {
       const brief = `${e.description}\n${e.name ?? ''}\n${e.prompt}`
       if (wantsWaves(options) && started.agentId && (await read($, waves)).length === 0 && isCookTaskBrief(brief)) await reloadWaves($, await read($, wavesSource))
+      if (wantsSnapshot(options) && started.agentId && isCookTaskBrief(brief)) $.clock.after(1, () => refreshSnapshot($))
       const taskId = started.agentId ? spawnedTaskId(await read($, waves), brief) : null
       if (taskId) await update($, agents, list => [...list, { agentId: started.agentId, taskId, isDone: false }])
       const line = taskId ? runningLine(await read($, waves), await read($, agents)) : null

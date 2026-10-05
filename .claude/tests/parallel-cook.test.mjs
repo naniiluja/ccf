@@ -63,3 +63,23 @@ test("templates: no generated project inherits the old strictly-sequential law",
     assert.doesNotMatch(readFileSync(file, "utf8"), /STRICTLY SEQUENTIAL|exactly ONE predecessor|no \*\*writing\*\* agents in parallel/, file);
   }
 });
+
+test("cook.md: each wave task is written in-progress in PLAN.md before any inline or worktree task starts", () => {
+  const start = COOK.indexOf("## 4. Run one wave");
+  const inline = COOK.indexOf("### 4a0.");
+  const spawn = COOK.indexOf("### 4a. Spawn");
+  const record = COOK.indexOf("### 4e. Record the wave");
+  const write = COOK.indexOf("write `in-progress`");
+  assert.ok(start > 0 && write > start && write < inline && inline < spawn && spawn < record);
+  const step = COOK.slice(start, inline);
+  assert.match(step, /inline or worktree/);
+  assert.match(step, /status cell of each wave task that reads `todo`/);
+  assert.match(step, /`in-progress`, `in-review`, `done` or `accepted` untouched/);
+  assert.match(step, /commit `PLAN\.md` alone \(`chore\(plan\): wave <n> in-progress`\)/);
+  assert.match(step, /BASE=\$\(git rev-parse HEAD\)/);
+  assert.match(COOK.slice(record), /Write `in-review`/);
+});
+
+test("cook.md: the one confirmation names the per-wave in-progress commit", () => {
+  assert.match(COOK, /one `PLAN\.md` in-progress commit and one `PLAN\.md` status commit per wave/);
+});
