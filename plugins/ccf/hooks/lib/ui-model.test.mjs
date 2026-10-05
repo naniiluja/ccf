@@ -27,6 +27,8 @@ import {
   dockLayout,
   boardSummary,
   isPlanWrite,
+  dockIsEmpty,
+  NO_TASK_LINE,
 } from "./ui-model.mjs";
 
 test("columnOf maps statuses to the four lifecycle columns", () => {
@@ -258,4 +260,15 @@ test("isPlanWrite is true only for a file-write tool on .claude/plan/PLAN.md", (
   assert.equal(isPlanWrite("Edit", "/project/.claude/plan/ARCHIVE.md"), false);
   assert.equal(isPlanWrite("Edit", "/project/docs/PLAN.md"), false);
   assert.equal(isPlanWrite("Edit", undefined), false);
+});
+
+test("dockIsEmpty is true only when no wave line and no PLAN.md task exist", () => {
+  assert.equal(dockIsEmpty(null, 0), true);
+  assert.equal(dockIsEmpty({ ...SNAPSHOT, tasks: [] }, 0), true);
+  assert.equal(dockIsEmpty(SNAPSHOT, 0), false);
+  assert.equal(dockIsEmpty(null, 3), false);
+  assert.equal(dockIsEmpty({ ok: true }, 0), true);
+  assert.match(NO_TASK_LINE, /Chưa có task nào/);
+  assert.match(NO_TASK_LINE, /\/ccf:plan/);
+  assert.ok([...NO_TASK_LINE].length <= 36);
 });
