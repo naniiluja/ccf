@@ -58,6 +58,7 @@ const isDismissed = atom({ plugin: 'ccf', key: 'isDismissed' } as const, false)
 const isDocked = atom({ plugin: 'ccf', key: 'isDocked' } as const, false)
 const ccfSnapshot = atom({ plugin: 'ccf', key: 'snapshot' } as const, null)
 const ccfBudget = atom({ plugin: 'ccf', key: 'budget' } as const, null)
+const ccfStatusLine = atom({ plugin: 'ccf', key: 'statusLine' } as const, null)
 const ccfWaves = atom({ plugin: 'ccf', key: 'waves' } as const, [])
 const ccfAgents = atom({ plugin: 'ccf', key: 'agents' } as const, [])
 const ccfWavesSource = atom({ plugin: 'ccf', key: 'wavesSource' } as const, null)
@@ -75,8 +76,15 @@ const feel = ($: StateDollar, mood: Mood, line: string) => update($, feeling, ()
 async function dock($: Engine, { isAsked, columns }: { isAsked: boolean; columns: number }): Promise<boolean> {
   const opened = await $.ui.open({ id: PANE, title: 'Rem', columns, rows: SPRITE_ROWS })
   await update($, isDocked, () => opened.isPlaced)
+  await showStatus($)
   if (!opened.isPlaced && isAsked) $.ui.toast(`Rem chưa đứng cạnh ô chat được: ${opened.reason}`, { timeoutMs: 8000 })
   return opened.isPlaced
+}
+
+async function showStatus($: Engine) {
+  const line = await read($, ccfStatusLine)
+  if (line === null) return
+  $.ui.status((await read($, isDocked)) ? undefined : line)
 }
 
 async function canDock($: StateDollar, isLayoutReady: boolean): Promise<boolean> {
@@ -101,10 +109,15 @@ const Rem = ({ Raster }: TerminalElements, mood: Mood) => (
   <Raster key="rem" columns={SPRITE_COLUMNS} rows={SPRITE_ROWS} cells={cellsOf(mood)} />
 )
 
-const inColumn = (elements: TerminalElements, { mood, line }: Feeling, minHeight: number) => (
+const StatusRow = ({ Text }: TerminalElements, status: string | null) =>
+  status !== null ? <Text key="status" dimColor wrap="truncate-end">{status}</Text> : null
+
+const inColumn = (elements: TerminalElements, { mood, line }: Feeling, minHeight: number, band: RenderElement | null, status: string | null) => (
   <elements.Box flexDirection="column" justifyContent="flex-end" minHeight={minHeight}>
     {Bubble(elements, line)}
     {Rem(elements, mood)}
+    {band}
+    {StatusRow(elements, status)}
   </elements.Box>
 )
 
@@ -132,7 +145,10 @@ async function refreshCcf($: CoreEngineInterface, options: PluginOptions) {
   if (options.uiStatusLine !== true) return
   const size = now ? claudeMdBudget(await runCcfScript($, BUDGET_SCRIPT)) : null
   await update($, ccfBudget, () => size)
-  $.ui.status(now ? statusText(now.specStale, size ?? undefined) : undefined)
+  const line = now ? statusText(now.specStale, size ?? undefined) ?? null : null
+  await update($, ccfStatusLine, () => line)
+  if (line === null) $.ui.status(undefined)
+  else await showStatus($)
 }
 
 async function noticeWavesOff($: CoreEngineInterface, options: PluginOptions) {
@@ -196,12 +212,14 @@ async function dockTree(
   { bodyRows, bodyColumns }: { bodyRows: number; bodyColumns: number },
   options: PluginOptions,
 ): Promise<{ tree: RenderElement; region: WaveRegion | null }> {
-  const snapshot = options.uiBoard === true || wantsWaves(options) ? await read($, ccfSnapshot) : null
+  const snapshot = options.uiBoard === true || options.uiBand === true || wantsWaves(options) ? await read($, ccfSnapshot) : null
   const board = options.uiBoard === true ? snapshot : null
   const lines = wantsWaves(options) ? dockWaveLines(await read($, ccfWaves), await read($, ccfAgents), snapshot) : []
-  if (board === null && lines.length === 0) return { tree: inColumn(elements, now, bodyRows), region: null }
+  const band = options.uiBand === true ? ((bandTree(elements, snapshot, await read($, ccfWaves), await read($, ccfAgents), options) ?? null) as RenderElement | null) : null
+  const status = options.uiStatusLine === true ? await read($, ccfStatusLine) : null
+  if (board === null && lines.length === 0) return { tree: inColumn(elements, now, bodyRows, band, status), region: null }
 
-  const layout = dockLayout({ bodyRows, bodyColumns, line: now.line, hasBoard: board !== null, waveLineCount: lines.length, spriteRows: SPRITE_ROWS })
+  const layout = dockLayout({ bodyRows, bodyColumns, line: now.line, hasBoard: board !== null, waveLineCount: lines.length, spriteRows: SPRITE_ROWS + (band !== null ? 1 : 0) + (status !== null ? 1 : 0) })
   const window = scrollWindow(lines.length, lines.length > 0 ? await read($, ccfWavesOffset) : 0, layout.waveRows)
   const { Box } = elements
   const tree = (
@@ -211,6 +229,8 @@ async function dockTree(
       <Box flexGrow={1} />
       {Bubble(elements, now.line)}
       {Rem(elements, now.mood)}
+      {band}
+      {StatusRow(elements, status)}
     </Box>
   )
   return { tree, region: lines.length > 0 ? { top: layout.waveTop, rows: window.end - window.start, total: lines.length } : null }
@@ -290,6 +310,7 @@ export const register: Register = (on, options) => {
   on('ui.close', async ($, e, next) => {
     if (e.id === PANE) {
       await update($, isDocked, () => false)
+      await showStatus($)
       if (e.origin.kind === 'person') await update($, isDismissed, () => true)
     }
     return next(e)
@@ -376,9 +397,10 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.surface === 'terminal' && e.viewport !== undefined) isFullscreenLayout = e.viewport.isFullscreen === true
 
-    const band = await ccfBand($, e, $.ui.resolve(e) as TerminalElements, options)
+    const docked = await read($, isDocked)
+    const band = e.surface === 'terminal' && docked ? null : await ccfBand($, e, $.ui.resolve(e) as TerminalElements, options)
     const now = await read($, feeling)
-    const isHidden = e.props.hasSurvey || (await read($, isDocked)) || (await read($, isDismissed))
+    const isHidden = e.props.hasSurvey || docked || (await read($, isDismissed))
     if (isHidden && band == null) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)

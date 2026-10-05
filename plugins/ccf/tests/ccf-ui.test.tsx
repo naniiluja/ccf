@@ -457,9 +457,64 @@ describe('ccf ui layer', () => {
 
     const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(25) })
     expect(await dock.find({ type: 'Text', text: 'wave 1' })).toBeDefined()
-    expect(await dock.find({ type: 'Text', text: '.. +2' })).toBeDefined()
+    expect(await dock.find({ type: 'Text', text: '.. +4' })).toBeDefined()
     expect(await dock.find({ type: 'Text', text: 'wave 2' })).toBeUndefined()
     await dock.unmount()
+  })
+
+  test('status line: drawn under Rem while docked instead of $.ui.status, back on $.ui.status once Rem goes to rest', { options: { uiStatusLine: true } }, async ($, on) => {
+    answerScripts(on, [])
+    const clock = mock.clock(on)
+    on('ui.close', () => ({ value: undefined }))
+    const lines: (string | undefined)[] = []
+    on('ui.status', ($, e) => {
+      lines.push(e.text)
+      return { value: undefined }
+    })
+    const STATUS = 'CCF · spec older than code: /ccf:updatespec · CLAUDE.md 7.4/12KB, 40 lines · paid 59.6KB'
+
+    await $.command.run(runRemFullscreen())
+    await $.turn.complete(finishTurn())
+    await clock.advance(10)
+    expect(lines.at(-1)).toBeUndefined()
+
+    const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
+    const row = await dock.find({ type: 'Text', text: STATUS })
+    expect(row?.props.wrap).toBe('truncate-end')
+    expect(await dock.find({ type: 'Raster', key: 'rem' })).toBeDefined()
+    await dock.unmount()
+
+    expect((await $.command.run(runRemFullscreen())).text).toMatch(/đi nghỉ/)
+    expect(lines.at(-1)).toBe(STATUS)
+  })
+
+  test('band: drawn under Rem while docked instead of above the prompt, back above the prompt once Rem goes to rest', { options: { uiBand: true } }, async ($, on) => {
+    answerScripts(on, [])
+    const clock = mock.clock(on)
+    on('ui.close', () => ({ value: undefined }))
+    on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+      const { Text } = $.ui.resolve(e)
+      return <Text>engine</Text>
+    })
+    const LINE = '070 ●━━●━━◉━━○ in-review · next: /ccf:check'
+
+    await $.command.run(runRemFullscreen())
+    await $.turn.complete(finishTurn())
+    await clock.advance(10)
+
+    const above = await $.ui.mount({ surface: 'terminal', ...BAND })
+    expect(await above.find({ type: 'Text', text: LINE })).toBeUndefined()
+    await above.unmount()
+
+    const dock = await $.ui.mount({ surface: 'terminal', ...dockPane(40) })
+    expect(await dock.find({ type: 'Text', text: LINE })).toBeDefined()
+    expect(await dock.find({ type: 'Raster', key: 'rem' })).toBeDefined()
+    await dock.unmount()
+
+    expect((await $.command.run(runRemFullscreen())).text).toMatch(/đi nghỉ/)
+    const back = await $.ui.mount({ surface: 'terminal', ...BAND })
+    expect(await back.find({ type: 'Text', text: LINE })).toBeDefined()
+    await back.unmount()
   })
 
   test('dock: with Rem put away by /rem, the wave map opens as its own pane again', { options: ALL_ON }, async ($, on) => {
