@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.0
+
+/ccf:check now pins the changed files and the scope BEFORE delegating to the checker agents, instead of each checker deciding on its own whether to run git. New read-only offline script `plugins/ccf/scripts/scope-diff.mjs` (with `hooks/lib/scope-diff.mjs` underneath, 11 unit tests) computes the changed list (committed vs base, uncommitted, untracked), reads the task's `Files to touch`, and prints `changed` / `declared` / `outOfScope` as JSON, always exiting 0. check.md step 2b runs it and passes the lists into both checkers' briefs; every `outOfScope` file now ends as a `FAIL: (scope)` in the merged report unless a checker quotes the criterion that requires it, and a test that fails in the check run but no checker reported becomes a `(check)` `FAIL:` with a `repro:`. The `FAIL:` rule is now explicit: a reproduced bug is evidence even when no rule names it. When git or the script fails, the report opens with `PARTIAL:` instead of silently passing.
+
+eval: not run: the paid `claude plugin eval` harness cannot sandbox Bash on this VM (no bwrap), so the 3 previously-unmeasurable cases (03-scope-creep, 07-scope-only, 09-unruled-bug) were verified manually against their fixtures: scope-diff returns the expected outOfScope on all 3, and the prompt rules now cover the repro-as-FAIL case. Verified with 627 node tests (626 pass, 1 skip) and tsc clean.
+
+
 ## 0.19.0
 
 Cook now marks wave tasks in-progress in PLAN.md before they start (one PLAN.md commit per wave) and the board refreshes to show it, instead of jumping straight from todo to in-review. Rem's spoken lines are AI-generated at runtime: the template line shows instantly, then Haiku rewrites it via the plugin engine after a short debounce, keeping every fact from the original (task codes, /commands, filenames, numbers); failures keep the template line, and a `remAi` flag turns it off. The dock pane shows "Chưa có task nào. Gõ /ccf:plan nhé." when there is no wave and no board task.
