@@ -23,10 +23,9 @@ import {
   wantsSnapshot,
   wantsWaves,
 } from './ui/ccf-ui.mjs'
+import { GREETING, agentDoneLine, commandActivity, commandResult, doneLine, promptActivity, startLine } from './lib/rem-lines.mjs'
 
 const PANE = 'rem'
-const BUILD = /\b(dotnet\s+(build|test|run|publish)|msbuild|(npm|pnpm|yarn)\s+(run\s+)?(build|test)|tsc|pytest|mvn|gradlew?|cargo\s+(build|test)|go\s+(build|test))\b/i
-const FAILED = /Build FAILED|: error [A-Z]+\d+|Failed!|npm ERR!|\b[1-9]\d* (failed|errors?)\b/i
 const SLEEP_AFTER_MS = 10 * 60_000
 const LONG_TURN_MS = 30_000
 const HAIR = '#7fb2f0'
@@ -54,8 +53,7 @@ function cellsOf(mood: Mood): string {
   return cells
 }
 
-const GREETING: Feeling = { mood: 'idle', line: 'Rem đây. Bạn cần gì cứ gọi nhé.' }
-const feeling = atom({ plugin: 'ccf', key: 'feeling' } as const, GREETING)
+const feeling = atom({ plugin: 'ccf', key: 'feeling' } as const, GREETING as Feeling)
 const isDismissed = atom({ plugin: 'ccf', key: 'isDismissed' } as const, false)
 const isDocked = atom({ plugin: 'ccf', key: 'isDocked' } as const, false)
 const ccfSnapshot = atom({ plugin: 'ccf', key: 'snapshot' } as const, null)
@@ -69,6 +67,8 @@ const ccfWavesOffset = atom({ plugin: 'ccf', key: 'wavesOffset' } as const, 0)
 type Engine = Pick<CoreEngineInterface, 'ui' | 'state'>
 type TerminalElements = Elements['terminal']
 type WaveRegion = { top: number; rows: number; total: number }
+type Activity = NonNullable<ReturnType<typeof commandActivity>>
+type CookAgent = { agentId: string; taskId: string; isDone: boolean }
 
 const feel = ($: StateDollar, mood: Mood, line: string) => update($, feeling, () => ({ mood, line }))
 
@@ -83,15 +83,12 @@ async function canDock($: StateDollar, isLayoutReady: boolean): Promise<boolean>
   return isLayoutReady && !(await read($, isDocked)) && !(await read($, isDismissed))
 }
 
-async function reactToBuild($: StateDollar, command: string, ran: ToolCallResult) {
-  if (ran.deny !== undefined) return
+async function reactToRun($: StateDollar, activity: Activity, ran: ToolCallResult) {
+  if (ran.deny !== undefined) return null
 
-  const what = command.match(BUILD)?.[0] ?? 'build'
-  const failed = ran.isError === true || FAILED.test(ran.text ?? '')
-
-  await (failed
-    ? feel($, 'worried', `${what} lỗi rồi. Để Rem xem lại.`)
-    : feel($, 'happy', `${what} xanh rồi! Rem mừng lắm.`))
+  const result = commandResult(activity, ran.isError === true, shellOutput(ran) || (ran.text ?? ''))
+  await feel($, result.mood as Mood, result.line)
+  return result.mood === 'thinking' ? null : result
 }
 
 const Bubble = ({ Box, Text }: TerminalElements, line: string) => (
@@ -174,8 +171,8 @@ async function ccfSessionStart($: CoreEngineInterface, options: PluginOptions) {
 async function ccfTurnComplete($: CoreEngineInterface, agentId: string | undefined, options: PluginOptions) {
   try {
     if (agentId !== undefined) {
-      if (!wantsWaves(options)) return
       await update($, ccfAgents, list => list.map(agent => (agent.agentId === agentId ? { ...agent, isDone: true } : agent)))
+      if (!wantsWaves(options)) return
       $.clock.after(1, () => refreshCcf($, options))
     } else if (wantsSnapshot(options)) {
       $.clock.after(1, () => refreshCcf($, options))
@@ -235,6 +232,8 @@ export const register: Register = (on, options) => {
   let isFullscreenLayout = false
   let hasTriedDock = false
   let waveRegion: WaveRegion | null = null
+  let lastPrompt: ReturnType<typeof promptActivity> = null
+  let lastResult: Awaited<ReturnType<typeof reactToRun>> = null
   const dockColumns = options.uiBoard === true || wantsWaves(options) ? DOCK_COLUMNS : SPRITE_COLUMNS
 
   on('session.start', async ($, e, next) => {
@@ -257,6 +256,8 @@ export const register: Register = (on, options) => {
   })
 
   on('prompt.submit', async ($, e, next) => {
+    lastPrompt = promptActivity(e.text)
+    lastResult = null
     if (COOK.test(e.text)) await noticeWavesOff($, options)
     if (await canDock($, isFullscreenLayout && !hasTriedDock)) {
       hasTriedDock = true
@@ -296,27 +297,36 @@ export const register: Register = (on, options) => {
 
   on('turn.start', async ($, e, next) => {
     isTurnRunning = true
-    await feel($, 'thinking', 'Để Rem lo việc này.')
+    await feel($, 'thinking', startLine(lastPrompt))
     return next(e)
   })
 
   on('tool.call', async ($, e, next) => {
+    const activity = e.tool === 'PowerShell' || e.tool === 'Bash' ? commandActivity(e.command) : null
+    if (activity !== null) await feel($, 'thinking', activity.line)
     if (isWavesRun(e, options)) {
       const ran = await next(e)
       await loadWavesFromRun($, e.command, ran, options)
+      if (activity !== null) lastResult = (await reactToRun($, activity, ran)) ?? lastResult
       return ran
     }
     if (isWavesOffRun(e, options)) await noticeWavesOff($, options)
-    if ((e.tool !== 'PowerShell' && e.tool !== 'Bash') || !BUILD.test(e.command)) return next(e)
+    if (activity === null) return next(e)
 
     const ran = await next(e)
-    await reactToBuild($, e.command, ran)
+    lastResult = (await reactToRun($, activity, ran)) ?? lastResult
     return ran
   })
 
   on('turn.complete', async ($, e, next) => {
     await ccfTurnComplete($, e.agentId, options)
-    if (e.agentId !== undefined) return next(e)
+    if (e.agentId !== undefined) {
+      const agents: CookAgent[] = await read($, ccfAgents)
+      const finished = agents.find(agent => agent.agentId === e.agentId)
+      const line = finished ? agentDoneLine(await read($, ccfWaves), agents, finished.taskId) : null
+      if (line !== null) await feel($, 'thinking', line)
+      return next(e)
+    }
 
     isTurnRunning = false
     lastActiveAt = await $.clock.now()
@@ -325,8 +335,8 @@ export const register: Register = (on, options) => {
       await feel($, 'surprised', 'Ơ, bạn dừng Rem lại à?')
     } else if (e.reason !== 'answer') {
       await feel($, 'worried', 'Hình như có trục trặc rồi, bạn thử lại giúp Rem nhé.')
-    } else if ((await read($, feeling)).mood === 'thinking') {
-      await feel($, 'happy', 'Xong rồi, bạn xem thử nhé.')
+    } else if (['thinking', 'happy', 'worried'].includes((await read($, feeling)).mood)) {
+      await feel($, lastResult?.failed ? 'worried' : 'happy', doneLine(lastPrompt ?? undefined, lastResult?.outcome ?? ''))
     }
 
     if (!e.isAborted && e.durationMs > LONG_TURN_MS) {
