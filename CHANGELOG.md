@@ -1,8 +1,15 @@
 # Changelog
 
+## 0.19.0
+
+Cook now marks wave tasks in-progress in PLAN.md before they start (one PLAN.md commit per wave) and the board refreshes to show it, instead of jumping straight from todo to in-review. Rem's spoken lines are AI-generated at runtime: the template line shows instantly, then Haiku rewrites it via the plugin engine after a short debounce, keeping every fact from the original (task codes, /commands, filenames, numbers); failures keep the template line, and a `remAi` flag turns it off. The dock pane shows "Chưa có task nào. Gõ /ccf:plan nhé." when there is no wave and no board task.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not the cook orchestrator or UI mods; verified with claude plugin validate, 46/46 plugin tests and the node suite.
+
+
 ## 0.18.0
 
-Jev-gated inline cook: tasks classified by Jev as small and low-risk now run directly in the session instead of an isolated git worktree. plan-waves.mjs emits per-task mode, modeReason and inlineScore; lib/inline-gate.mjs applies hard exclusions first (touches UI, more than 3 files, unparseable paths), then asks Jev, inline at score >= 0.7. Missing key or any Jev failure falls back to a worktree without blocking. Default behavior unchanged. Also in this release: Rem mascot speech is now contextual (lib/rem-lines.mjs), naming the slash command, the running test/build/script, pass/fail counts and cook task progress instead of fixed lines. The band and status lines render below the mascot sprite in the dock pane instead of above the chat frame. Cook now marks wave tasks in-progress in PLAN.md before they start (one PLAN.md commit per wave) and the board refreshes to show it.
+Jev-gated inline cook: tasks classified by Jev as small and low-risk now run directly in the session instead of an isolated git worktree. plan-waves.mjs emits per-task mode, modeReason and inlineScore; lib/inline-gate.mjs applies hard exclusions first (touches UI, more than 3 files, unparseable paths), then asks Jev, inline at score >= 0.7. Missing key or any Jev failure falls back to a worktree without blocking. Default behavior unchanged. Also in this release: Rem mascot speech is now contextual (lib/rem-lines.mjs), naming the slash command, the running test/build/script, pass/fail counts and cook task progress instead of fixed lines. The band and status lines render below the mascot sprite in the dock pane instead of above the chat frame.
 
 eval: not run: the paid eval harness measures /ccf:check review quality, not the cook orchestrator; verified with claude plugin validate, 30/30 plugin tests and the node suite.
 
