@@ -26,6 +26,7 @@ import {
   wrappedRows,
   dockLayout,
   boardSummary,
+  withLiveDoing,
 } from "./ui-model.mjs";
 
 test("columnOf maps statuses to the four lifecycle columns", () => {
@@ -81,6 +82,30 @@ test("boardColumns groups tasks in lifecycle order", () => {
   const columns = boardColumns(SNAPSHOT.tasks);
   assert.deepEqual(columns.map((c) => c.column), ["todo", "in-progress", "in-review", "done"]);
   assert.deepEqual(columns.map((c) => c.tasks.map((t) => t.id)), [["075"], [], ["070"], ["073"]]);
+});
+
+test("withLiveDoing moves a task with a running agent to the doing column", () => {
+  const live = withLiveDoing(SNAPSHOT, [{ agentId: "a1", taskId: "075", isDone: false }]);
+  assert.deepEqual(boardColumns(live.tasks).map((c) => c.tasks.map((t) => t.id)), [[], ["075"], ["070"], ["073"]]);
+  assert.equal(boardSummary(live).counts, "todo 0 · doing 1 · review 1 · done 1");
+  assert.equal(SNAPSHOT.tasks[2].column, "todo");
+});
+
+test("withLiveDoing overrides the PLAN.md column while the agent runs", () => {
+  const live = withLiveDoing(SNAPSHOT, [{ agentId: "a1", taskId: "070", isDone: false }]);
+  assert.deepEqual(boardColumns(live.tasks).map((c) => c.tasks.map((t) => t.id)), [["075"], ["070"], [], ["073"]]);
+});
+
+test("withLiveDoing follows PLAN.md once the agent is done", () => {
+  const live = withLiveDoing(SNAPSHOT, [{ agentId: "a1", taskId: "075", isDone: true }, { agentId: "a2", taskId: "070", isDone: true }]);
+  assert.deepEqual(boardColumns(live.tasks).map((c) => c.tasks.map((t) => t.id)), [["075"], [], ["070"], ["073"]]);
+});
+
+test("withLiveDoing keeps the board unchanged without a running agent", () => {
+  assert.equal(withLiveDoing(SNAPSHOT, []), SNAPSHOT);
+  assert.equal(withLiveDoing(SNAPSHOT, [{ agentId: "a1", taskId: "999", isDone: false }]).tasks.map((t) => t.column).join(), "in-review,done,todo");
+  assert.equal(withLiveDoing(null, [{ agentId: "a1", taskId: "075", isDone: false }]), null);
+  assert.equal(withLiveDoing(SNAPSHOT, null), SNAPSHOT);
 });
 
 test("claudeMdBudget reads the depth-0 file of spec-budget output", () => {

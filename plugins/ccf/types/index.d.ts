@@ -24,6 +24,7 @@ declare module 'claude-code' {
       isDocked: boolean
       snapshot: CcfSnapshot | null
       budget: CcfBudget | null
+      statusLine: string | null
       waves: CcfWaveTask[][]
       agents: CcfAgent[]
       wavesSource: CcfWavesSource | null

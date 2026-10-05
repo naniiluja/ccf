@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code'
 
-import { bandLine, boardColumns, boardCommands, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, matchWaveTask, progressCells, progressSvg, waveLines, waveRows, wavesFromOutput } from '../lib/ui-model.mjs'
+import { bandLine, boardColumns, boardCommands, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, progressSvg, waveLines, waveRows, wavesFromOutput, withLiveDoing } from '../lib/ui-model.mjs'
+import { GREETING, runningLine, spawnedTaskId } from '../lib/rem-lines.mjs'
 
 export const BOARD = 'ccf-board'
 export const WAVES = 'ccf-waves'
@@ -21,6 +22,7 @@ const snapshot = atom({ plugin: 'ccf', key: 'snapshot' }, null)
 const waves = atom({ plugin: 'ccf', key: 'waves' }, [])
 const agents = atom({ plugin: 'ccf', key: 'agents' }, [])
 const wavesSource = atom({ plugin: 'ccf', key: 'wavesSource' }, null)
+const feeling = atom({ plugin: 'ccf', key: 'feeling' }, GREETING)
 
 export function wantsSnapshot(options) {
   return options.uiBand === true || options.uiBoard === true || options.uiStatusLine === true || options.uiWaves === true
@@ -175,22 +177,24 @@ export function dockWaveRows(elements, lines, window) {
 export function registerCcfUi(on, options) {
   if (options.uiBoard === true) {
     on('ui.render', { component: 'Pane', requestId: BOARD }, async ($, e) =>
-      boardTree(e.surface, $.ui.resolve(e), e.props.bodyColumns ?? 0, await read($, snapshot), command => $.prompt.fill({ text: command })),
+      boardTree(e.surface, $.ui.resolve(e), e.props.bodyColumns ?? 0, withLiveDoing(await read($, snapshot), await read($, agents)), command => $.prompt.fill({ text: command })),
     )
   }
 
-  if (wantsWaves(options)) {
-    on('agent.spawn', async ($, e, next) => {
-      const started = await next(e)
-      try {
-        const brief = `${e.description}\n${e.name ?? ''}\n${e.prompt}`
-        if (started.agentId && (await read($, waves)).length === 0 && isCookTaskBrief(brief)) await reloadWaves($, await read($, wavesSource))
-        const taskId = started.agentId ? matchWaveTask(await read($, waves), brief) : null
-        if (taskId) await update($, agents, list => [...list, { agentId: started.agentId, taskId, isDone: false }])
-      } catch {}
-      return started
-    })
+  on('agent.spawn', async ($, e, next) => {
+    const started = await next(e)
+    try {
+      const brief = `${e.description}\n${e.name ?? ''}\n${e.prompt}`
+      if (wantsWaves(options) && started.agentId && (await read($, waves)).length === 0 && isCookTaskBrief(brief)) await reloadWaves($, await read($, wavesSource))
+      const taskId = started.agentId ? spawnedTaskId(await read($, waves), brief) : null
+      if (taskId) await update($, agents, list => [...list, { agentId: started.agentId, taskId, isDone: false }])
+      const line = taskId ? runningLine(await read($, waves), await read($, agents)) : null
+      if (line) await update($, feeling, () => ({ mood: 'thinking', line }))
+    } catch {}
+    return started
+  })
 
+  if (wantsWaves(options)) {
     on('command.run', { command: WAVES }, async $ => {
       await reloadWaves($, await read($, wavesSource))
       const opened = await $.ui.open({ id: WAVES, title: 'CCF waves' })
