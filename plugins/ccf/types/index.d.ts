@@ -14,6 +14,8 @@ export type CcfWaveTask = { id: string; title: string; taskFile: string | null; 
 
 export type CcfAgent = { agentId: string; taskId: string; isDone: boolean }
 
+export type CcfWavesSource = { dir: string; tasks: string | null }
+
 declare module 'claude-code' {
   interface PluginState {
     ccf: {
@@ -24,6 +26,8 @@ declare module 'claude-code' {
       budget: CcfBudget | null
       waves: CcfWaveTask[][]
       agents: CcfAgent[]
+      wavesSource: CcfWavesSource | null
+      hasNoticedWavesOff: boolean
     }
   }
 }

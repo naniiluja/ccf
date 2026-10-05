@@ -13,6 +13,9 @@ import {
   boardCommands,
   progressCells,
   progressSvg,
+  isPlanWavesRun,
+  planWavesRequest,
+  wavesFromOutput,
 } from "./ui-model.mjs";
 
 test("columnOf maps statuses to the four lifecycle columns", () => {
@@ -120,4 +123,29 @@ test("progressSvg draws the closed share as a rect with alt text", () => {
   const svg = progressSvg(1, 4, 200);
   assert.match(svg, /^<svg [^>]*width="200"/);
   assert.match(svg, /<rect [^>]*width="50"/);
+});
+
+test("isPlanWavesRun spots the /ccf:cook step 2 call and nothing else", () => {
+  assert.equal(isPlanWavesRun('node "/cache/ccf/scripts/plan-waves.mjs" --tasks 070,071'), true);
+  assert.equal(isPlanWavesRun("node C:\\ccf\\scripts\\plan-waves.mjs"), true);
+  assert.equal(isPlanWavesRun("cat scripts/plan-waves.mjs.bak"), false);
+  assert.equal(isPlanWavesRun("npm test"), false);
+  assert.equal(isPlanWavesRun(undefined), false);
+});
+
+test("planWavesRequest reads --dir and --tasks, quoted or bare", () => {
+  assert.deepEqual(planWavesRequest('node "/x/plan-waves.mjs" --dir "/home/me/my app" --tasks 070,071'), { dir: "/home/me/my app", tasks: "070,071" });
+  assert.deepEqual(planWavesRequest("node /x/plan-waves.mjs --tasks '070,072' --dir /p"), { dir: "/p", tasks: "070,072" });
+  assert.deepEqual(planWavesRequest("node /x/plan-waves.mjs --tasks 070|jq ."), { dir: undefined, tasks: "070" });
+  assert.deepEqual(planWavesRequest("node /x/plan-waves.mjs"), { dir: undefined, tasks: undefined });
+});
+
+test("wavesFromOutput keeps only an ok plan with a waves array", () => {
+  const waves = [[{ id: "070", title: "a", taskFile: null, worktree: null, branch: null }]];
+  assert.deepEqual(wavesFromOutput(JSON.stringify({ ok: true, waves }, null, 2)), waves);
+  assert.deepEqual(wavesFromOutput(`warning: x\n${JSON.stringify({ ok: true, waves })}\n`), waves);
+  assert.equal(wavesFromOutput(JSON.stringify({ ok: false, reason: "no-plan" })), null);
+  assert.equal(wavesFromOutput("{ not json"), null);
+  assert.equal(wavesFromOutput(""), null);
+  assert.equal(wavesFromOutput(undefined), null);
 });
