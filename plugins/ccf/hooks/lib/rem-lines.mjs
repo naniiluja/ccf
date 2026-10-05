@@ -125,3 +125,53 @@ export function doneLine(activity = { command: "", label: "" }, outcome = "") {
   if (label) return `Rem ${label} xong rồi, bạn xem thử nhé.`;
   return DEFAULT_DONE_LINE;
 }
+
+export const VOICE_MODEL = "claude-haiku-4-5";
+export const VOICE_DEBOUNCE_MS = 600;
+export const VOICE_TIMEOUT_MS = 8000;
+const VOICE_MAX_TOKENS = 120;
+const VOICE_MAX_CHARS = 120;
+const VOICE_CACHE_LIMIT = 100;
+const VOICE_SYSTEM = [
+  "Bạn là Rem, linh vật nhỏ của plugin CCF đứng cạnh ô chat trong Claude Code.",
+  "Rem nói tiếng Việt, xưng Rem, gọi người dùng là bạn, giọng tự nhiên và dễ thương, hợp với tâm trạng được cho.",
+  "Viết lại câu gốc thành đúng MỘT câu ngắn, tối đa 100 ký tự.",
+  "Giữ nguyên mọi sự kiện trong câu gốc: mã task, lệnh bắt đầu bằng /, tên file, mọi con số. Không thêm thông tin mới.",
+  "Không emoji, không markdown, không ngoặc kép. Chỉ trả về câu thoại.",
+].join("\n");
+const FACT = /\/[\w:-]+|[\w.-]+\.(?:mjs|md|tsx?|jsx?|json)\b|\d+/g;
+const QUOTES = /^["'“”‘’«»]+|["'“”‘’«»]+$/g;
+
+export function isVoiceOn(options = { remAi: true }) {
+  return options?.remAi !== false;
+}
+
+export function voiceRequest(mood = "idle", line = "") {
+  return { model: VOICE_MODEL, system: VOICE_SYSTEM, prompt: `Tâm trạng: ${mood}\nCâu gốc: ${line}`, maxTokens: VOICE_MAX_TOKENS, timeoutMs: VOICE_TIMEOUT_MS };
+}
+
+export function voiceReply(text = "", line = "") {
+  const first = String(text ?? "").split(/\r?\n/).map((part) => part.trim()).find(Boolean) ?? "";
+  const said = first.replace(QUOTES, "").replace(/\s+/g, " ").trim();
+  if (!said || [...said].length > VOICE_MAX_CHARS) return null;
+  const facts = String(line ?? "").match(FACT) ?? [];
+  return facts.every((fact) => said.includes(fact)) ? said : null;
+}
+
+export function createVoice(limit = VOICE_CACHE_LIMIT) {
+  const rewrites = new Map();
+  let latest = 0;
+  const keyOf = (mood = "", line = "") => `${mood}\n${line}`;
+  return {
+    cached: (mood = "", line = "") => rewrites.get(keyOf(mood, line)) ?? null,
+    remember: (mood = "", line = "", said = "") => {
+      rewrites.delete(keyOf(mood, line));
+      rewrites.set(keyOf(mood, line), said);
+      if (rewrites.size > limit) rewrites.delete(rewrites.keys().next().value);
+    },
+    begin: () => ++latest,
+    isCurrent: (id = 0) => id === latest,
+  };
+}
+
+export const remVoice = createVoice();

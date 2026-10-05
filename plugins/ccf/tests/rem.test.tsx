@@ -1,3 +1,4 @@
+import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
 import type { Mood } from '../types'
@@ -41,6 +42,29 @@ const runRem = (isFullscreen: boolean) => ({
   origin: { kind: 'composer' },
   presentation: { isFullscreen, columns: 120 },
 }) as const
+
+const USAGE = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+
+function answerModel(on: On, asked: { model: string; prompt: string; timeoutMs?: number }[], reply: (prompt: string) => string | null) {
+  on('model.complete', ($, e) => {
+    asked.push({ model: e.model, prompt: e.prompt, timeoutMs: e.timeoutMs })
+    const text = reply(e.prompt)
+    return { value: text === null ? { isAnswered: false, reason: 'empty-reply', usage: USAGE } : { isAnswered: true, text, usage: USAGE } }
+  })
+}
+
+function greenRuns(on: On) {
+  const run = { count: '5' }
+  on('tool.call', () => ({ result: { stdout: `${run.count} pass`, stderr: '', interrupted: false }, text: `${run.count} pass` }))
+  return run
+}
+
+async function remSays($: Parameters<Parameters<typeof test>[1]>[0], line: RegExp) {
+  const ui = await $.ui.mount({ surface: 'desktop', ...BAND })
+  const found = await ui.find({ type: 'Text', text: line })
+  await ui.unmount()
+  return found !== undefined
+}
 
 describe('rem-mascot', () => {
   test('mọi ô của Rem là ký tự khối BMP mà Raster nhận, và không ô nào vẽ bằng màu chữ mặc định', async () => {
@@ -215,5 +239,94 @@ describe('rem-mascot', () => {
     await shown.unmount()
 
     expect(opened).toEqual([])
+  })
+
+  test('AI: câu cố định hiện ngay, câu Haiku thay vào sau debounce', async ($, on) => {
+    const clock = mock.clock(on)
+    const asked: { model: string; prompt: string; timeoutMs?: number }[] = []
+    answerModel(on, asked, () => 'Yay, npm test 5 pass rồi, Rem vui quá!')
+    greenRuns(on)
+
+    await $.tool.call({ tool: 'Bash', command: 'npm test' })
+    expect(await remSays($, /npm test xanh rồi \(5 pass\)! Rem mừng lắm\./)).toBe(true)
+    expect(asked).toEqual([])
+
+    await clock.advance(600)
+    expect(asked.length).toBe(1)
+    expect(asked[0]?.model).toBe('claude-haiku-4-5')
+    expect(asked[0]?.timeoutMs).toBe(8000)
+    expect(asked[0]?.prompt).toMatch(/npm test xanh rồi \(5 pass\)/)
+    expect(await remSays($, /Yay, npm test 5 pass rồi, Rem vui quá!/)).toBe(true)
+  })
+
+  test('AI tắt bằng remAi: false thì không gọi model, giữ câu cố định', { options: { remAi: false } }, async ($, on) => {
+    const clock = mock.clock(on)
+    const asked: { model: string; prompt: string }[] = []
+    answerModel(on, asked, () => 'Yay, npm test 5 pass rồi!')
+    greenRuns(on)
+
+    await $.tool.call({ tool: 'Bash', command: 'npm test' })
+    await clock.advance(10_000)
+    expect(asked).toEqual([])
+    expect(await remSays($, /npm test xanh rồi \(5 pass\)! Rem mừng lắm\./)).toBe(true)
+  })
+
+  test('AI lỗi hoặc câu AI làm mất dữ kiện thì giữ câu cố định', async ($, on) => {
+    const clock = mock.clock(on)
+    const asked: { model: string; prompt: string }[] = []
+    answerModel(on, asked, prompt => (prompt.includes('7 pass') ? 'Test xanh hết rồi nè!' : null))
+    const run = greenRuns(on)
+
+    await $.tool.call({ tool: 'Bash', command: 'npm test' })
+    await clock.advance(600)
+    expect(await remSays($, /npm test xanh rồi \(5 pass\)! Rem mừng lắm\./)).toBe(true)
+
+    run.count = '7'
+    await $.tool.call({ tool: 'Bash', command: 'npm test' })
+    await clock.advance(600)
+    expect(asked.length).toBe(2)
+    expect(await remSays($, /npm test xanh rồi \(7 pass\)! Rem mừng lắm\./)).toBe(true)
+  })
+
+  test('AI debounce: hai sự kiện liền nhau chỉ hỏi model một lần, cho câu sau', async ($, on) => {
+    const clock = mock.clock(on)
+    const asked: { model: string; prompt: string }[] = []
+    answerModel(on, asked, () => 'Rem thấy 7 pass rồi nha!')
+    const run = greenRuns(on)
+
+    await $.tool.call({ tool: 'Bash', command: 'npm test' })
+    run.count = '7'
+    await $.tool.call({ tool: 'Bash', command: 'npm test' })
+    await clock.advance(600)
+    expect(asked.length).toBe(1)
+    expect(asked[0]?.prompt).toMatch(/7 pass/)
+    expect(await remSays($, /Rem thấy 7 pass rồi nha!/)).toBe(true)
+  })
+
+  test('AI cache: cùng sự kiện lần hai hiện câu AI ngay, không hỏi lại', async ($, on) => {
+    const clock = mock.clock(on)
+    const asked: { model: string; prompt: string }[] = []
+    answerModel(on, asked, () => 'Yay, npm test 5 pass rồi!')
+    greenRuns(on)
+
+    await $.tool.call({ tool: 'Bash', command: 'npm test' })
+    await clock.advance(600)
+    await $.tool.call({ tool: 'Bash', command: 'npm test' })
+    expect(await remSays($, /Yay, npm test 5 pass rồi!/)).toBe(true)
+    await clock.advance(600)
+    expect(asked.length).toBe(1)
+  })
+
+  test('AI: cook spawn agent cũng được Haiku nói lại', async ($, on) => {
+    const clock = mock.clock(on)
+    const asked: { model: string; prompt: string }[] = []
+    answerModel(on, asked, () => 'Rem bắt tay cook task 012 đây!')
+    on('agent.spawn', () => ({ model: 'sonnet', agentId: 'agent-012' }))
+
+    await $.agent.spawn({ prompt: 'Task: 012, task file `.claude/plan/task-012-login.md`. Branch: `worktree-ccf-it-012`.', description: 'task 012' } as never)
+    expect(await remSays($, /Rem đang cook task 012\./)).toBe(true)
+    await clock.advance(600)
+    expect(asked.length).toBe(1)
+    expect(await remSays($, /Rem bắt tay cook task 012 đây!/)).toBe(true)
   })
 })

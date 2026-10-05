@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { promptActivity, startLine, commandActivity, commandResult, testCounts, spawnedTaskId, runningLine, agentDoneLine, doneLine, DEFAULT_START_LINE, DEFAULT_DONE_LINE } from "./rem-lines.mjs";
+import { promptActivity, startLine, commandActivity, commandResult, testCounts, spawnedTaskId, runningLine, agentDoneLine, doneLine, DEFAULT_START_LINE, DEFAULT_DONE_LINE, VOICE_TIMEOUT_MS, voiceRequest, voiceReply, createVoice, isVoiceOn } from "./rem-lines.mjs";
 
 const WAVES = [[{ id: "007", title: "login form", taskFile: "task-007-login.md", worktree: "ccf-it-007", branch: "worktree-ccf-it-007" }, { id: "008", title: "", taskFile: "task-008-x.md", worktree: "ccf-it-008", branch: "worktree-ccf-it-008" }]];
 
@@ -71,4 +71,62 @@ test("doneLine: activity and last result when known, the old line otherwise", ()
   assert.equal(doneLine(undefined, "tsc xanh"), "Xong rồi: tsc xanh. Bạn xem thử nhé.");
   assert.equal(doneLine(promptActivity("/ccf:check"), ""), "Rem soát code theo spec xong rồi, bạn xem thử nhé.");
   assert.equal(doneLine(undefined, ""), DEFAULT_DONE_LINE);
+});
+
+test("voiceRequest asks Haiku 4.5 for one rewritten line with a time limit and no effort", () => {
+  const request = voiceRequest("happy", "node --test xanh rồi (5 pass)! Rem mừng lắm.");
+  assert.equal(request.model, "claude-haiku-4-5");
+  assert.equal(request.timeoutMs, VOICE_TIMEOUT_MS);
+  assert.ok(request.maxTokens > 0 && request.maxTokens <= 200);
+  assert.equal("effort" in request, false);
+  assert.match(request.system, /Rem/);
+  assert.match(request.prompt, /happy/);
+  assert.match(request.prompt, /node --test xanh rồi \(5 pass\)! Rem mừng lắm\./);
+});
+
+test("voiceReply keeps one clean line that carries every fact of the fixed line", () => {
+  const line = "npm test lỗi rồi (9 pass, 3 fail). Để Rem xem lại.";
+  assert.equal(voiceReply("  \"Ối, npm test có 3 fail trên 9 pass, Rem xem ngay!\"  \nthêm dòng", line), "Ối, npm test có 3 fail trên 9 pass, Rem xem ngay!");
+  assert.equal(voiceReply("Ối, test hỏng rồi, Rem xem ngay!", line), null);
+  assert.equal(voiceReply("Ối, 9 pass mà vẫn hỏng!", line), null);
+  assert.equal(voiceReply("", line), null);
+  assert.equal(voiceReply("   \n  ", line), null);
+  assert.equal(voiceReply(undefined, line), null);
+  assert.equal(voiceReply("x".repeat(121), "câu"), null);
+  assert.equal(voiceReply("x".repeat(120), "câu"), "x".repeat(120));
+});
+
+test("voiceReply keeps slash commands, task ids and file names", () => {
+  assert.equal(voiceReply("Rem đang chạy plan-waves.mjs đây!", "Rem đang chạy plan-waves.mjs."), "Rem đang chạy plan-waves.mjs đây!");
+  assert.equal(voiceReply("Rem đang chia việc đây!", "Rem đang chạy plan-waves.mjs."), null);
+  assert.equal(voiceReply("Xong /ccf:check rồi nè!", "Rem soát code theo spec xong rồi, gõ /ccf:check nhé."), "Xong /ccf:check rồi nè!");
+  assert.equal(voiceReply("Xong rồi nè!", "Rem soát code theo spec xong rồi, gõ /ccf:check nhé."), null);
+  assert.equal(voiceReply("Task 012 về đích rồi!", "Task 012 xong rồi, cả wave đã báo về."), "Task 012 về đích rồi!");
+});
+
+test("createVoice caches a rewrite per mood and line, evicting the oldest past the limit", () => {
+  const voice = createVoice(2);
+  assert.equal(voice.cached("happy", "a"), null);
+  voice.remember("happy", "a", "A!");
+  voice.remember("worried", "a", "A?");
+  assert.equal(voice.cached("happy", "a"), "A!");
+  assert.equal(voice.cached("worried", "a"), "A?");
+  voice.remember("happy", "b", "B!");
+  assert.equal(voice.cached("happy", "a"), null);
+  assert.equal(voice.cached("happy", "b"), "B!");
+});
+
+test("createVoice: only the latest begin is current, so a burst of events asks once", () => {
+  const voice = createVoice();
+  const first = voice.begin();
+  const second = voice.begin();
+  assert.equal(voice.isCurrent(first), false);
+  assert.equal(voice.isCurrent(second), true);
+});
+
+test("isVoiceOn is on unless the option is exactly false", () => {
+  assert.equal(isVoiceOn({}), true);
+  assert.equal(isVoiceOn({ remAi: true }), true);
+  assert.equal(isVoiceOn({ remAi: false }), false);
+  assert.equal(isVoiceOn(undefined), true);
 });

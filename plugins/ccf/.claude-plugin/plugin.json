@@ -35,6 +35,12 @@
       "title": "CCF status line",
       "description": "Show whether the spec is older than the code and the CLAUDE.md size from scripts/spec-budget.mjs.",
       "default": false
+    },
+    "remAi": {
+      "type": "boolean",
+      "title": "AI-generated Rem lines",
+      "description": "Let Claude Haiku 4.5 reword Rem's line after a notable event (a command's outcome, a test or build result, the end of a turn, a cook agent starting or finishing). The fixed line shows at once and stays whenever the call fails, times out after 8 seconds, or drops a fact. Each rewrite is one small Haiku call on your account.",
+      "default": true
     }
   }
 }
