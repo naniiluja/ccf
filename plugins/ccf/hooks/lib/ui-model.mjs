@@ -105,14 +105,93 @@ export function wavesFromOutput(output = "") {
   }
 }
 
-export function waveRows(waves = [[NO_WAVE_TASK]], agents = [NO_AGENT]) {
+export function waveRows(waves = [[NO_WAVE_TASK]], agents = [NO_AGENT], closedIds = [""]) {
   return waves.map((wave) =>
     wave.map((task) => {
       const mine = agents.filter((agent) => agent.taskId === task.id);
-      const state = mine.length === 0 ? "waiting" : mine.every((agent) => agent.isDone) ? "done" : "running";
+      const state = closedIds.includes(task.id) ? "done" : mine.length === 0 ? "waiting" : mine.every((agent) => agent.isDone) ? "done" : "running";
       return { id: task.id, title: task.title, state };
     }),
   );
+}
+
+export function closedTaskIds(snapshot = NO_SNAPSHOT) {
+  return (snapshot?.tasks ?? []).filter((task) => task.column === "in-review" || task.column === "done").map((task) => task.id);
+}
+
+export function liveAgents(agents = [NO_AGENT]) {
+  return agents.filter((agent) => !agent.isDone);
+}
+
+export function isCookTaskBrief(text = "") {
+  return /\bworktree-ccf-/.test(String(text ?? ""));
+}
+
+export function waveLines(rows = [[{ id: "", title: "", state: "" }]]) {
+  return rows.flatMap((wave, index) => [
+    { isHeading: true, text: `wave ${index + 1}`, state: "" },
+    ...wave.map((task) => ({ isHeading: false, text: `${task.id} ${task.title}`, state: task.state })),
+  ]);
+}
+
+export function scrollWindow(total = 0, offset = 0, visible = 1) {
+  const rows = Math.max(1, visible);
+  const start = Math.min(Math.max(0, offset), Math.max(0, total - rows));
+  const end = Math.min(total, start + rows);
+  return { start, end, hiddenAbove: start, hiddenBelow: total - end };
+}
+
+export function waveScroll(region = { top: 0, rows: 0, total: 0 }, offset = 0, by = 0, hasPointer = false, pointerRow = 0) {
+  if (region.total <= region.rows) return null;
+  if (hasPointer && (pointerRow < region.top || pointerRow >= region.top + region.rows)) return null;
+  return scrollWindow(region.total, offset + by, region.rows).start;
+}
+
+export function hiddenMark(count = 0) {
+  return count > 0 ? `.. +${count}` : "";
+}
+
+export function wrappedRows(text = "", width = 1) {
+  const room = Math.max(1, width);
+  let rows = 1;
+  let used = 0;
+  for (const word of String(text ?? "").split(/\s+/).filter(Boolean)) {
+    const size = [...word].length;
+    if (used > 0 && used + 1 + size <= room) {
+      used += 1 + size;
+      continue;
+    }
+    if (used > 0) rows += 1;
+    const extra = Math.floor((size - 1) / room);
+    rows += extra;
+    used = size - extra * room;
+  }
+  return rows;
+}
+
+const BUBBLE_FRAME_ROWS = 2;
+const BUBBLE_FRAME_COLUMNS = 4;
+const MIN_WAVE_ROWS = 3;
+
+export function dockLayout({ bodyRows = 0, bodyColumns = 0, line = "", hasBoard = false, waveLineCount = 0, spriteRows = 0 } = {}) {
+  const bubbleRows = BUBBLE_FRAME_ROWS + wrappedRows(line, bodyColumns - BUBBLE_FRAME_COLUMNS);
+  const hasWaves = waveLineCount > 0;
+  const room = (boardRows = 0) => bodyRows - boardRows - (hasBoard ? 1 : 0) - (hasWaves ? 1 : 0) - bubbleRows - spriteRows;
+  const boardRows = !hasBoard ? 0 : hasWaves && room(2) < MIN_WAVE_ROWS ? 1 : 2;
+  const waveRows = hasWaves ? Math.max(1, Math.min(waveLineCount, room(boardRows))) : 0;
+  return { boardRows, waveTop: boardRows + (hasBoard ? 1 : 0), waveRows };
+}
+
+export function boardSummary(snapshot = NO_SNAPSHOT) {
+  const tasks = snapshot?.tasks ?? [];
+  const [todo, doing, review, done] = boardColumns(tasks).map((column) => column.tasks.length);
+  const risks = snapshot?.openRisks ?? 0;
+  return {
+    closed: done,
+    total: tasks.length,
+    headline: `${done}/${tasks.length} closed · ${risks} risk${risks === 1 ? "" : "s"}`,
+    counts: `todo ${todo} · doing ${doing} · review ${review} · done ${done}`,
+  };
 }
 
 export function boardCommands(snapshot = NO_SNAPSHOT) {

@@ -28,6 +28,7 @@ declare module 'claude-code' {
       agents: CcfAgent[]
       wavesSource: CcfWavesSource | null
       hasNoticedWavesOff: boolean
+      wavesOffset: number
     }
   }
 }

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.17.0
+
+Wave map visibility fixes plus a merged dock pane, from TUI feedback on 0.16.1:
+
+- loadWavesFromRun toasts the placement reason with a /ccf-waves hint when the wave pane cannot be placed, instead of failing silently.
+- The "wave map is off" toast also fires from tool.call when the orchestrator runs plan-waves.mjs while uiWaves is off (once per session).
+- waveRows reads PLAN.md snapshot state: tasks in in-review/done render done even when no agent was recorded.
+- The rem dock pane now renders board summary + wave region + Rem in one column (40 cols when uiBoard/uiWaves on); the wave map updates via atoms, no separate $.ui.open, so the 144-column unasked-pane threshold no longer hides it.
+- Wave region scrolls independently (ccf/wavesOffset atom + ui.scroll hook), board and Rem stay put.
+- truncate-end wrap on task/board lines, ".." markers with hidden counts at the visible wave window edges.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with claude plugin validate, 30/30 plugin tests and the node suite.
+
+
 ## 0.16.1
 
 Fix wave map timing and the silent-off UX from 0.16.0: the wave map no longer loads at /ccf:cook submit time (when the session cwd has no PLAN.md yet); instead the mod hooks tool.call, catches the orchestrator's own plan-waves.mjs run and parses that call's JSON stdout, so the map uses the right task list, dir and timing. /ccf-waves reloads the wave when invoked. Running /ccf:cook with uiWaves off now shows an 8-second toast pointing at the userConfig flag (once per session).

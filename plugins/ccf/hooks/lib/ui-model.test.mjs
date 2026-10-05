@@ -16,6 +16,16 @@ import {
   isPlanWavesRun,
   planWavesRequest,
   wavesFromOutput,
+  closedTaskIds,
+  liveAgents,
+  isCookTaskBrief,
+  waveLines,
+  scrollWindow,
+  waveScroll,
+  hiddenMark,
+  wrappedRows,
+  dockLayout,
+  boardSummary,
 } from "./ui-model.mjs";
 
 test("columnOf maps statuses to the four lifecycle columns", () => {
@@ -148,4 +158,92 @@ test("wavesFromOutput keeps only an ok plan with a waves array", () => {
   assert.equal(wavesFromOutput("{ not json"), null);
   assert.equal(wavesFromOutput(""), null);
   assert.equal(wavesFromOutput(undefined), null);
+});
+
+test("waveRows marks a task PLAN.md already closed as done even with no agent seen", () => {
+  const rows = waveRows(WAVES, [{ agentId: "a2", taskId: "071", isDone: false }], ["070", "071"]);
+  assert.deepEqual(rows.map((wave) => wave.map((t) => `${t.id}:${t.state}`)), [["070:done", "071:done"], ["072:waiting"]]);
+});
+
+test("closedTaskIds keeps in-review and done tasks only", () => {
+  const snapshot = { ok: true, active: null, openRisks: 0, specStale: false, tasks: ["todo", "in-progress", "in-review", "done"].map((column, i) => ({ id: `0${i}`, title: "", status: column, column })) };
+  assert.deepEqual(closedTaskIds(snapshot), ["02", "03"]);
+  assert.deepEqual(closedTaskIds(null), []);
+  assert.deepEqual(closedTaskIds(undefined), []);
+});
+
+test("liveAgents drops finished agents and keeps running ones", () => {
+  assert.deepEqual(liveAgents([{ agentId: "a", taskId: "070", isDone: true }, { agentId: "b", taskId: "071", isDone: false }]), [{ agentId: "b", taskId: "071", isDone: false }]);
+  assert.deepEqual(liveAgents([]), []);
+});
+
+test("isCookTaskBrief spots a /ccf:cook task brief by its worktree branch", () => {
+  assert.equal(isCookTaskBrief("Task: 071. Branch: `worktree-ccf-lc-071`."), true);
+  assert.equal(isCookTaskBrief("Explore the repo for worktree helpers"), false);
+  assert.equal(isCookTaskBrief(undefined), false);
+});
+
+test("waveLines puts a heading before each wave's tasks", () => {
+  const lines = waveLines(waveRows(WAVES, []));
+  assert.deepEqual(lines.map((line) => `${line.isHeading ? "#" : line.state}:${line.text}`), ["#:wave 1", "waiting:070 a", "waiting:071 b", "#:wave 2", "waiting:072 c"]);
+  assert.deepEqual(waveLines([]), []);
+});
+
+test("scrollWindow clamps the offset and counts the hidden rows on each side", () => {
+  assert.deepEqual(scrollWindow(5, 0, 3), { start: 0, end: 3, hiddenAbove: 0, hiddenBelow: 2 });
+  assert.deepEqual(scrollWindow(5, 2, 3), { start: 2, end: 5, hiddenAbove: 2, hiddenBelow: 0 });
+  assert.deepEqual(scrollWindow(5, 9, 3), { start: 2, end: 5, hiddenAbove: 2, hiddenBelow: 0 });
+  assert.deepEqual(scrollWindow(5, -4, 3), { start: 0, end: 3, hiddenAbove: 0, hiddenBelow: 2 });
+  assert.deepEqual(scrollWindow(2, 1, 3), { start: 0, end: 2, hiddenAbove: 0, hiddenBelow: 0 });
+  assert.deepEqual(scrollWindow(4, 1, 0), { start: 1, end: 2, hiddenAbove: 1, hiddenBelow: 2 });
+});
+
+test("waveScroll moves only a wave list taller than its rows, under the pointer or by key", () => {
+  const region = { top: 3, rows: 3, total: 5 };
+  assert.equal(waveScroll(region, 0, 1, false, 0), 1);
+  assert.equal(waveScroll(region, 0, 1, true, 3), 1);
+  assert.equal(waveScroll(region, 0, 1, true, 5), 1);
+  assert.equal(waveScroll(region, 1, 9, true, 4), 2);
+  assert.equal(waveScroll(region, 1, -9, false, 0), 0);
+  assert.equal(waveScroll(region, 0, 1, true, 2), null);
+  assert.equal(waveScroll(region, 0, 1, true, 6), null);
+  assert.equal(waveScroll(region, 0, 1, true, -1), null);
+  assert.equal(waveScroll({ top: 0, rows: 5, total: 5 }, 0, 1, false, 0), null);
+});
+
+test("hiddenMark shows the hidden row count, or nothing", () => {
+  assert.equal(hiddenMark(3), ".. +3");
+  assert.equal(hiddenMark(0), "");
+});
+
+test("wrappedRows counts the rows a word-wrapped line takes", () => {
+  assert.equal(wrappedRows("", 10), 1);
+  assert.equal(wrappedRows("Rem đây", 10), 1);
+  assert.equal(wrappedRows("aaaa bbbb cccc", 9), 2);
+  assert.equal(wrappedRows("aaaa bbbb", 9), 1);
+  assert.equal(wrappedRows("abcdefghijkl", 5), 3);
+  assert.equal(wrappedRows("ab abcdefghij", 5), 3);
+  assert.equal(wrappedRows("anything", 0), 8);
+});
+
+test("dockLayout gives the wave list what the board, dividers, bubble and sprite leave", () => {
+  const base = { bodyColumns: 40, line: "short", spriteRows: 15 };
+  assert.deepEqual(dockLayout({ ...base, bodyRows: 40, hasBoard: true, waveLineCount: 5 }), { boardRows: 2, waveTop: 3, waveRows: 5 });
+  assert.deepEqual(dockLayout({ ...base, bodyRows: 25, hasBoard: true, waveLineCount: 5 }), { boardRows: 2, waveTop: 3, waveRows: 3 });
+  assert.deepEqual(dockLayout({ ...base, bodyRows: 24, hasBoard: true, waveLineCount: 5 }), { boardRows: 1, waveTop: 2, waveRows: 3 });
+  assert.deepEqual(dockLayout({ ...base, bodyRows: 10, hasBoard: true, waveLineCount: 5 }), { boardRows: 1, waveTop: 2, waveRows: 1 });
+  assert.deepEqual(dockLayout({ ...base, bodyRows: 30, hasBoard: false, waveLineCount: 5 }), { boardRows: 0, waveTop: 0, waveRows: 5 });
+  assert.deepEqual(dockLayout({ ...base, bodyRows: 30, hasBoard: true, waveLineCount: 0 }), { boardRows: 2, waveTop: 3, waveRows: 0 });
+  assert.equal(dockLayout({ ...base, line: "x ".repeat(60), bodyRows: 30, hasBoard: false, waveLineCount: 20 }).waveRows, 8);
+});
+
+test("boardSummary condenses the board into a headline and per-column counts", () => {
+  assert.deepEqual(boardSummary(SNAPSHOT), {
+    closed: 1,
+    total: 3,
+    headline: "1/3 closed · 8 risks",
+    counts: "todo 1 · doing 0 · review 1 · done 1",
+  });
+  assert.equal(boardSummary({ ...SNAPSHOT, openRisks: 1 }).headline, "1/3 closed · 1 risk");
+  assert.equal(boardSummary(null).headline, "0/0 closed · 0 risks");
 });
