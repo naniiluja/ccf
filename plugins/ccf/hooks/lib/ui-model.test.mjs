@@ -18,6 +18,7 @@ import {
   liveAgents,
   isCookTaskBrief,
   waveLines,
+  waveSummary,
   scrollWindow,
   waveScroll,
   hiddenMark,
@@ -272,4 +273,17 @@ test("walkStep moves one cell and bounces at both edges", () => {
 test("walkStep stays home when there is no room, and clamps after a resize", () => {
   assert.deepEqual(walkStep({ x: 4, dir: 1 }, 0), { x: 0, dir: 1 });
   assert.deepEqual(walkStep({ x: 9, dir: 1 }, 3), { x: 2, dir: -1 });
+});
+
+test("waveSummary counts states and per-wave totals", () => {
+  const rows = waveRows(WAVES, [{ agentId: "a", taskId: "070", isDone: false }], ["071"]);
+  const summary = waveSummary(rows);
+  assert.deepEqual(summary.counts, { done: 1, running: 1, waiting: WAVES.flat().length - 2 });
+  assert.equal(summary.waves.length, WAVES.length);
+  assert.equal(summary.waves[0].total, WAVES[0].length);
+  assert.equal(summary.waves[0].done, 1);
+});
+
+test("waveSummary of nothing has no waves and zero counts", () => {
+  assert.deepEqual(waveSummary([]), { waves: [], counts: { done: 0, running: 0, waiting: 0 } });
 });

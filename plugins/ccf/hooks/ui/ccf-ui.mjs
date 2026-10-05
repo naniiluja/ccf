@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 
-import { bandLine, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, waveLines, waveRows, wavesFromOutput } from '../lib/ui-model.mjs'
+import { bandLine, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, waveLines, waveRows, waveSummary, wavesFromOutput } from '../lib/ui-model.mjs'
 import { GREETING, VOICE_DEBOUNCE_MS, isVoiceOn, remVoice, runningLine, spawnedTaskId, voiceReply, voiceRequest } from '../lib/rem-lines.mjs'
 
 export const COOK = /(^|\s)\/ccf:cook(\s|$)/
@@ -113,8 +113,8 @@ export function dockBoardRows(elements, now, rows) {
   return rows > 1 ? [head, h(Text, { key: 'board-counts', dimColor: true, wrap: 'truncate-end' }, summary.counts)] : [head]
 }
 
-export function dockWaveRows(elements, lines, window) {
-  const { Box, Text } = elements
+export function dockWaveRows(elements, lines, window, openWaves) {
+  const { Box, Button, Text } = elements
   const shown = lines.slice(window.start, window.end)
   const last = shown.length - 1
   return shown.map((line, index) => {
@@ -122,14 +122,47 @@ export function dockWaveRows(elements, lines, window) {
       ? hiddenMark(window.hiddenAbove + window.hiddenBelow)
       : index === 0 ? hiddenMark(window.hiddenAbove) : index === last ? hiddenMark(window.hiddenBelow) : ''
     const text = line.isHeading ? line.text : `${STATE_GLYPH[line.state]} ${line.text}`
-    const style = line.isHeading ? { bold: true, color: ACCENT } : { dimColor: line.state === 'done' }
     return h(
       Box,
-      { key: `wave-line-${window.start + index}`, flexDirection: 'row', gap: 1 },
-      h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, { ...style, wrap: 'truncate-end' }, text)),
+      { key: `wave-row-${window.start + index}`, flexDirection: 'row', gap: 1 },
+      h(Box, { flexGrow: 1, flexShrink: 1 }, h(Button, { key: `wave-line-${window.start + index}`, plain: true, dimColor: line.state === 'done', onPress: openWaves }, text)),
       ...(mark ? [h(Text, { dimColor: true }, mark)] : []),
     )
   })
+}
+
+const STATE_LABEL = { waiting: 'chờ', running: 'đang chạy', done: 'xong' }
+export const NO_WAVES_LINE = 'Chưa có wave nào. Chạy /ccf:cook.'
+
+export function wavesTabRows(elements, rows, bodyColumns) {
+  const { Box, Raster, Text } = elements
+  if (rows.length === 0) return [h(Text, { key: 'waves-empty', dimColor: true }, NO_WAVES_LINE)]
+  const { waves: summaries, counts } = waveSummary(rows)
+  const total = counts.done + counts.running + counts.waiting
+  const head = h(
+    Box,
+    { key: 'waves-head', flexDirection: 'row', gap: 1 },
+    h(Raster, { key: 'progress', columns: BAR_COLUMNS, rows: 1, cells: progressCells(counts.done, total, BAR_COLUMNS) }),
+    h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, {}, `${rows.length} wave · ${counts.done} xong · ${counts.running} đang chạy · ${counts.waiting} chờ`)),
+  )
+  const body = rows.flatMap((wave, index) => [
+    ...(index > 0 ? [dockDivider(elements, bodyColumns, `waves-divider-${index}`)] : []),
+    h(Text, { key: `waves-heading-${index}`, bold: true, color: ACCENT }, `wave ${index + 1} · ${summaries[index].total} task · ${summaries[index].done} xong`),
+    ...wave.map(task =>
+      h(
+        Box,
+        { key: `waves-task-${index}-${task.id}`, flexDirection: 'row', gap: 1 },
+        h(Text, { dimColor: task.state === 'done' }, `${STATE_GLYPH[task.state]} ${task.id}`),
+        h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, { wrap: 'wrap', dimColor: task.state === 'done' }, task.title)),
+        h(Text, { dimColor: true }, STATE_LABEL[task.state]),
+      ),
+    ),
+  ])
+  return [head, ...body]
+}
+
+export function wavesTabLines(plan, running, now) {
+  return waveRows(plan, running, closedTaskIds(now))
 }
 
 export function registerCcfUi(on, options) {

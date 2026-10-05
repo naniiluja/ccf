@@ -140,6 +140,15 @@ export function waveLines(rows = [[{ id: "", title: "", state: "" }]]) {
   ]);
 }
 
+export function waveSummary(rows = [[{ id: "", title: "", state: "" }]]) {
+  const tasks = rows.flat();
+  const count = (state) => tasks.filter((task) => task.state === state).length;
+  return {
+    waves: rows.map((wave) => ({ title: wave.map((task) => task.id).join(" "), total: wave.length, done: wave.filter((task) => task.state === "done").length })),
+    counts: { done: count("done"), running: count("running"), waiting: count("waiting") },
+  };
+}
+
 export function scrollWindow(total = 0, offset = 0, visible = 1) {
   const rows = Math.max(1, visible);
   const start = Math.min(Math.max(0, offset), Math.max(0, total - rows));
