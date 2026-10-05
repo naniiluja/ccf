@@ -10,9 +10,7 @@ import {
   statusText,
   matchWaveTask,
   waveRows,
-  boardCommands,
   progressCells,
-  progressSvg,
   isPlanWavesRun,
   planWavesRequest,
   wavesFromOutput,
@@ -118,11 +116,6 @@ test("waveRows marks each task waiting, running or done", () => {
   assert.deepEqual(rows.map((wave) => wave.map((t) => `${t.id}:${t.state}`)), [["070:done", "071:running"], ["072:waiting"]]);
 });
 
-test("boardCommands offers only the commands the board state calls for", () => {
-  assert.deepEqual(boardCommands(SNAPSHOT), ["/ccf:check", "/ccf:cook", "/ccf:updatespec", "/ccf:plan"]);
-  assert.deepEqual(boardCommands({ ...SNAPSHOT, tasks: [], specStale: false }), ["/ccf:plan"]);
-});
-
 test("progressCells packs a one-row Raster of filled and empty cells", () => {
   const bytes = Uint8Array.from(atob(progressCells(1, 4, 8)), (c) => c.charCodeAt(0));
   const view = new DataView(bytes.buffer);
@@ -130,12 +123,6 @@ test("progressCells packs a one-row Raster of filled and empty cells", () => {
   const glyphs = Array.from({ length: 8 }, (_, i) => view.getUint32(i * 12, true));
   assert.deepEqual(glyphs, [0x2588, 0x2588, 0x2591, 0x2591, 0x2591, 0x2591, 0x2591, 0x2591]);
   assert.equal(Uint8Array.from(atob(progressCells(0, 0, 3)), (c) => c.charCodeAt(0)).length, 36);
-});
-
-test("progressSvg draws the closed share as a rect with alt text", () => {
-  const svg = progressSvg(1, 4, 200);
-  assert.match(svg, /^<svg [^>]*width="200"/);
-  assert.match(svg, /<rect [^>]*width="50"/);
 });
 
 test("isPlanWavesRun spots the /ccf:cook step 2 call and nothing else", () => {

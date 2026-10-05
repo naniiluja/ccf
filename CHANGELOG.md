@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.0
+
+Removed the `/ccf-board`, `/ccf-waves` and `/rem` commands: Rem now lives only in the dock, which already shows the board summary and the wave map. The standalone board and wave panes, the "waiting" toast that pointed to `/ccf-waves`, and the unused `boardCommands` and `progressSvg` helpers are gone. The `uiBoard` and `uiWaves` options stay and now only control what the dock shows. A person closing the dock still keeps Rem away until the next session.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with claude plugin validate and 39/39 plugin tests.
+
 ## 0.19.4
 
 Rem docks again after `/clear` and `/new`: `session.start` now resets `hasTriedDock` (it stayed true from the first dock, so no automatic dock ever ran in the new session) and tries twice, at 2s and 5s, and the first prompt-area render that reports a fullscreen layout docks her at once, so a new session no longer waits for a timer.

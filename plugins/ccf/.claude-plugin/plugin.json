@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "ccf",
-  "version": "0.19.4",
+  "version": "0.20.0",
   "description": "Claude Context First — a context-first, spec-driven, wave-parallel development workflow. Keeps CLAUDE.md/.claude specs continuously fresh and grounds every design decision in best practices fetched from Context7 and Microsoft Learn.",
   "author": {
     "name": "naniiluja"
@@ -20,14 +20,14 @@
     },
     "uiBoard": {
       "type": "boolean",
-      "title": "CCF board pane",
-      "description": "Register /ccf-board: PLAN.md tasks in todo, in-progress, in-review and done columns plus open PENDING.md risks; its buttons only prefill a command.",
+      "title": "CCF board in the dock",
+      "description": "Show a progress bar, task counts per column and open PENDING.md risks at the top of Rem's dock pane.",
       "default": false
     },
     "uiWaves": {
       "type": "boolean",
       "title": "CCF wave map",
-      "description": "On /ccf:cook, read scripts/plan-waves.mjs and show each worktree agent of the wave in a pane (/ccf-waves).",
+      "description": "On /ccf:cook, read scripts/plan-waves.mjs and show each worktree agent of the wave in Rem's dock pane.",
       "default": false
     },
     "uiStatusLine": {

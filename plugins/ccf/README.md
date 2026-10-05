@@ -56,7 +56,7 @@ echo '{"prompt":"/ccf:plan","permission_mode":"default"}' | node hooks/plan-mode
 
 ## UI layer (function-hooks mod, opt-in)
 
-`hooks/hooks.json` also names `"modules": ["./register.tsx"]`, a Claude Code function-hooks module. It adds the Rem mascot (`/rem`), whose line follows the session (the typed `/ccf:*` command, the running test, CCF script or git command, the cook task agents, and the last pass/fail result, built in `hooks/lib/rem-lines.mjs`), and a CCF UI layer that only reads what CCF already keeps: `PLAN.md`, `PENDING.md`, `scripts/plan-waves.mjs`, `scripts/spec-budget.mjs` and the freshness check in `hooks/lib/freshness.mjs`. The mod sandbox has no Node, so it runs `node hooks/lib/ui-snapshot.mjs` and those scripts through `$.process.run` and draws their JSON.
+`hooks/hooks.json` also names `"modules": ["./register.tsx"]`, a Claude Code function-hooks module. It adds the Rem mascot, who docks beside the prompt on her own in a fullscreen terminal, whose line follows the session (the typed `/ccf:*` command, the running test, CCF script or git command, the cook task agents, and the last pass/fail result, built in `hooks/lib/rem-lines.mjs`), and a CCF UI layer that only reads what CCF already keeps: `PLAN.md`, `PENDING.md`, `scripts/plan-waves.mjs`, `scripts/spec-budget.mjs` and the freshness check in `hooks/lib/freshness.mjs`. The mod sandbox has no Node, so it runs `node hooks/lib/ui-snapshot.mjs` and those scripts through `$.process.run` and draws their JSON.
 
 **Tested against Claude Code 2.1.289.** The function-hooks API is early access and can change between releases; re-run `claude plugin validate plugins/ccf` and `claude plugin test plugins/ccf` before trusting it on a newer build.
 
@@ -65,8 +65,8 @@ Every CCF UI piece is off by default. Turn one on in `/config` (the plugin's `us
 | Option | What it shows |
 |---|---|
 | `uiBand` | A line above the prompt: the active task, its lifecycle step and the next command, e.g. `070 ●━━●━━◉━━○ in-review · next: /ccf:check`. |
-| `uiBoard` | `/ccf-board`: a pane with `todo` / `in-progress` / `in-review` / `done` columns and the open risks in `PENDING.md`. Its buttons only prefill a command in the prompt (`$.prompt.fill`); you press Enter. While Rem is docked (fullscreen), the top of Rem's 40-column pane also shows a progress bar and one count per column. |
-| `uiWaves` | On `/ccf:cook`, the wave split read from the output of its own `plan-waves.mjs` call and each worktree agent as it spawns and finishes; a task `PLAN.md` already shows `in-review` or `done` reads as done. While Rem is docked, the map sits in Rem's pane and scrolls on its own (`.. +N` marks hidden rows); otherwise it opens as `/ccf-waves`, with a toast naming the reason and `/ccf-waves` when the terminal is too narrow to place it unasked. While it is off, `/ccf:cook` or its `plan-waves.mjs` call shows a one-time toast saying so. |
+| `uiBoard` | The top of Rem's 40-column dock pane shows a progress bar, the closed/total count with open risks from `PENDING.md`, and one count per column (`todo` / `doing` / `review` / `done`). |
+| `uiWaves` | On `/ccf:cook`, the wave split read from the output of its own `plan-waves.mjs` call and each worktree agent as it spawns and finishes; a task `PLAN.md` already shows `in-review` or `done` reads as done. The map sits in Rem's dock pane and scrolls on its own (`.. +N` marks hidden rows); outside a fullscreen terminal there is no dock, so no map. While it is off, `/ccf:cook` or its `plan-waves.mjs` call shows a one-time toast saying so. |
 | `uiStatusLine` | Whether the spec is older than the code, plus the `CLAUDE.md` size from `spec-budget.mjs`. |
 
 Progress bars use `Raster` on the terminal and `Svg` on desktop, which has no `Raster`. Nothing in the UI layer writes a file or decides a gate: a failing mod hook is skipped and a refused tree is replaced by the engine's own drawing, so the `.mjs` hooks above behave the same with the UI on or off.

@@ -6,11 +6,9 @@ import { SPRITE_COLUMNS, SPRITE_ROWS, STANDING, encode, pixelsOf } from './sprit
 import type { Pose } from './sprite'
 import { NO_TASK_LINE, claudeMdBudget, dockIsEmpty, dockLayout, isPlanWrite, liveAgents, planWavesRequest, scrollWindow, statusText, walkStep, waveScroll, wavesFromOutput } from './lib/ui-model.mjs'
 import {
-  BOARD,
   BUDGET_SCRIPT,
   COOK,
   SNAPSHOT_SCRIPT,
-  WAVES,
   WAVES_OFF_NOTICE,
   bandTree,
   dockBoardRows,
@@ -34,7 +32,6 @@ const CCF_SCRIPT_LIMIT_MS = 15_000
 const CCF_NOTICE_MS = 8000
 const DOCK_COLUMNS = 40
 const WALK_TICK_MS = 500
-const GOODBYE = 'Rem đi nghỉ đây. Gõ /rem để gọi lại.'
 
 const KAOMOJI: Readonly<Record<Mood, string>> = {
   idle: '(・ω・)',
@@ -208,16 +205,11 @@ async function loadWavesFromRun($: CoreEngineInterface, command: string, ran: To
     await update($, ccfWavesOffset, () => 0)
     await update($, ccfWaves, () => found)
     $.clock.after(1, () => refreshCcf($, options))
-    if (found.length === 0 || (await read($, isDocked))) return
-    const opened = await $.ui.open({ id: WAVES, title: 'CCF waves' })
-    if (!opened.isPlaced) $.ui.toast(`CCF wave map is waiting: ${opened.reason}. Type /ccf-waves to open it.`, { timeoutMs: CCF_NOTICE_MS })
   } catch {}
 }
 
 async function ccfSessionStart($: CoreEngineInterface, options: PluginOptions) {
   try {
-    if (options.uiBoard === true) await $.command.register({ name: BOARD, description: 'Open the CCF board: PLAN.md tasks by status and open PENDING.md risks' })
-    if (wantsWaves(options)) await $.command.register({ name: WAVES, description: 'Open the CCF wave map of the current /ccf:cook run' })
     if (wantsSnapshot(options)) $.clock.after(1, () => refreshCcf($, options))
   } catch {}
 }
@@ -282,14 +274,6 @@ async function dockTree(
 export const register: Register = (on, options) => {
   registerCcfUi(on, options)
 
-  if (options.uiBoard === true) {
-    on('command.run', { command: 'ccf-board' }, async $ => {
-      await refreshCcf($, options)
-      const opened = await $.ui.open({ id: BOARD, title: 'CCF board' })
-      return { text: opened.isPlaced ? 'CCF board opened.' : `CCF board could not be placed: ${opened.reason}` }
-    })
-  }
-
   let lastActiveAt = 0
   let isTurnRunning = false
   let isFullscreenLayout = false
@@ -304,7 +288,6 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await ccfSessionStart($, options)
     lastActiveAt = await $.clock.now()
-    await $.command.register({ name: 'rem', description: 'Gọi Rem ra đứng cạnh ô chat, hoặc cho Rem đi nghỉ' })
 
     hasTriedDock = false
     hasAutoDocked = false
@@ -339,27 +322,6 @@ export const register: Register = (on, options) => {
       await dock($, { isAsked: true, columns: dockColumns })
     }
     return next(e)
-  })
-
-  on('command.run', { command: 'rem' }, async ($, e) => {
-    if (await read($, isDocked)) {
-      await update($, isDismissed, () => true)
-      await $.ui.close({ id: PANE })
-      return { text: GOODBYE }
-    }
-
-    if (e.presentation.isFullscreen) {
-      await update($, isDismissed, () => false)
-      return { text: (await dock($, { isAsked: true, columns: dockColumns })) ? 'Rem ra đứng cạnh ô chat rồi.' : 'Rem vẫn đứng phía trên ô chat, lý do ở thông báo vừa hiện.' }
-    }
-
-    const wasDismissed = await read($, isDismissed)
-    await update($, isDismissed, () => !wasDismissed)
-    return {
-      text: wasDismissed
-        ? 'Rem quay lại rồi. Giao diện này chưa phải fullscreen nên Rem đứng ở góc phải phía trên ô chat.'
-        : GOODBYE,
-    }
   })
 
   on('ui.close', async ($, e, next) => {
