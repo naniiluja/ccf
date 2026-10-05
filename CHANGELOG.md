@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.2
+
+The "Chưa có task nào" hint now sits under the mascot instead of above her bubble. Rem's walk now looks like a walk: the sprite is mirrored when she turns around, one leg lifts per step and the opposite hand swings (`Pose` and `liftLeg`/`swingArms` in sprite.ts). Fixed two Rems on screen after `/reload-plugins`: the dock pane now sets `ccf/isDocked` whenever it renders, so the copy above the chat box hides at once instead of after the next prompt.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with tsc (TypeScript 5), claude plugin validate and the ui-model unit tests (31/31). The sprite poses were checked by printing the pixel rows, not on a live pane.
+
 ## 0.19.1
 
 Rem walks left and right inside the dock pane: every 500ms she takes one cell and turns around at either edge (`walkStep` in lib/ui-model.mjs, `ccf/walk` atom). She stands still when the pane is no wider than the sprite or when she is asleep.
