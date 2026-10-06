@@ -28,11 +28,14 @@ import assert from "node:assert/strict";
 import { spawnSync, spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdtempSync, mkdirSync, writeFileSync, utimesSync, rmSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, devNull } from "node:os";
 import { randomUUID } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { planInjectMarkerPath } from "./plan-trigger.mjs";
+
+process.env.GIT_CONFIG_GLOBAL = devNull;
+process.env.GIT_CONFIG_NOSYSTEM = "1";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HOOKS_DIR = join(__dirname, "..");

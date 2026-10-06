@@ -8,9 +8,12 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, devNull } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+
+process.env.GIT_CONFIG_GLOBAL = devNull;
+process.env.GIT_CONFIG_NOSYSTEM = "1";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "jev-verify-findings.mjs");
 const KEY = "verify-key-DO-NOT-LEAK-4321";
