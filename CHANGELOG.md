@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.1
+
+Two Jev test fixtures created an untracked `.env` and relied on `git ls-files --others --exclude-standard` (or `git add -A`) to see it. On any machine whose global gitignore lists `.env`, the file was filtered out before the hook under test ever read it, so the "names the file it left out" assertion failed. The suites were passing or failing depending on the developer's own git config. Each fixture now points its own repo's `core.excludesFile` at a nonexistent path, so the tests measure the hook and nothing about the host.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not the Jev fixtures; verified with the hook lib suite (549/549 both with and without a host global gitignore), the repo suite, the template suite and tsc exit 0.
+
 ## 0.21.0
 
 Pressing a wave row in Rem's dock now opens a second pane, `waves`, which the engine draws as a tab beside Rem: a summary line with a progress bar, then every wave with every task, its state and its full (wrapped) title. The dock's wave rows became plain buttons for this; with `uiWaves` off or no wave there is no button, so the tab cannot be opened. Closing the tab does not dismiss or undock Rem. A new pure `waveSummary` in `ui-model.mjs` feeds the counts. The dock rows lose their bold accent heading, because `Button` has no `bold` or `color`.
