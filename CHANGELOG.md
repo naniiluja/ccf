@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.1
+
+The two process-level tests that build a throwaway git repo around a sensitive `.env` (`jev-verify-findings` and `completion-evidence`) no longer read the developer's git configuration, so they pass on a machine whose global gitignore lists `.env`. Before, `git ls-files --others --exclude-standard` honored that file, the `.env` never reached the diff, and both tests failed with `omitted: []` on a clean `main`. The test files now point `GIT_CONFIG_GLOBAL` at the null device and set `GIT_CONFIG_NOSYSTEM`, and every assertion stays, including the ones proving the `.env` content is never sent. No plugin behavior changes.
+
+eval: not run: the change is test-only; verified with node --test on both suites.
+
 ## 0.21.0
 
 Pressing a wave row in Rem's dock now opens a second pane, `waves`, which the engine draws as a tab beside Rem: a summary line with a progress bar, then every wave with every task, its state and its full (wrapped) title. The dock's wave rows became plain buttons for this; with `uiWaves` off or no wave there is no button, so the tab cannot be opened. Closing the tab does not dismiss or undock Rem. A new pure `waveSummary` in `ui-model.mjs` feeds the counts. The dock rows lose their bold accent heading, because `Button` has no `bold` or `color`.
