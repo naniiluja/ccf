@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.1
+
+`ccf-scope-checker` emitted its findings as `FAIL: scope` while `/ccf:check` step 6 reads a parenthesized source tag right after the marker, `(spec)`, `(scope)` or `(spec+scope)`. The producer and the consumer disagreed on the tag form, so a scope finding could never be attributed to its reviewer. The example in the agent's return format now matches the contract step 6 defines, and a new test, `.claude/tests/scope-marker-contract.test.mjs`, asserts that every tag step 6 names appears in that position in both checker agents and that no `FAIL:` example carries a bare word in the tag slot. This is what eval case `07-scope-only` scored 0/3 on at run 2026-10-04 while cases 01 to 06 scored 3/3.
+
+eval: not run: the fix is a marker contract on a markdown prompt, proven by a latch seen RED before the fix; the paid eval still measures this on the next sandbox-capable run (PENDING.md A3).
+
 ## 0.21.0
 
 Pressing a wave row in Rem's dock now opens a second pane, `waves`, which the engine draws as a tab beside Rem: a summary line with a progress bar, then every wave with every task, its state and its full (wrapped) title. The dock's wave rows became plain buttons for this; with `uiWaves` off or no wave there is no button, so the tab cannot be opened. Closing the tab does not dismiss or undock Rem. A new pure `waveSummary` in `ui-model.mjs` feeds the counts. The dock rows lose their bold accent heading, because `Button` has no `bold` or `color`.
