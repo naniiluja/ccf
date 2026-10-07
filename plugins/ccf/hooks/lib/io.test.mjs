@@ -703,6 +703,7 @@ function makeJevProject({ withEnvFile = false } = {}) {
     `# Task 900\n\n## Goal\nx\n\n## Acceptance criteria (verifiable)\n- [ ] ${CRITERION_1}\n- [ ] ${CRITERION_2}\n\n## Test first\ny\n`);
   writeFileSync(join(dir, "src", "app.mjs"), "export const a = 1;\n");
   git(dir, "init", "-q");
+  git(dir, "config", "core.excludesFile", join(dir, ".no-global-excludes")); // a host global gitignore listing .env would hide the fixture's untracked file
   git(dir, "add", "-A");
   git(dir, "commit", "-q", "-m", "init");
   writeFileSync(join(dir, "src", "app.mjs"), `export const a = 2; // ${randomUUID()}\n`); // unique per project → unique marker

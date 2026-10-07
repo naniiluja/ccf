@@ -37,6 +37,7 @@ function makeRepo() {
   const dir = mkdtempSync(join(tmpdir(), "ccf-verify-test-"));
   dirs.push(dir);
   git(dir, ["init", "-q", "-b", "main"]);
+  git(dir, ["config", "core.excludesFile", join(dir, ".no-global-excludes")]); // a host global gitignore listing .env would keep it out of `git add -A`
   git(dir, ["config", "user.email", "t@example.com"]);
   git(dir, ["config", "user.name", "t"]);
   writeFileSync(join(dir, "README"), "base\n");

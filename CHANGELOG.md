@@ -3,9 +3,15 @@
 ## 0.21.1
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 `ccf-scope-checker` emitted its findings as `FAIL: scope` while `/ccf:check` step 6 reads a parenthesized source tag right after the marker, `(spec)`, `(scope)` or `(spec+scope)`. The producer and the consumer disagreed on the tag form, so a scope finding could never be attributed to its reviewer. The example in the agent's return format now matches the contract step 6 defines, and a new test, `.claude/tests/scope-marker-contract.test.mjs`, asserts that every tag step 6 names appears in that position in both checker agents and that no `FAIL:` example carries a bare word in the tag slot. This is what eval case `07-scope-only` scored 0/3 on at run 2026-10-04 while cases 01 to 06 scored 3/3.
 
 eval: not run: the fix is a marker contract on a markdown prompt, proven by a latch seen RED before the fix; the paid eval still measures this on the next sandbox-capable run (PENDING.md A3).
+=======
+Two Jev test fixtures created an untracked `.env` and relied on `git ls-files --others --exclude-standard` (or `git add -A`) to see it. On any machine whose global gitignore lists `.env`, the file was filtered out before the hook under test ever read it, so the "names the file it left out" assertion failed. The suites were passing or failing depending on the developer's own git config. Each fixture now points its own repo's `core.excludesFile` at a nonexistent path, so the tests measure the hook and nothing about the host.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not the Jev fixtures; verified with the hook lib suite (549/549 both with and without a host global gitignore), the repo suite, the template suite and tsc exit 0.
+>>>>>>> origin/main
 =======
 `isTestCommand` no longer reads a runner name inside a path, a quoted message or a branch name as a test run. It splits the command on `&&`, `||`, `;`, `|`, drops quoted text, and accepts a segment only when its program (or the target of `npx`, `bunx`, `pnpm dlx`, `node <bin>`) is a test runner, so `git commit -m "fix tsc exit code"` no longer turns off the "edited code, ran no tests" Stop nudge.
 
