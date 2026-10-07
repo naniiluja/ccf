@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.1
+
+`isTestCommand` no longer reads a runner name inside a path, a quoted message or a branch name as a test run. It splits the command on `&&`, `||`, `;`, `|`, drops quoted text, and accepts a segment only when its program (or the target of `npx`, `bunx`, `pnpm dlx`, `node <bin>`) is a test runner, so `git commit -m "fix tsc exit code"` no longer turns off the "edited code, ran no tests" Stop nudge.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not hook command matching; verified with the verify-trace unit tests.
+
 ## 0.21.0
 
 Pressing a wave row in Rem's dock now opens a second pane, `waves`, which the engine draws as a tab beside Rem: a summary line with a progress bar, then every wave with every task, its state and its full (wrapped) title. The dock's wave rows became plain buttons for this; with `uiWaves` off or no wave there is no button, so the tab cannot be opened. Closing the tab does not dismiss or undock Rem. A new pure `waveSummary` in `ui-model.mjs` feeds the counts. The dock rows lose their bold accent heading, because `Button` has no `bold` or `color`.

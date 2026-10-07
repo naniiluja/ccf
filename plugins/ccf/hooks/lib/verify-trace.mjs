@@ -14,10 +14,13 @@ import { existsSync, readFileSync } from "node:fs";
 // Mirrors freshness.mjs CODE_EXT (markdown/docs are deliberately excluded).
 const CODE_EXT = /\.(ts|tsx|js|mjs|cjs|jsx|py|go|rs|java|rb|php)$/i;
 
-// Substrings that mark a Bash command as a test/verification run. Kept broad but anchored to real
-// runners (incl. the project's own `node --test` and the `tsc` type-check used as verification per
-// testing.md) so an unrelated command (ls/git) does not count as "verified".
-const TEST_CMD = /(?:\bnpm\s+(?:run\s+)?test\b|\byarn\s+test\b|\bpnpm\s+(?:run\s+)?test\b|node\s+--test\b|\bvitest\b|\bjest\b|\bmocha\b|\bpytest\b|\bgo\s+test\b|\bcargo\s+test\b|\bphpunit\b|\brspec\b|\btsc\b)/i;
+const BARE_RUNNERS = new Set(["tsc", "jest", "vitest", "mocha", "pytest", "phpunit", "rspec"]);
+const LAUNCHERS = new Set(["npx", "bunx"]);
+const DLX_SUBCOMMANDS = new Set(["dlx", "exec"]);
+const TRANSPARENT_PREFIXES = new Set(["env", "time"]);
+const LAUNCHER_VALUE_FLAGS = new Set(["-p", "--package", "-c", "--call"]);
+const SEGMENT_SEPARATOR = /&&|\|\||[;|&()\n]/;
+const QUOTED = /"(?:[^"\\]|\\.)*"|'[^']*'/g;
 
 // Tool names that edit/create a file. The set keeps a future alias a one-line add.
 const WRITE_TOOL_NAMES = new Set(["write", "edit", "multiedit"]);
@@ -55,7 +58,46 @@ export function isCodeFile(path) {
  * @returns {boolean}
  */
 export function isTestCommand(command) {
-  return TEST_CMD.test(String(command ?? ""));
+  const unquoted = String(command ?? "").replace(QUOTED, '""');
+  return unquoted.split(SEGMENT_SEPARATOR).some((segment) => runsTests(segment.trim().split(/\s+/)));
+}
+
+function programName(token = "") {
+  const base = token.split(/[\\/]/).pop() ?? "";
+  return base.replace(/\.(?:cmd|exe|js|mjs|cjs|bat|ps1)$/i, "").toLowerCase();
+}
+
+function runsTests(tokens = [""]) {
+  let rest = tokens.filter((token) => token !== "");
+  while (rest.length > 0 && (/^[A-Za-z_]\w*=/.test(rest[0]) || TRANSPARENT_PREFIXES.has(programName(rest[0])))) {
+    rest = rest.slice(1);
+  }
+  if (rest.length === 0) return false;
+  const program = programName(rest[0]);
+  const args = rest.slice(1);
+  if (BARE_RUNNERS.has(program)) return true;
+  if (LAUNCHERS.has(program)) return runsTests(afterLauncherFlags(args));
+  if (program === "pnpm" || program === "yarn") {
+    if (DLX_SUBCOMMANDS.has(args[0])) return runsTests(afterLauncherFlags(args.slice(1)));
+  }
+  if (program === "npm" || program === "pnpm") return args[0] === "test" || (args[0] === "run" && args[1] === "test");
+  if (program === "yarn") return args[0] === "test";
+  if (program === "go" || program === "cargo") return args[0] === "test";
+  if (program === "node") {
+    if (args.includes("--test")) return true;
+    const script = args.find((arg) => !arg.startsWith("-"));
+    return script !== undefined && BARE_RUNNERS.has(programName(script));
+  }
+  if (/^python[\d.]*$/.test(program)) return args[0] === "-m" && programName(args[1]) === "pytest";
+  return false;
+}
+
+function afterLauncherFlags(args = [""]) {
+  let index = 0;
+  while (index < args.length && args[index].startsWith("-")) {
+    index += LAUNCHER_VALUE_FLAGS.has(args[index]) ? 2 : 1;
+  }
+  return args.slice(index);
 }
 
 /**
