@@ -1,20 +1,16 @@
 import { atom, read, update } from 'claude-code'
 
-import { bandLine, boardColumns, boardCommands, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, progressSvg, waveLines, waveRows, wavesFromOutput } from '../lib/ui-model.mjs'
+import { bandLine, boardSummary, closedTaskIds, hiddenMark, isCookTaskBrief, isPlanWavesRun, progressCells, waveLines, waveRows, waveSummary, wavesFromOutput } from '../lib/ui-model.mjs'
 import { GREETING, VOICE_DEBOUNCE_MS, isVoiceOn, remVoice, runningLine, spawnedTaskId, voiceReply, voiceRequest } from '../lib/rem-lines.mjs'
 
-export const BOARD = 'ccf-board'
-export const WAVES = 'ccf-waves'
 export const COOK = /(^|\s)\/ccf:cook(\s|$)/
 export const SNAPSHOT_SCRIPT = 'hooks/lib/ui-snapshot.mjs'
 export const BUDGET_SCRIPT = 'scripts/spec-budget.mjs'
 export const WAVES_SCRIPT = 'scripts/plan-waves.mjs'
-export const WAVES_OFF_NOTICE = 'CCF wave map is off, so /ccf:cook shows no /ccf-waves pane. Turn on uiWaves for the ccf plugin in /config.'
+export const WAVES_OFF_NOTICE = 'CCF wave map is off, so the Rem dock shows no wave map during /ccf:cook. Turn on uiWaves for the ccf plugin in /config.'
 
 const ACCENT = '#7fb2f0'
 const BAR_COLUMNS = 20
-const BAR_PIXELS = 200
-const WIDE_BOARD_COLUMNS = 80
 const STATE_GLYPH = { waiting: '○', running: '◉', done: '●' }
 const WAVES_SCRIPT_LIMIT_MS = 15_000
 
@@ -38,74 +34,6 @@ export function bandTree(elements, now, plan, running, options) {
   const count = wantsWaves(options) ? waveRows(plan, running, closedTaskIds(now)).flat().filter(task => task.state === 'running').length : 0
   const suffix = count > 0 ? ` · ${count} worktree agent${count === 1 ? '' : 's'} running` : ''
   return h(elements.Text, { dimColor: true, wrap: 'truncate-end' }, `${line.text}${suffix}`)
-}
-
-function progressBar(surface, elements, done, total) {
-  if (surface === 'terminal') {
-    return h(elements.Raster, { key: 'progress', columns: BAR_COLUMNS, rows: 1, cells: progressCells(done, total, BAR_COLUMNS) })
-  }
-  if (elements.Svg) {
-    return h(elements.Svg, { source: progressSvg(done, total, BAR_PIXELS), alt: `${done} of ${total} tasks closed`, width: BAR_PIXELS })
-  }
-  return null
-}
-
-function boardTree(surface, elements, bodyColumns, now, fill) {
-  const { Box, Button, Text } = elements
-  if (!now) return h(Text, { dimColor: true }, 'No CCF plan here: .claude/plan/PLAN.md was not found.')
-
-  const columns = boardColumns(now.tasks)
-  const closed = columns[3].tasks.length
-  const isWide = bodyColumns >= WIDE_BOARD_COLUMNS
-  const bar = progressBar(surface, elements, closed, now.tasks.length)
-
-  return h(
-    Box,
-    { flexDirection: 'column', gap: 1 },
-    h(
-      Box,
-      { flexDirection: 'row', gap: 1 },
-      ...(bar ? [bar] : []),
-      h(Text, { wrap: 'truncate-end' }, `${closed}/${now.tasks.length} closed · ${now.openRisks} open risk${now.openRisks === 1 ? '' : 's'} in PENDING.md`),
-    ),
-    h(
-      Box,
-      { flexDirection: isWide ? 'row' : 'column', gap: isWide ? 2 : 0 },
-      ...columns.map(({ column, tasks }) =>
-        h(
-          Box,
-          { key: `column-${column}`, flexDirection: 'column', flexGrow: 1, flexShrink: 1 },
-          h(Text, { bold: true, color: ACCENT }, `${column} (${tasks.length})`),
-          ...tasks.map(task => h(Text, { wrap: 'truncate-end' }, `${task.id} ${task.title}`)),
-        ),
-      ),
-    ),
-    h(
-      Box,
-      { flexDirection: 'row', gap: 1, flexWrap: 'wrap' },
-      ...boardCommands(now).map(command => h(Button, { key: `fill:${command}`, label: command, onPress: () => fill(command) })),
-    ),
-  )
-}
-
-function wavesTree(elements, plan, running, now) {
-  const { Box, Text } = elements
-  const rows = waveRows(plan, running, closedTaskIds(now))
-  if (rows.length === 0) return h(Text, { dimColor: true }, 'No /ccf:cook wave in this session yet.')
-  return h(
-    Box,
-    { flexDirection: 'column', gap: 1 },
-    ...rows.map((wave, index) =>
-      h(
-        Box,
-        { key: `wave-${index + 1}`, flexDirection: 'column' },
-        h(Text, { bold: true, color: ACCENT }, `wave ${index + 1}`),
-        ...wave.map(task =>
-          h(Text, { wrap: 'truncate-end', dimColor: task.state === 'done' }, `${STATE_GLYPH[task.state]} ${task.id} ${task.title} · ${task.state}`),
-        ),
-      ),
-    ),
-  )
 }
 
 export function shellOutput(ran) {
@@ -185,8 +113,8 @@ export function dockBoardRows(elements, now, rows) {
   return rows > 1 ? [head, h(Text, { key: 'board-counts', dimColor: true, wrap: 'truncate-end' }, summary.counts)] : [head]
 }
 
-export function dockWaveRows(elements, lines, window) {
-  const { Box, Text } = elements
+export function dockWaveRows(elements, lines, window, openWaves) {
+  const { Box, Button, Text } = elements
   const shown = lines.slice(window.start, window.end)
   const last = shown.length - 1
   return shown.map((line, index) => {
@@ -194,23 +122,50 @@ export function dockWaveRows(elements, lines, window) {
       ? hiddenMark(window.hiddenAbove + window.hiddenBelow)
       : index === 0 ? hiddenMark(window.hiddenAbove) : index === last ? hiddenMark(window.hiddenBelow) : ''
     const text = line.isHeading ? line.text : `${STATE_GLYPH[line.state]} ${line.text}`
-    const style = line.isHeading ? { bold: true, color: ACCENT } : { dimColor: line.state === 'done' }
     return h(
       Box,
-      { key: `wave-line-${window.start + index}`, flexDirection: 'row', gap: 1 },
-      h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, { ...style, wrap: 'truncate-end' }, text)),
+      { key: `wave-row-${window.start + index}`, flexDirection: 'row', gap: 1 },
+      h(Box, { flexGrow: 1, flexShrink: 1 }, h(Button, { key: `wave-line-${window.start + index}`, plain: true, dimColor: line.state === 'done', onPress: openWaves }, text)),
       ...(mark ? [h(Text, { dimColor: true }, mark)] : []),
     )
   })
 }
 
-export function registerCcfUi(on, options) {
-  if (options.uiBoard === true) {
-    on('ui.render', { component: 'Pane', requestId: BOARD }, async ($, e) =>
-      boardTree(e.surface, $.ui.resolve(e), e.props.bodyColumns ?? 0, await read($, snapshot), command => $.prompt.fill({ text: command })),
-    )
-  }
+const STATE_LABEL = { waiting: 'chờ', running: 'đang chạy', done: 'xong' }
+export const NO_WAVES_LINE = 'Chưa có wave nào. Chạy /ccf:cook.'
 
+export function wavesTabRows(elements, rows, bodyColumns) {
+  const { Box, Raster, Text } = elements
+  if (rows.length === 0) return [h(Text, { key: 'waves-empty', dimColor: true }, NO_WAVES_LINE)]
+  const { waves: summaries, counts } = waveSummary(rows)
+  const total = counts.done + counts.running + counts.waiting
+  const head = h(
+    Box,
+    { key: 'waves-head', flexDirection: 'row', gap: 1 },
+    h(Raster, { key: 'progress', columns: BAR_COLUMNS, rows: 1, cells: progressCells(counts.done, total, BAR_COLUMNS) }),
+    h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, {}, `${rows.length} wave · ${counts.done} xong · ${counts.running} đang chạy · ${counts.waiting} chờ`)),
+  )
+  const body = rows.flatMap((wave, index) => [
+    ...(index > 0 ? [dockDivider(elements, bodyColumns, `waves-divider-${index}`)] : []),
+    h(Text, { key: `waves-heading-${index}`, bold: true, color: ACCENT }, `wave ${index + 1} · ${summaries[index].total} task · ${summaries[index].done} xong`),
+    ...wave.map(task =>
+      h(
+        Box,
+        { key: `waves-task-${index}-${task.id}`, flexDirection: 'row', gap: 1 },
+        h(Text, { dimColor: task.state === 'done' }, `${STATE_GLYPH[task.state]} ${task.id}`),
+        h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, { wrap: 'wrap', dimColor: task.state === 'done' }, task.title)),
+        h(Text, { dimColor: true }, STATE_LABEL[task.state]),
+      ),
+    ),
+  ])
+  return [head, ...body]
+}
+
+export function wavesTabLines(plan, running, now) {
+  return waveRows(plan, running, closedTaskIds(now))
+}
+
+export function registerCcfUi(on, options) {
   on('agent.spawn', async ($, e, next) => {
     const started = await next(e)
     try {
@@ -224,16 +179,4 @@ export function registerCcfUi(on, options) {
     } catch {}
     return started
   })
-
-  if (wantsWaves(options)) {
-    on('command.run', { command: WAVES }, async $ => {
-      await reloadWaves($, await read($, wavesSource))
-      const opened = await $.ui.open({ id: WAVES, title: 'CCF waves' })
-      return { text: opened.isPlaced ? 'CCF wave map opened.' : `CCF wave map could not be placed: ${opened.reason}` }
-    })
-
-    on('ui.render', { component: 'Pane', requestId: WAVES }, async ($, e) =>
-      wavesTree($.ui.resolve(e), await read($, waves), await read($, agents), await read($, snapshot)),
-    )
-  }
 }

@@ -69,6 +69,57 @@ test("isTestCommand: true for common test runners", () => {
   assert.equal(isTestCommand("npx -p typescript tsc --noEmit"), true);
 });
 
+test("isTestCommand: true for every real runner invocation", () => {
+  for (const cmd of [
+    "yarn test",
+    "pnpm test",
+    "pnpm run test",
+    "tsc --noEmit",
+    "npx tsc --noEmit",
+    "node /Users/me/.npm/_npx/abc/node_modules/typescript/bin/tsc --noEmit",
+    "node node_modules/jest/bin/jest.js",
+    "cargo test",
+    "jest",
+    "mocha",
+    "phpunit",
+    "rspec",
+    "python3 -m pytest -q",
+    "pnpm dlx vitest run",
+    "bunx vitest",
+    "CI=1 npm test",
+    "npx tsc && echo done",
+    "cd plugins/ccf && npm test",
+    "rm -rf build; node --test a.test.mjs",
+    "node_modules/.bin/tsc --noEmit",
+    "C:\\proj\\node_modules\\.bin\\tsc.cmd --noEmit",
+  ]) {
+    assert.equal(isTestCommand(cmd), true, cmd);
+  }
+});
+
+test("isTestCommand: false when a runner name is only mentioned, not executed", () => {
+  for (const cmd of [
+    'git commit -m "fix tsc exit code"',
+    "grep -rn tsc plugins/",
+    "cat notes.md about jest setup",
+    "git checkout -b feature/tsc",
+    "ls node_modules/.bin/tsc",
+    "echo vitest",
+    "echo pytest is great",
+    "grep -r jest package.json",
+    "cat tests/pytest.ini",
+    'git commit -m "run npm test && tsc"',
+    "rm -rf build && npm run build",
+    "npm run build",
+    "node script.mjs --tsc",
+    "git log --grep=jest",
+    "cargo build",
+    "go build ./...",
+  ]) {
+    assert.equal(isTestCommand(cmd), false, cmd);
+  }
+});
+
 test("isTestCommand: false for non-test commands / missing", () => {
   assert.equal(isTestCommand("ls -la"), false);
   assert.equal(isTestCommand("git status"), false);

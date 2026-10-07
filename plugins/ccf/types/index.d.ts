@@ -2,6 +2,8 @@ export type Mood = 'idle' | 'thinking' | 'happy' | 'worried' | 'sleepy' | 'surpr
 
 export type Feeling = { mood: Mood; line: string }
 
+export type Walk = { x: number; dir: 1 | -1 }
+
 export type CcfColumn = 'todo' | 'in-progress' | 'in-review' | 'done'
 
 export type CcfTask = { id: string; title: string; status: string; column: CcfColumn }
@@ -30,6 +32,7 @@ declare module 'claude-code' {
       wavesSource: CcfWavesSource | null
       hasNoticedWavesOff: boolean
       wavesOffset: number
+      walk: Walk
     }
   }
 }

@@ -10,9 +10,7 @@ import {
   statusText,
   matchWaveTask,
   waveRows,
-  boardCommands,
   progressCells,
-  progressSvg,
   isPlanWavesRun,
   planWavesRequest,
   wavesFromOutput,
@@ -20,6 +18,7 @@ import {
   liveAgents,
   isCookTaskBrief,
   waveLines,
+  waveSummary,
   scrollWindow,
   waveScroll,
   hiddenMark,
@@ -118,11 +117,6 @@ test("waveRows marks each task waiting, running or done", () => {
   assert.deepEqual(rows.map((wave) => wave.map((t) => `${t.id}:${t.state}`)), [["070:done", "071:running"], ["072:waiting"]]);
 });
 
-test("boardCommands offers only the commands the board state calls for", () => {
-  assert.deepEqual(boardCommands(SNAPSHOT), ["/ccf:check", "/ccf:cook", "/ccf:updatespec", "/ccf:plan"]);
-  assert.deepEqual(boardCommands({ ...SNAPSHOT, tasks: [], specStale: false }), ["/ccf:plan"]);
-});
-
 test("progressCells packs a one-row Raster of filled and empty cells", () => {
   const bytes = Uint8Array.from(atob(progressCells(1, 4, 8)), (c) => c.charCodeAt(0));
   const view = new DataView(bytes.buffer);
@@ -130,12 +124,6 @@ test("progressCells packs a one-row Raster of filled and empty cells", () => {
   const glyphs = Array.from({ length: 8 }, (_, i) => view.getUint32(i * 12, true));
   assert.deepEqual(glyphs, [0x2588, 0x2588, 0x2591, 0x2591, 0x2591, 0x2591, 0x2591, 0x2591]);
   assert.equal(Uint8Array.from(atob(progressCells(0, 0, 3)), (c) => c.charCodeAt(0)).length, 36);
-});
-
-test("progressSvg draws the closed share as a rect with alt text", () => {
-  const svg = progressSvg(1, 4, 200);
-  assert.match(svg, /^<svg [^>]*width="200"/);
-  assert.match(svg, /<rect [^>]*width="50"/);
 });
 
 test("isPlanWavesRun spots the /ccf:cook step 2 call and nothing else", () => {
@@ -271,4 +259,31 @@ test("dockIsEmpty is true only when no wave line and no PLAN.md task exist", () 
   assert.match(NO_TASK_LINE, /Chưa có task nào/);
   assert.match(NO_TASK_LINE, /\/ccf:plan/);
   assert.ok([...NO_TASK_LINE].length <= 36);
+});
+
+import { walkStep } from "./ui-model.mjs";
+
+test("walkStep moves one cell and bounces at both edges", () => {
+  assert.deepEqual(walkStep({ x: 0, dir: 1 }, 5), { x: 1, dir: 1 });
+  assert.deepEqual(walkStep({ x: 5, dir: 1 }, 5), { x: 4, dir: -1 });
+  assert.deepEqual(walkStep({ x: 0, dir: -1 }, 5), { x: 1, dir: 1 });
+  assert.deepEqual(walkStep({ x: 3, dir: -1 }, 5), { x: 2, dir: -1 });
+});
+
+test("walkStep stays home when there is no room, and clamps after a resize", () => {
+  assert.deepEqual(walkStep({ x: 4, dir: 1 }, 0), { x: 0, dir: 1 });
+  assert.deepEqual(walkStep({ x: 9, dir: 1 }, 3), { x: 2, dir: -1 });
+});
+
+test("waveSummary counts states and per-wave totals", () => {
+  const rows = waveRows(WAVES, [{ agentId: "a", taskId: "070", isDone: false }], ["071"]);
+  const summary = waveSummary(rows);
+  assert.deepEqual(summary.counts, { done: 1, running: 1, waiting: WAVES.flat().length - 2 });
+  assert.equal(summary.waves.length, WAVES.length);
+  assert.equal(summary.waves[0].total, WAVES[0].length);
+  assert.equal(summary.waves[0].done, 1);
+});
+
+test("waveSummary of nothing has no waves and zero counts", () => {
+  assert.deepEqual(waveSummary([]), { waves: [], counts: { done: 0, running: 0, waiting: 0 } });
 });

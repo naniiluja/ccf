@@ -7,7 +7,7 @@ paths: plugins/ccf/hooks/**
 
 ## Absolute invariants
 - **No-build, no-dependency, Windows-clean.** Hooks are `.mjs` ESM run directly with `node` (Node ≥ 18). Do NOT add an npm dependency, do NOT add a transpile/bundle step. All I/O via `node:fs`, `node:path`, `node:child_process` built-ins.
-- Type-check with `tsc` using `checkJs` + JSDoc (see `tsconfig.json`). Do NOT switch to `.ts`.
+- Type-check with `tsc` using `checkJs` + JSDoc (see `tsconfig.json`). Do NOT switch to `.ts`; the UI mod's `.ts`/`.tsx` is not a command hook and follows `.claude/rules/ui-mod.md`.
 - Paths in `hooks.json` use `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>.mjs"` — this variable ONLY expands in a hook command.
 
 ## I/O contract (packaged in `hooks/lib/io.mjs` — reuse it, don't rewrite)

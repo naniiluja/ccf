@@ -36,13 +36,6 @@ const paneProps = (placement: 'dock' | 'inline') => ({
   },
 }) as const
 
-const runRem = (isFullscreen: boolean) => ({
-  command: 'rem',
-  args: '',
-  origin: { kind: 'composer' },
-  presentation: { isFullscreen, columns: 120 },
-}) as const
-
 const USAGE = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 
 function answerModel(on: On, asked: { model: string; prompt: string; timeoutMs?: number }[], reply: (prompt: string) => string | null) {
@@ -182,7 +175,12 @@ describe('rem-mascot', () => {
     await done.unmount()
   })
 
-  test('dock hay pane inline đều là Rem nguyên người', async $ => {
+  test('dock hay pane inline đều là Rem nguyên người', async ($, on) => {
+    on('ui.open', () => ({ value: { isPlaced: true } }))
+    const clock = mock.clock(on)
+    const above = await $.ui.mount({ surface: 'terminal', ...BAND, viewport: { columns: 130, rows: 40, isFullscreen: true } } as never)
+    await clock.advance(10)
+    await above.unmount()
     for (const placement of ['dock', 'inline'] as const) {
       const ui = await $.ui.mount({ surface: 'terminal', ...paneProps(placement) })
       expect((await ui.find({ type: 'Raster', key: 'rem' }))?.props.rows).toBe(SPRITE_ROWS)
@@ -197,7 +195,7 @@ describe('rem-mascot', () => {
     await ui.unmount()
   })
 
-  test('fullscreen: /rem đưa Rem vào dock và band phía trên ô chat biến mất', async ($, on) => {
+  test('fullscreen: Rem tự vào dock và band phía trên ô chat biến mất', async ($, on) => {
     const opened: number[] = []
     on('ui.open', ($, e) => {
       opened.push(e.columns ?? 0)
@@ -207,17 +205,19 @@ describe('rem-mascot', () => {
       const { Text } = $.ui.resolve(e)
       return <Text>engine</Text>
     })
+    const clock = mock.clock(on)
 
-    const ran = await $.command.run(runRem(true))
+    const first = await $.ui.mount({ surface: 'terminal', ...BAND, viewport: { columns: 130, rows: 40, isFullscreen: true } } as never)
+    await clock.advance(10)
+    await first.unmount()
     expect(opened).toEqual([SPRITE_COLUMNS])
-    expect(ran.text).toMatch(/ra đứng cạnh ô chat/)
 
     const band = await $.ui.mount({ surface: 'terminal', ...BAND })
     expect(await band.find({ type: 'Raster' })).toBeUndefined()
     await band.unmount()
   })
 
-  test('classic: /rem bật tắt Rem trên band, không mở pane', async ($, on) => {
+  test('classic: Rem đứng trên band, không mở pane', async ($, on) => {
     const opened: string[] = []
     on('ui.open', ($, e) => {
       opened.push(e.id)
@@ -227,14 +227,10 @@ describe('rem-mascot', () => {
       const { Text } = $.ui.resolve(e)
       return <Text>engine</Text>
     })
+    const clock = mock.clock(on)
 
-    expect((await $.command.run(runRem(false))).text).toMatch(/đi nghỉ/)
-    const hidden = await $.ui.mount({ surface: 'terminal', ...BAND })
-    expect(await hidden.find({ type: 'Raster' })).toBeUndefined()
-    await hidden.unmount()
-
-    expect((await $.command.run(runRem(false))).text).toMatch(/quay lại/)
     const shown = await $.ui.mount({ surface: 'terminal', ...BAND })
+    await clock.advance(10)
     expect(await shown.find({ type: 'Raster', key: 'rem' })).toBeDefined()
     await shown.unmount()
 

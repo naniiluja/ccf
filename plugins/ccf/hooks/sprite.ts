@@ -97,7 +97,7 @@ const FACES: Readonly<Record<Mood, readonly Stamp[]>> = {
   happy: [
     { ...EYE, rows: ['ssss', 'snns', 'snns', 'nssn', 'nssn'] },
     { x: 21, y: 26, rows: ['qq', 'qq'] },
-    { ...MOUTH, rows: ['ssssss', 'ssssss', 'sgssgs', 'sggggs'] },
+    { ...MOUTH, rows: ['ssssss', 'ssssss', 'sgssgs', 'ssggss'] },
   ],
   worried: [
     OPEN_EYE,
@@ -122,7 +122,55 @@ const PIXEL_COLUMNS = BODY[0]?.length ?? 0
 export const SPRITE_COLUMNS = Math.ceil((PIXEL_COLUMNS + PADDING_TO_ALIGN_FACE_WITH_CELLS.left) / CELL_WIDTH)
 export const SPRITE_ROWS = Math.ceil((BODY.length + PADDING_TO_ALIGN_FACE_WITH_CELLS.top) / CELL_HEIGHT)
 
-export function pixelsOf(mood: Mood): readonly string[] {
+const TRANSPARENT = '.'
+
+export type Stride = 'stand' | 'left' | 'right'
+export type Pose = { stride: Stride; isFlipped: boolean }
+
+export const STANDING: Pose = { stride: 'stand', isFlipped: false }
+
+const LEG_TOP = BODY.findIndex(row => row.includes('thht..thht'))
+const LEG_BLOCKS = { left: { from: 11, to: 17, dx: -1 }, right: { from: 18, to: 24, dx: 1 } } as const
+
+const SKIN = 'fsq'
+const HANDS = {
+  left: { top: 34, bottom: 38, from: 4, to: 9 },
+  right: { top: 40, bottom: 43, from: 26, to: 30 },
+} as const
+
+function swingHand(rows: string[][], hand: 'left' | 'right', dy: number) {
+  const { top, bottom, from, to } = HANDS[hand]
+  const moved: { y: number; x: number; pixel: string }[] = []
+  for (let y = top; y <= bottom; y++) {
+    for (let x = from; x < to; x++) {
+      const pixel = rows[y]?.[x]
+      if (pixel === undefined || !SKIN.includes(pixel)) continue
+      moved.push({ y: y + dy, x, pixel })
+      rows[y][x] = TRANSPARENT
+    }
+  }
+  for (const { y, x, pixel } of moved) if (rows[y] !== undefined) rows[y][x] = pixel
+}
+
+function swingArms(rows: string[][], stride: 'left' | 'right') {
+  swingHand(rows, 'left', stride === 'left' ? 2 : -2)
+  swingHand(rows, 'right', stride === 'left' ? -2 : 2)
+}
+
+function liftLeg(rows: string[][], stride: 'left' | 'right') {
+  const { from, to, dx } = LEG_BLOCKS[stride]
+  const block = rows.slice(LEG_TOP).map(row => row.slice(from, to))
+  for (const row of rows.slice(LEG_TOP)) row.fill(TRANSPARENT, from, to)
+  block.forEach((line, dy) => {
+    const target = rows[LEG_TOP + dy - 1]
+    if (target === undefined || LEG_TOP + dy - 1 < LEG_TOP) return
+    line.forEach((pixel, i) => {
+      if (pixel !== TRANSPARENT) target[from + i + dx] = pixel
+    })
+  })
+}
+
+export function pixelsOf(mood: Mood, pose: Pose = STANDING): readonly string[] {
   const rows = BODY.map(row => [...row])
   for (const { x, y, rows: stamp } of FACES[mood]) {
     stamp.forEach((line, dy) => {
@@ -133,7 +181,11 @@ export function pixelsOf(mood: Mood): readonly string[] {
       row.splice(x, line.length, ...line)
     })
   }
-  return rows.map(row => row.join(''))
+  if (pose.stride !== 'stand') {
+    liftLeg(rows, pose.stride)
+    swingArms(rows, pose.stride)
+  }
+  return rows.map(row => (pose.isFlipped ? row.reverse() : row).join(''))
 }
 
 export const BLOCK_GLYPHS: readonly (readonly [glyph: string, shape: string])[] = [
@@ -165,7 +217,6 @@ const GLYPHS: readonly Glyph[] = BLOCK_GLYPHS.map(([glyph, shape]) => ({
   covers: [...shape.replaceAll(' ', '')].map(dot => dot === '#'),
 }))
 
-const TRANSPARENT = '.'
 const DEFAULT_COLOR = 0x01000000
 const MISMATCHED_SHAPE_COST = 300 ** 2
 

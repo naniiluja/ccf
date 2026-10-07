@@ -1,11 +1,60 @@
 # Changelog
 
-## 0.20.0
+## 0.22.0
 
 /ccf:check now pins the changed files and the scope BEFORE delegating to the checker agents, instead of each checker deciding on its own whether to run git. New read-only offline script `plugins/ccf/scripts/scope-diff.mjs` (with `hooks/lib/scope-diff.mjs` underneath, 11 unit tests) computes the changed list (committed vs base, uncommitted, untracked), reads the task's `Files to touch`, and prints `changed` / `declared` / `outOfScope` as JSON, always exiting 0. check.md step 2b runs it and passes the lists into both checkers' briefs; every `outOfScope` file now ends as a `FAIL: (scope)` in the merged report unless a checker quotes the criterion that requires it, and a test that fails in the check run but no checker reported becomes a `(check)` `FAIL:` with a `repro:`. The `FAIL:` rule is now explicit: a reproduced bug is evidence even when no rule names it. When git or the script fails, the report opens with `PARTIAL:` instead of silently passing.
 
 eval: not run: the paid `claude plugin eval` harness cannot sandbox Bash on this VM (no bwrap), so the 3 previously-unmeasurable cases (03-scope-creep, 07-scope-only, 09-unruled-bug) were verified manually against their fixtures: scope-diff returns the expected outOfScope on all 3, and the prompt rules now cover the repro-as-FAIL case. Verified with 627 node tests (626 pass, 1 skip) and tsc clean.
 
+## 0.21.1
+
+`ccf-scope-checker` emitted its findings as `FAIL: scope` while `/ccf:check` step 6 reads a parenthesized source tag right after the marker, `(spec)`, `(scope)` or `(spec+scope)`. The producer and the consumer disagreed on the tag form, so a scope finding could never be attributed to its reviewer. The example in the agent's return format now matches the contract step 6 defines, and a new test, `.claude/tests/scope-marker-contract.test.mjs`, asserts that every tag step 6 names appears in that position in both checker agents and that no `FAIL:` example carries a bare word in the tag slot. This is what eval case `07-scope-only` scored 0/3 on at run 2026-10-04 while cases 01 to 06 scored 3/3.
+
+eval: not run: the fix is a marker contract on a markdown prompt, proven by a latch seen RED before the fix; the paid eval still measures this on the next sandbox-capable run (PENDING.md A3).
+Two Jev test fixtures created an untracked `.env` and relied on `git ls-files --others --exclude-standard` (or `git add -A`) to see it. On any machine whose global gitignore lists `.env`, the file was filtered out before the hook under test ever read it, so the "names the file it left out" assertion failed. The suites were passing or failing depending on the developer's own git config. Each fixture now points its own repo's `core.excludesFile` at a nonexistent path, so the tests measure the hook and nothing about the host.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not the Jev fixtures; verified with the hook lib suite (549/549 both with and without a host global gitignore), the repo suite, the template suite and tsc exit 0.
+`isTestCommand` no longer reads a runner name inside a path, a quoted message or a branch name as a test run. It splits the command on `&&`, `||`, `;`, `|`, drops quoted text, and accepts a segment only when its program (or the target of `npx`, `bunx`, `pnpm dlx`, `node <bin>`) is a test runner, so `git commit -m "fix tsc exit code"` no longer turns off the "edited code, ran no tests" Stop nudge.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not hook command matching; verified with the verify-trace unit tests.
+
+## 0.21.0
+
+Pressing a wave row in Rem's dock now opens a second pane, `waves`, which the engine draws as a tab beside Rem: a summary line with a progress bar, then every wave with every task, its state and its full (wrapped) title. The dock's wave rows became plain buttons for this; with `uiWaves` off or no wave there is no button, so the tab cannot be opened. Closing the tab does not dismiss or undock Rem. A new pure `waveSummary` in `ui-model.mjs` feeds the counts. The dock rows lose their bold accent heading, because `Button` has no `bold` or `color`.
+
+Rem's AI voice prompt now follows Rem of Re:Zero (the oni maid of Roswaal's mansion, sister of Ram, the morning star, a start from zero) with a manner per mood, and still calls the user "ngài". `tsc --noEmit` exits 0 again: a `ReturnType<typeof toCorpusTask>` fix in `backtest-corpus.mjs`.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with claude plugin validate and the mod tests, not on a live pane.
+
+## 0.20.0
+
+Removed the `/ccf-board`, `/ccf-waves` and `/rem` commands: Rem now lives only in the dock, which already shows the board summary and the wave map. The standalone board and wave panes, the "waiting" toast that pointed to `/ccf-waves`, and the unused `boardCommands` and `progressSvg` helpers are gone. The `uiBoard` and `uiWaves` options stay and now only control what the dock shows. A person closing the dock still keeps Rem away until the next session.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with claude plugin validate and 39/39 plugin tests.
+
+## 0.19.4
+
+Rem docks again after `/clear` and `/new`: `session.start` now resets `hasTriedDock` (it stayed true from the first dock, so no automatic dock ever ran in the new session) and tries twice, at 2s and 5s, and the first prompt-area render that reports a fullscreen layout docks her at once, so a new session no longer waits for a timer.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with tsc (TypeScript 5), claude plugin validate and the repo suite, not on a live pane.
+
+## 0.19.3
+
+Rem now faces the way she walks: the base sprite looks left, so it is mirrored only while she moves right (0.19.2 had it backwards). The happy face keeps its eyes but smiles with a small closed mouth instead of a wide grin.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with tsc (TypeScript 5), claude plugin validate and the repo suite, not on a live pane.
+
+## 0.19.2
+
+The "Chưa có task nào" hint now sits under the mascot instead of above her bubble. Rem's walk now looks like a walk: the sprite is mirrored when she turns around, one leg lifts per step and the opposite hand swings (`Pose` and `liftLeg`/`swingArms` in sprite.ts). Fixed two Rems on screen after `/reload-plugins`: the dock pane now sets `ccf/isDocked` whenever it renders, so the copy above the chat box hides at once instead of after the next prompt.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with tsc (TypeScript 5), claude plugin validate and the ui-model unit tests (31/31). The sprite poses were checked by printing the pixel rows, not on a live pane.
+
+## 0.19.1
+
+Rem walks left and right inside the dock pane: every 500ms she takes one cell and turns around at either edge (`walkStep` in lib/ui-model.mjs, `ccf/walk` atom). She stands still when the pane is no wider than the sprite or when she is asleep.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with claude plugin validate and the ui-model unit tests (31/31). Two Jev script tests (finding-verify-script, completion-evidence) fail on a clean main too.
 
 ## 0.19.0
 

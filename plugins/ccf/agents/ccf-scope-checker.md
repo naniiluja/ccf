@@ -77,7 +77,7 @@ Use the words, never an icon. `FAIL:` marks a blocking defect, `WARN:` a non-blo
 - PASS: <file or criterion checked, and the evidence>
 
 ### Violations
-- FAIL: scope — `file:line` — <description> — rule: "<verbatim quote>" (`<source>:NN`) — confidence NN — <suggested fix>
+- FAIL: (scope) — `file:line` — <description> — rule: "<verbatim quote>" (`<source>:NN`) — confidence NN — <suggested fix>
 
 ### Should-reconsider
 - WARN: <non-blocking scope concern> — `file:line` — confidence NN

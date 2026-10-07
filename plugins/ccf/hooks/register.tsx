@@ -1,21 +1,23 @@
 import { atom, read, update } from 'claude-code'
 import type { CoreEngineInterface, Elements, PluginOptions, Register, RenderElement, StateDollar, ToolCallResult } from 'claude-code'
 
-import type { Feeling, Mood } from '../types'
-import { SPRITE_COLUMNS, SPRITE_ROWS, encode, pixelsOf } from './sprite'
-import { NO_TASK_LINE, claudeMdBudget, dockIsEmpty, dockLayout, isPlanWrite, liveAgents, planWavesRequest, scrollWindow, statusText, waveScroll, wavesFromOutput } from './lib/ui-model.mjs'
+import type { Feeling, Mood, Walk } from '../types'
+import { SPRITE_COLUMNS, SPRITE_ROWS, STANDING, encode, pixelsOf } from './sprite'
+import type { Pose } from './sprite'
+import { NO_TASK_LINE, claudeMdBudget, dockIsEmpty, dockLayout, isPlanWrite, liveAgents, planWavesRequest, scrollWindow, statusText, walkStep, waveScroll, wavesFromOutput } from './lib/ui-model.mjs'
 import {
-  BOARD,
   BUDGET_SCRIPT,
   COOK,
   SNAPSHOT_SCRIPT,
-  WAVES,
   WAVES_OFF_NOTICE,
   bandTree,
   dockBoardRows,
   dockDivider,
   dockWaveLines,
   dockWaveRows,
+  NO_WAVES_LINE,
+  wavesTabLines,
+  wavesTabRows,
   isWavesOffRun,
   isWavesRun,
   shellOutput,
@@ -26,13 +28,14 @@ import {
 import { GREETING, VOICE_DEBOUNCE_MS, agentDoneLine, commandActivity, commandResult, doneLine, isVoiceOn, promptActivity, remVoice, startLine, voiceReply, voiceRequest } from './lib/rem-lines.mjs'
 
 const PANE = 'rem'
+const PANE_WAVES = 'waves'
 const SLEEP_AFTER_MS = 10 * 60_000
 const LONG_TURN_MS = 30_000
 const HAIR = '#7fb2f0'
 const CCF_SCRIPT_LIMIT_MS = 15_000
 const CCF_NOTICE_MS = 8000
 const DOCK_COLUMNS = 40
-const GOODBYE = 'Rem đi nghỉ đây. Gõ /rem để gọi lại.'
+const WALK_TICK_MS = 500
 
 const KAOMOJI: Readonly<Record<Mood, string>> = {
   idle: '(・ω・)',
@@ -43,14 +46,21 @@ const KAOMOJI: Readonly<Record<Mood, string>> = {
   surprised: '(゜o゜)',
 }
 
-const cellsByMood = new Map<Mood, string>()
+const cellsByLook = new Map<string, string>()
 
-function cellsOf(mood: Mood): string {
-  const cached = cellsByMood.get(mood)
+function cellsOf(mood: Mood, pose: Pose): string {
+  const key = `${mood}:${pose.stride}:${pose.isFlipped}`
+  const cached = cellsByLook.get(key)
   if (cached !== undefined) return cached
-  const cells = encode(pixelsOf(mood))
-  cellsByMood.set(mood, cells)
+  const cells = encode(pixelsOf(mood, pose))
+  cellsByLook.set(key, cells)
   return cells
+}
+
+function poseOf(mood: Mood, { x, dir }: Walk, room: number): Pose {
+  if (room <= 0 || mood === 'sleepy') return STANDING
+  const stride = x % 4 === 1 ? 'left' : x % 4 === 3 ? 'right' : 'stand'
+  return { stride, isFlipped: dir === 1 }
 }
 
 const feeling = atom({ plugin: 'ccf', key: 'feeling' } as const, GREETING as Feeling)
@@ -64,6 +74,7 @@ const ccfAgents = atom({ plugin: 'ccf', key: 'agents' } as const, [])
 const ccfWavesSource = atom({ plugin: 'ccf', key: 'wavesSource' } as const, null)
 const hasNoticedWavesOff = atom({ plugin: 'ccf', key: 'hasNoticedWavesOff' } as const, false)
 const ccfWavesOffset = atom({ plugin: 'ccf', key: 'wavesOffset' } as const, 0)
+const remWalk = atom({ plugin: 'ccf', key: 'walk' } as const, { x: 0, dir: 1 } as Walk)
 
 type Engine = Pick<CoreEngineInterface, 'ui' | 'state'>
 type TerminalElements = Elements['terminal']
@@ -127,8 +138,10 @@ const Bubble = ({ Box, Text }: TerminalElements, line: string) => (
   </Box>
 )
 
-const Rem = ({ Raster }: TerminalElements, mood: Mood) => (
-  <Raster key="rem" columns={SPRITE_COLUMNS} rows={SPRITE_ROWS} cells={cellsOf(mood)} />
+const Rem = ({ Raster, Box }: TerminalElements, mood: Mood, x = 0, pose: Pose = STANDING) => (
+  <Box key="rem-walk" marginLeft={x}>
+    <Raster key="rem" columns={SPRITE_COLUMNS} rows={SPRITE_ROWS} cells={cellsOf(mood, pose)} />
+  </Box>
 )
 
 const StatusRow = ({ Text }: TerminalElements, status: string | null) =>
@@ -137,11 +150,11 @@ const StatusRow = ({ Text }: TerminalElements, status: string | null) =>
 const EmptyRow = ({ Text }: TerminalElements, isEmpty: boolean) =>
   isEmpty ? <Text key="no-task" dimColor wrap="truncate-end">{NO_TASK_LINE}</Text> : null
 
-const inColumn = (elements: TerminalElements, { mood, line }: Feeling, minHeight: number, band: RenderElement | null, status: string | null, isEmpty = false) => (
+const inColumn = (elements: TerminalElements, { mood, line }: Feeling, minHeight: number, band: RenderElement | null, status: string | null, x: number, pose: Pose, isEmpty = false) => (
   <elements.Box flexDirection="column" justifyContent="flex-end" minHeight={minHeight}>
-    {EmptyRow(elements, isEmpty)}
     {Bubble(elements, line)}
-    {Rem(elements, mood)}
+    {Rem(elements, mood, x, pose)}
+    {EmptyRow(elements, isEmpty)}
     {band}
     {StatusRow(elements, status)}
   </elements.Box>
@@ -196,16 +209,11 @@ async function loadWavesFromRun($: CoreEngineInterface, command: string, ran: To
     await update($, ccfWavesOffset, () => 0)
     await update($, ccfWaves, () => found)
     $.clock.after(1, () => refreshCcf($, options))
-    if (found.length === 0 || (await read($, isDocked))) return
-    const opened = await $.ui.open({ id: WAVES, title: 'CCF waves' })
-    if (!opened.isPlaced) $.ui.toast(`CCF wave map is waiting: ${opened.reason}. Type /ccf-waves to open it.`, { timeoutMs: CCF_NOTICE_MS })
   } catch {}
 }
 
 async function ccfSessionStart($: CoreEngineInterface, options: PluginOptions) {
   try {
-    if (options.uiBoard === true) await $.command.register({ name: BOARD, description: 'Open the CCF board: PLAN.md tasks by status and open PENDING.md risks' })
-    if (wantsWaves(options)) await $.command.register({ name: WAVES, description: 'Open the CCF wave map of the current /ccf:cook run' })
     if (wantsSnapshot(options)) $.clock.after(1, () => refreshCcf($, options))
   } catch {}
 }
@@ -243,8 +251,12 @@ async function dockTree(
   const lines = wantsWaves(options) ? dockWaveLines(await read($, ccfWaves), await read($, ccfAgents), snapshot) : []
   const band = options.uiBand === true ? ((bandTree(elements, snapshot, await read($, ccfWaves), await read($, ccfAgents), options) ?? null) as RenderElement | null) : null
   const status = options.uiStatusLine === true ? await read($, ccfStatusLine) : null
+  const room = Math.max(0, bodyColumns - SPRITE_COLUMNS)
+  const walk = await read($, remWalk)
+  const x = Math.min(walk.x, room)
+  const pose = poseOf(now.mood, walk, room)
   const isEmpty = (options.uiBoard === true || wantsWaves(options)) && dockIsEmpty(snapshot, lines.length)
-  if (isEmpty || (board === null && lines.length === 0)) return { tree: inColumn(elements, now, bodyRows, band, status, isEmpty), region: null }
+  if (isEmpty || (board === null && lines.length === 0)) return { tree: inColumn(elements, now, bodyRows, band, status, x, pose, isEmpty), region: null }
 
   const layout = dockLayout({ bodyRows, bodyColumns, line: now.line, hasBoard: board !== null, waveLineCount: lines.length, spriteRows: SPRITE_ROWS + (band !== null ? 1 : 0) + (status !== null ? 1 : 0) })
   const window = scrollWindow(lines.length, lines.length > 0 ? await read($, ccfWavesOffset) : 0, layout.waveRows)
@@ -252,10 +264,10 @@ async function dockTree(
   const tree = (
     <Box flexDirection="column" minHeight={bodyRows}>
       {board !== null ? [...dockBoardRows(elements, board, layout.boardRows), dockDivider(elements, bodyColumns, 'board-divider')] : null}
-      {lines.length > 0 ? [...dockWaveRows(elements, lines, window), dockDivider(elements, bodyColumns, 'wave-divider')] : null}
+      {lines.length > 0 ? [...dockWaveRows(elements, lines, window, () => { void $.ui.open({ id: PANE_WAVES, title: 'Waves' }) }), dockDivider(elements, bodyColumns, 'wave-divider')] : null}
       <Box flexGrow={1} />
       {Bubble(elements, now.line)}
-      {Rem(elements, now.mood)}
+      {Rem(elements, now.mood, x, pose)}
       {band}
       {StatusRow(elements, status)}
     </Box>
@@ -266,19 +278,13 @@ async function dockTree(
 export const register: Register = (on, options) => {
   registerCcfUi(on, options)
 
-  if (options.uiBoard === true) {
-    on('command.run', { command: 'ccf-board' }, async $ => {
-      await refreshCcf($, options)
-      const opened = await $.ui.open({ id: BOARD, title: 'CCF board' })
-      return { text: opened.isPlaced ? 'CCF board opened.' : `CCF board could not be placed: ${opened.reason}` }
-    })
-  }
-
   let lastActiveAt = 0
   let isTurnRunning = false
   let isFullscreenLayout = false
   let hasTriedDock = false
+  let hasAutoDocked = false
   let waveRegion: WaveRegion | null = null
+  let walkRoom = 0
   let lastPrompt: ReturnType<typeof promptActivity> = null
   let lastResult: Awaited<ReturnType<typeof reactToRun>> = null
   const dockColumns = options.uiBoard === true || wantsWaves(options) ? DOCK_COLUMNS : SPRITE_COLUMNS
@@ -286,17 +292,26 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await ccfSessionStart($, options)
     lastActiveAt = await $.clock.now()
-    await $.command.register({ name: 'rem', description: 'Gọi Rem ra đứng cạnh ô chat, hoặc cho Rem đi nghỉ' })
 
-    $.clock.after(2000, async () => {
-      if (await canDock($, isFullscreenLayout && !hasTriedDock)) await dock($, { isAsked: false, columns: dockColumns })
-    })
+    hasTriedDock = false
+    hasAutoDocked = false
+    for (const delayMs of [2000, 5000]) {
+      $.clock.after(delayMs, async () => {
+        if (await canDock($, isFullscreenLayout && !hasTriedDock)) await dock($, { isAsked: false, columns: dockColumns })
+      })
+    }
 
     $.clock.every(60_000, async () => {
       if (isTurnRunning) return
       if ((await $.clock.now()) - lastActiveAt < SLEEP_AFTER_MS) return
       if ((await read($, feeling)).mood === 'sleepy') return
-      await speak($, options, 'sleepy', 'Lâu quá không thấy bạn. Rem chợp mắt một chút nhé.')
+      await speak($, options, 'sleepy', 'Lâu quá không thấy ngài. Rem chợp mắt một chút nhé.')
+    })
+
+    $.clock.every(WALK_TICK_MS, async () => {
+      if (walkRoom <= 0 || !(await read($, isDocked))) return
+      if ((await read($, feeling)).mood === 'sleepy') return
+      await update($, remWalk, now => walkStep(now, walkRoom))
     })
 
     return next(e)
@@ -311,27 +326,6 @@ export const register: Register = (on, options) => {
       await dock($, { isAsked: true, columns: dockColumns })
     }
     return next(e)
-  })
-
-  on('command.run', { command: 'rem' }, async ($, e) => {
-    if (await read($, isDocked)) {
-      await update($, isDismissed, () => true)
-      await $.ui.close({ id: PANE })
-      return { text: GOODBYE }
-    }
-
-    if (e.presentation.isFullscreen) {
-      await update($, isDismissed, () => false)
-      return { text: (await dock($, { isAsked: true, columns: dockColumns })) ? 'Rem ra đứng cạnh ô chat rồi.' : 'Rem vẫn đứng phía trên ô chat, lý do ở thông báo vừa hiện.' }
-    }
-
-    const wasDismissed = await read($, isDismissed)
-    await update($, isDismissed, () => !wasDismissed)
-    return {
-      text: wasDismissed
-        ? 'Rem quay lại rồi. Giao diện này chưa phải fullscreen nên Rem đứng ở góc phải phía trên ô chat.'
-        : GOODBYE,
-    }
   })
 
   on('ui.close', async ($, e, next) => {
@@ -386,9 +380,9 @@ export const register: Register = (on, options) => {
     lastActiveAt = await $.clock.now()
 
     if (e.reason === 'aborted') {
-      await speak($, options, 'surprised', 'Ơ, bạn dừng Rem lại à?')
+      await speak($, options, 'surprised', 'Ơ, ngài dừng Rem lại à?')
     } else if (e.reason !== 'answer') {
-      await speak($, options, 'worried', 'Hình như có trục trặc rồi, bạn thử lại giúp Rem nhé.')
+      await speak($, options, 'worried', 'Hình như có trục trặc rồi, ngài thử lại giúp Rem nhé.')
     } else if (['thinking', 'happy', 'worried'].includes((await read($, feeling)).mood)) {
       await speak($, options, lastResult?.failed ? 'worried' : 'happy', doneLine(lastPrompt ?? undefined, lastResult?.outcome ?? ''))
     }
@@ -405,6 +399,11 @@ export const register: Register = (on, options) => {
 
     if (e.surface === 'terminal') {
       const elements = $.ui.resolve(e)
+      walkRoom = e.props.placement === 'dock' ? Math.max(0, e.props.bodyColumns - SPRITE_COLUMNS) : 0
+      if (e.props.placement === 'dock' && !(await read($, isDocked))) {
+        await update($, isDocked, () => true)
+        await showStatus($)
+      }
       if (e.props.placement !== 'dock') {
         waveRegion = null
         return inRow(elements, now)
@@ -416,6 +415,17 @@ export const register: Register = (on, options) => {
 
     const { Text } = $.ui.resolve(e)
     return <Text color={HAIR}>{KAOMOJI[now.mood]} Rem: {now.line}</Text>
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE_WAVES }, async ($, e) => {
+    const rows = wavesTabLines(await read($, ccfWaves), await read($, ccfAgents), await read($, ccfSnapshot))
+    if (e.surface === 'terminal') {
+      const elements = $.ui.resolve(e)
+      const { Box } = elements
+      return <Box flexDirection="column">{wavesTabRows(elements, rows, e.props.bodyColumns)}</Box>
+    }
+    const { Text } = $.ui.resolve(e)
+    return <Text>{rows.length === 0 ? NO_WAVES_LINE : `${rows.length} wave`}</Text>
   })
 
   on('ui.scroll', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
@@ -431,6 +441,12 @@ export const register: Register = (on, options) => {
     if (e.surface === 'terminal' && e.viewport !== undefined) isFullscreenLayout = e.viewport.isFullscreen === true
 
     const docked = await read($, isDocked)
+    if (isFullscreenLayout && !hasAutoDocked && !docked && !(await read($, isDismissed))) {
+      hasAutoDocked = true
+      $.clock.after(0, async () => {
+        if (await canDock($, true)) await dock($, { isAsked: false, columns: dockColumns })
+      })
+    }
     const band = e.surface === 'terminal' && docked ? null : await ccfBand($, e, $.ui.resolve(e) as TerminalElements, options)
     const now = await read($, feeling)
     const isHidden = e.props.hasSurvey || docked || (await read($, isDismissed))
