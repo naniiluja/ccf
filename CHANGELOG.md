@@ -2,9 +2,15 @@
 
 ## 0.21.1
 
+<<<<<<< HEAD
 `ccf-scope-checker` emitted its findings as `FAIL: scope` while `/ccf:check` step 6 reads a parenthesized source tag right after the marker, `(spec)`, `(scope)` or `(spec+scope)`. The producer and the consumer disagreed on the tag form, so a scope finding could never be attributed to its reviewer. The example in the agent's return format now matches the contract step 6 defines, and a new test, `.claude/tests/scope-marker-contract.test.mjs`, asserts that every tag step 6 names appears in that position in both checker agents and that no `FAIL:` example carries a bare word in the tag slot. This is what eval case `07-scope-only` scored 0/3 on at run 2026-10-04 while cases 01 to 06 scored 3/3.
 
 eval: not run: the fix is a marker contract on a markdown prompt, proven by a latch seen RED before the fix; the paid eval still measures this on the next sandbox-capable run (PENDING.md A3).
+=======
+`isTestCommand` no longer reads a runner name inside a path, a quoted message or a branch name as a test run. It splits the command on `&&`, `||`, `;`, `|`, drops quoted text, and accepts a segment only when its program (or the target of `npx`, `bunx`, `pnpm dlx`, `node <bin>`) is a test runner, so `git commit -m "fix tsc exit code"` no longer turns off the "edited code, ran no tests" Stop nudge.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not hook command matching; verified with the verify-trace unit tests.
+>>>>>>> origin/main
 
 ## 0.21.0
 
