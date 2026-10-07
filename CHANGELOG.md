@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.0
+
+/ccf:check now pins the changed files and the scope BEFORE delegating to the checker agents, instead of each checker deciding on its own whether to run git. New read-only offline script `plugins/ccf/scripts/scope-diff.mjs` (with `hooks/lib/scope-diff.mjs` underneath, 11 unit tests) computes the changed list (committed vs base, uncommitted, untracked), reads the task's `Files to touch`, and prints `changed` / `declared` / `outOfScope` as JSON, always exiting 0. check.md step 2b runs it and passes the lists into both checkers' briefs; every `outOfScope` file now ends as a `FAIL: (scope)` in the merged report unless a checker quotes the criterion that requires it, and a test that fails in the check run but no checker reported becomes a `(check)` `FAIL:` with a `repro:`. The `FAIL:` rule is now explicit: a reproduced bug is evidence even when no rule names it. When git or the script fails, the report opens with `PARTIAL:` instead of silently passing.
+
+eval: not run: the paid `claude plugin eval` harness cannot sandbox Bash on this VM (no bwrap), so the 3 previously-unmeasurable cases (03-scope-creep, 07-scope-only, 09-unruled-bug) were verified manually against their fixtures: scope-diff returns the expected outOfScope on all 3, and the prompt rules now cover the repro-as-FAIL case. Verified with 627 node tests (626 pass, 1 skip) and tsc clean.
+
 ## 0.21.1
 
 `ccf-scope-checker` emitted its findings as `FAIL: scope` while `/ccf:check` step 6 reads a parenthesized source tag right after the marker, `(spec)`, `(scope)` or `(spec+scope)`. The producer and the consumer disagreed on the tag form, so a scope finding could never be attributed to its reviewer. The example in the agent's return format now matches the contract step 6 defines, and a new test, `.claude/tests/scope-marker-contract.test.mjs`, asserts that every tag step 6 names appears in that position in both checker agents and that no `FAIL:` example carries a bare word in the tag slot. This is what eval case `07-scope-only` scored 0/3 on at run 2026-10-04 while cases 01 to 06 scored 3/3.
