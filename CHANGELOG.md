@@ -2,9 +2,15 @@
 
 ## 0.21.1
 
+<<<<<<< HEAD
+Two Jev test fixtures created an untracked `.env` and relied on `git ls-files --others --exclude-standard` (or `git add -A`) to see it. On any machine whose global gitignore lists `.env`, the file was filtered out before the hook under test ever read it, so the "names the file it left out" assertion failed. The suites were passing or failing depending on the developer's own git config. Each fixture now points its own repo's `core.excludesFile` at a nonexistent path, so the tests measure the hook and nothing about the host.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not the Jev fixtures; verified with the hook lib suite (549/549 both with and without a host global gitignore), the repo suite, the template suite and tsc exit 0.
+=======
 `isTestCommand` no longer reads a runner name inside a path, a quoted message or a branch name as a test run. It splits the command on `&&`, `||`, `;`, `|`, drops quoted text, and accepts a segment only when its program (or the target of `npx`, `bunx`, `pnpm dlx`, `node <bin>`) is a test runner, so `git commit -m "fix tsc exit code"` no longer turns off the "edited code, ran no tests" Stop nudge.
 
 eval: not run: the paid eval harness measures /ccf:check review quality, not hook command matching; verified with the verify-trace unit tests.
+>>>>>>> origin/main
 
 ## 0.21.0
 
