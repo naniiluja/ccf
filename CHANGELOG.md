@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.0
+
+Rem's AI voice now runs on Claude Haiku 5.5 (`claude-haiku-5-5`) instead of Haiku 4.5, which costs about 90% less per token ($0.10 / $0.50 per MTok against $1 / $5). The request sets `effort: "low"` and raises `maxTokens` from 120 to 1024, because Haiku 5.5 thinks by default and that thinking counts toward `max_tokens`; with 120 the rewrite could be cut off before any line came back. The 120-character guard on the returned line is unchanged, so Rem's lines are no longer than before. The request sends no `temperature`, `top_p` or `top_k`, which Haiku 5.5 rejects with a 400 at non-default values. The new tokenizer does not matter here: the mascot prompt is a few lines and the guard counts characters, not tokens. The `remAi` setting's description in `plugin.json` names the new model. The `ccf-budget` paid label in `prompt-standard.md` is re-measured to 109314.
+
+eval: not run: the paid eval measures /ccf:check review quality, not Rem's voice; verified with the hook lib unit tests (562/562), the UI mod's `claude plugin test` (43/43), the repo suite (72 pass, 1 skip) and tsc exit 0.
+
 ## 0.22.0
 
 /ccf:check now pins the changed files and the scope BEFORE delegating to the checker agents, instead of each checker deciding on its own whether to run git. New read-only offline script `plugins/ccf/scripts/scope-diff.mjs` (with `hooks/lib/scope-diff.mjs` underneath, 11 unit tests) computes the changed list (committed vs base, uncommitted, untracked), reads the task's `Files to touch`, and prints `changed` / `declared` / `outOfScope` as JSON, always exiting 0. check.md step 2b runs it and passes the lists into both checkers' briefs; every `outOfScope` file now ends as a `FAIL: (scope)` in the merged report unless a checker quotes the criterion that requires it, and a test that fails in the check run but no checker reported becomes a `(check)` `FAIL:` with a `repro:`. The `FAIL:` rule is now explicit: a reproduced bug is evidence even when no rule names it. When git or the script fails, the report opens with `PARTIAL:` instead of silently passing.
