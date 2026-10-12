@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.1
+
+`plan-mode-guard` now fails closed. Its `hooks.json` entry carries `"onFailure": "block"` (command hooks, Claude Code v2.1.295), so a guard that cannot start, times out or exits with an unexpected code now blocks the `/ccf:plan` prompt. Before, it let the prompt through and the plan-mode check was skipped without notice. The other six hooks only advise, so they stay fail-open and a broken nudge never gets in the user's way. A new test, `.claude/tests/hooks-json.test.mjs`, checks that the guard has `onFailure: "block"` and that no other hook does. It failed without the field and passes with it.
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not hook failure policy; verified with the new hooks.json test, the hook lib suite and claude plugin validate.
+
 ## 0.22.0
 
 /ccf:check now pins the changed files and the scope BEFORE delegating to the checker agents, instead of each checker deciding on its own whether to run git. New read-only offline script `plugins/ccf/scripts/scope-diff.mjs` (with `hooks/lib/scope-diff.mjs` underneath, 11 unit tests) computes the changed list (committed vs base, uncommitted, untracked), reads the task's `Files to touch`, and prints `changed` / `declared` / `outOfScope` as JSON, always exiting 0. check.md step 2b runs it and passes the lists into both checkers' briefs; every `outOfScope` file now ends as a `FAIL: (scope)` in the merged report unless a checker quotes the criterion that requires it, and a test that fails in the check run but no checker reported becomes a `(check)` `FAIL:` with a `repro:`. The `FAIL:` rule is now explicit: a reproduced bug is evidence even when no rule names it. When git or the script fails, the report opens with `PARTIAL:` instead of silently passing.
