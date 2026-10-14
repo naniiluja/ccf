@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.22.1
+## 0.23.0
 
-`plan-mode-guard` now fails closed. Its `hooks.json` entry carries `"onFailure": "block"` (command hooks, Claude Code v2.1.295), so a guard that cannot start, times out or exits with an unexpected code now blocks the `/ccf:plan` prompt. Before, it let the prompt through and the plan-mode check was skipped without notice. The other six hooks only advise, so they stay fail-open and a broken nudge never gets in the user's way. A new test, `.claude/tests/hooks-json.test.mjs`, checks that the guard has `onFailure: "block"` and that no other hook does. It failed without the field and passes with it.
+Rem now raises a native notification through `$.ui.notify` (new in Claude Code 2.1.295) when a long turn (over 30s) finishes or a `/ccf:cook` wave settles, so the user gets pinged on their own device instead of only seeing the toast in the terminal. The decision logic lives in a new pure lib, `plugins/ccf/hooks/lib/notify-gate.mjs`, per the ui-mod rule; `register.tsx` keeps a 60s per-kind cooldown and calls `$.ui.notify(...)` directly inside `try/catch`, because the 2.1.296 engine statically refuses any read of `$.ui` as a value, so no working backward-compat guard exists (recorded as open risk R11 in `.claude/plan/PENDING.md`).
 
-eval: not run: the paid eval harness measures /ccf:check review quality, not hook failure policy; verified with the new hooks.json test, the hook lib suite and claude plugin validate.
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with `claude plugin test .` 49/49 (6 new, including a "stays silent" case on an engine without the API), `node --test plugins/ccf/hooks/lib/*.test.mjs` 566/566, repo `tsc --noEmit` exit 0, `claude plugin validate ./plugins/ccf` pass. The notification reaching a real device is not yet observed (R12).
 
 ## 0.22.0
 
