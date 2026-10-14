@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.0
+
+Rem now raises a native notification through `$.ui.notify` (new in Claude Code 2.1.295) when a long turn (over 30s) finishes or a `/ccf:cook` wave settles, so the user gets pinged on their own device instead of only seeing the toast in the terminal. The decision logic lives in a new pure lib, `plugins/ccf/hooks/lib/notify-gate.mjs`, per the ui-mod rule; `register.tsx` keeps a 60s per-kind cooldown and calls `$.ui.notify(...)` directly inside `try/catch`, because the 2.1.296 engine statically refuses any read of `$.ui` as a value, so no working backward-compat guard exists (recorded as open risk R11 in `.claude/plan/PENDING.md`).
+
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with `claude plugin test .` 49/49 (6 new, including a "stays silent" case on an engine without the API), `node --test plugins/ccf/hooks/lib/*.test.mjs` 566/566, repo `tsc --noEmit` exit 0, `claude plugin validate ./plugins/ccf` pass. The notification reaching a real device is not yet observed (R12).
+
 ## 0.22.0
 
 /ccf:check now pins the changed files and the scope BEFORE delegating to the checker agents, instead of each checker deciding on its own whether to run git. New read-only offline script `plugins/ccf/scripts/scope-diff.mjs` (with `hooks/lib/scope-diff.mjs` underneath, 11 unit tests) computes the changed list (committed vs base, uncommitted, untracked), reads the task's `Files to touch`, and prints `changed` / `declared` / `outOfScope` as JSON, always exiting 0. check.md step 2b runs it and passes the lists into both checkers' briefs; every `outOfScope` file now ends as a `FAIL: (scope)` in the merged report unless a checker quotes the criterion that requires it, and a test that fails in the check run but no checker reported becomes a `(check)` `FAIL:` with a `repro:`. The `FAIL:` rule is now explicit: a reproduced bug is evidence even when no rule names it. When git or the script fails, the report opens with `PARTIAL:` instead of silently passing.

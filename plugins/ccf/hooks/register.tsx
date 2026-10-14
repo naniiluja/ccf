@@ -25,6 +25,7 @@ import {
   wantsSnapshot,
   wantsWaves,
 } from './ui/ccf-ui.mjs'
+import { NOTIFY_TITLE, isLongTurnDone, isPastCooldown, isWaveSettled, longTurnNotice } from './lib/notify-gate.mjs'
 import { GREETING, VOICE_DEBOUNCE_MS, agentDoneLine, commandActivity, commandResult, doneLine, isVoiceOn, promptActivity, remVoice, startLine, voiceReply, voiceRequest } from './lib/rem-lines.mjs'
 
 const PANE = 'rem'
@@ -121,6 +122,23 @@ async function showStatus($: Engine) {
 
 async function canDock($: StateDollar, isLayoutReady: boolean): Promise<boolean> {
   return isLayoutReady && !(await read($, isDocked)) && !(await read($, isDismissed))
+}
+
+type NotifyKind = 'turn' | 'wave'
+
+function sendNotice($: CoreEngineInterface, text: string) {
+  $.clock.after(0, async () => {
+    try {
+      await $.ui.notify(text, { title: NOTIFY_TITLE })
+    } catch {}
+  })
+}
+
+async function notifyOnce($: CoreEngineInterface, lastNoticeAt: Record<NotifyKind, number>, kind: NotifyKind, text: string) {
+  const now = await $.clock.now()
+  if (!isPastCooldown(lastNoticeAt[kind], now)) return
+  lastNoticeAt[kind] = now
+  sendNotice($, text)
 }
 
 async function reactToRun($: CoreEngineInterface, activity: Activity, ran: ToolCallResult, options: PluginOptions) {
@@ -287,6 +305,7 @@ export const register: Register = (on, options) => {
   let walkRoom = 0
   let lastPrompt: ReturnType<typeof promptActivity> = null
   let lastResult: Awaited<ReturnType<typeof reactToRun>> = null
+  const lastNoticeAt: Record<NotifyKind, number> = { turn: -Infinity, wave: -Infinity }
   const dockColumns = options.uiBoard === true || wantsWaves(options) ? DOCK_COLUMNS : SPRITE_COLUMNS
 
   on('session.start', async ($, e, next) => {
@@ -373,6 +392,7 @@ export const register: Register = (on, options) => {
       const finished = agents.find(agent => agent.agentId === e.agentId)
       const line = finished ? agentDoneLine(await read($, ccfWaves), agents, finished.taskId) : null
       if (line !== null) await speak($, options, 'thinking', line)
+      if (line !== null && finished && isWaveSettled(agents, finished.taskId)) await notifyOnce($, lastNoticeAt, 'wave', line)
       return next(e)
     }
 
@@ -387,8 +407,9 @@ export const register: Register = (on, options) => {
       await speak($, options, lastResult?.failed ? 'worried' : 'happy', doneLine(lastPrompt ?? undefined, lastResult?.outcome ?? ''))
     }
 
-    if (!e.isAborted && e.durationMs > LONG_TURN_MS) {
+    if (isLongTurnDone(e.isAborted, e.durationMs, LONG_TURN_MS)) {
       $.ui.toast(`Rem làm xong rồi (${Math.round(e.durationMs / 1000)}s)`)
+      await notifyOnce($, lastNoticeAt, 'turn', longTurnNotice(e.durationMs, e.reason))
     }
 
     return next(e)
