@@ -126,10 +126,11 @@ export function doneLine(activity = { command: "", label: "" }, outcome = "") {
   return DEFAULT_DONE_LINE;
 }
 
-export const VOICE_MODEL = "claude-haiku-4-5";
+export const VOICE_MODEL = "claude-haiku-5-5";
 export const VOICE_DEBOUNCE_MS = 600;
 export const VOICE_TIMEOUT_MS = 8000;
-const VOICE_MAX_TOKENS = 120;
+const VOICE_MAX_TOKENS = 1024;
+const VOICE_EFFORT = "low";
 const VOICE_MAX_CHARS = 120;
 const VOICE_CACHE_LIMIT = 100;
 const VOICE_SYSTEM = [
@@ -152,7 +153,7 @@ export function isVoiceOn(options = { remAi: true }) {
 }
 
 export function voiceRequest(mood = "idle", line = "") {
-  return { model: VOICE_MODEL, system: VOICE_SYSTEM, prompt: `Tâm trạng: ${mood}\nCâu gốc: ${line}`, maxTokens: VOICE_MAX_TOKENS, timeoutMs: VOICE_TIMEOUT_MS };
+  return { model: VOICE_MODEL, system: VOICE_SYSTEM, prompt: `Tâm trạng: ${mood}\nCâu gốc: ${line}`, maxTokens: VOICE_MAX_TOKENS, effort: VOICE_EFFORT, timeoutMs: VOICE_TIMEOUT_MS };
 }
 
 export function voiceReply(text = "", line = "") {

@@ -39,7 +39,7 @@
     "remAi": {
       "type": "boolean",
       "title": "AI-generated Rem lines",
-      "description": "Let Claude Haiku 4.5 reword Rem's line after a notable event (a command's outcome, a test or build result, the end of a turn, a cook agent starting or finishing). The fixed line shows at once and stays whenever the call fails, times out after 8 seconds, or drops a fact. Each rewrite is one small Haiku call on your account.",
+      "description": "Let Claude Haiku 5.5 reword Rem's line after a notable event (a command's outcome, a test or build result, the end of a turn, a cook agent starting or finishing). The fixed line shows at once and stays whenever the call fails, times out after 8 seconds, or drops a fact. Each rewrite is one small Haiku call on your account.",
       "default": true
     }
   }

@@ -38,9 +38,9 @@ const paneProps = (placement: 'dock' | 'inline') => ({
 
 const USAGE = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 
-function answerModel(on: On, asked: { model: string; prompt: string; timeoutMs?: number }[], reply: (prompt: string) => string | null) {
+function answerModel(on: On, asked: { model: string; prompt: string; timeoutMs?: number; effort?: string }[], reply: (prompt: string) => string | null) {
   on('model.complete', ($, e) => {
-    asked.push({ model: e.model, prompt: e.prompt, timeoutMs: e.timeoutMs })
+    asked.push({ model: e.model, prompt: e.prompt, timeoutMs: e.timeoutMs, effort: e.effort })
     const text = reply(e.prompt)
     return { value: text === null ? { isAnswered: false, reason: 'empty-reply', usage: USAGE } : { isAnswered: true, text, usage: USAGE } }
   })
@@ -239,7 +239,7 @@ describe('rem-mascot', () => {
 
   test('AI: câu cố định hiện ngay, câu Haiku thay vào sau debounce', async ($, on) => {
     const clock = mock.clock(on)
-    const asked: { model: string; prompt: string; timeoutMs?: number }[] = []
+    const asked: { model: string; prompt: string; timeoutMs?: number; effort?: string }[] = []
     answerModel(on, asked, () => 'Yay, npm test 5 pass rồi, Rem vui quá!')
     greenRuns(on)
 
@@ -249,7 +249,8 @@ describe('rem-mascot', () => {
 
     await clock.advance(600)
     expect(asked.length).toBe(1)
-    expect(asked[0]?.model).toBe('claude-haiku-4-5')
+    expect(asked[0]?.model).toBe('claude-haiku-5-5')
+    expect(asked[0]?.effort).toBe('low')
     expect(asked[0]?.timeoutMs).toBe(8000)
     expect(asked[0]?.prompt).toMatch(/npm test xanh rồi \(5 pass\)/)
     expect(await remSays($, /Yay, npm test 5 pass rồi, Rem vui quá!/)).toBe(true)

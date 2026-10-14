@@ -17,7 +17,7 @@ Lazy rule: deliberately NOT `@import`ed from `CLAUDE.md`, so it costs nothing un
 ## What it is
 - `hooks/hooks.json` declares `"modules": ["./register.tsx"]` next to `"hooks"`. That loads a Claude Code function-hooks module (early access API, see the `plugin-authoring` skill), a SEPARATE artifact from the 7 `.mjs` command hooks.
 - Entry `hooks/register.tsx` (Rem mascot, dock pane `rem`, walk, mood, voice) imports `hooks/sprite.ts` (pixel art), `hooks/ui/ccf-ui.mjs` (band, board, wave rows, Waves tab rows) and the pure libs `hooks/lib/ui-model.mjs`, `hooks/lib/rem-lines.mjs`. `$.state` atoms are typed in `types/index.d.ts`, which `plugin.json` names in `"types"`.
-- `plugin.json` `userConfig` toggles it: `uiBand`, `uiBoard`, `uiWaves`, `uiStatusLine` default `false`; `remAi` defaults `true` and makes one Claude Haiku 4.5 call on the user's account per notable event. That default is the one CCF network call that is not opt-in.
+- `plugin.json` `userConfig` toggles it: `uiBand`, `uiBoard`, `uiWaves`, `uiStatusLine` default `false`; `remAi` defaults `true` and makes one Claude Haiku 5.5 call (effort `low`) on the user's account per notable event. That default is the one CCF network call that is not opt-in.
 - Two panes: `rem` (the dock) and `waves` (a tab, opened only when the person presses a wave row; the engine draws the tab strip once two panes are open, so the mod draws no back button). Closing `waves` must not set `isDismissed`: the `ui.close` handler acts only on `id === 'rem'`.
 
 ## Rules

@@ -73,12 +73,12 @@ test("doneLine: activity and last result when known, the old line otherwise", ()
   assert.equal(doneLine(undefined, ""), DEFAULT_DONE_LINE);
 });
 
-test("voiceRequest asks Haiku 4.5 for one rewritten line with a time limit and no effort", () => {
+test("voiceRequest asks Haiku 5.5 at low effort for one rewritten line with a time limit and room to think", () => {
   const request = voiceRequest("happy", "node --test xanh rồi (5 pass)! Rem mừng lắm.");
-  assert.equal(request.model, "claude-haiku-4-5");
+  assert.equal(request.model, "claude-haiku-5-5");
   assert.equal(request.timeoutMs, VOICE_TIMEOUT_MS);
-  assert.ok(request.maxTokens > 0 && request.maxTokens <= 200);
-  assert.equal("effort" in request, false);
+  assert.equal(request.maxTokens, 1024);
+  assert.equal(request.effort, "low");
   assert.match(request.system, /Rem/);
   assert.match(request.system, /gọi người dùng là ngài/);
   assert.doesNotMatch(request.system, /gọi người dùng là bạn/);
