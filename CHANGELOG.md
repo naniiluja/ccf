@@ -2,9 +2,9 @@
 
 ## 0.23.0
 
-Rem's AI voice now runs on Claude Haiku 5.5 (`claude-haiku-5-5`) instead of Haiku 4.5, which costs about 90% less per token ($0.10 / $0.50 per MTok against $1 / $5). The request sets `effort: "low"` and raises `maxTokens` from 120 to 1024, because Haiku 5.5 thinks by default and that thinking counts toward `max_tokens`; with 120 the rewrite could be cut off before any line came back. The 120-character guard on the returned line is unchanged, so Rem's lines are no longer than before. The request sends no `temperature`, `top_p` or `top_k`, which Haiku 5.5 rejects with a 400 at non-default values. The new tokenizer does not matter here: the mascot prompt is a few lines and the guard counts characters, not tokens. The `remAi` setting's description in `plugin.json` names the new model. The `ccf-budget` paid label in `prompt-standard.md` is re-measured to 109314.
+Rem now raises a native notification through `$.ui.notify` (new in Claude Code 2.1.295) when a long turn (over 30s) finishes or a `/ccf:cook` wave settles, so the user gets pinged on their own device instead of only seeing the toast in the terminal. The decision logic lives in a new pure lib, `plugins/ccf/hooks/lib/notify-gate.mjs`, per the ui-mod rule; `register.tsx` keeps a 60s per-kind cooldown and calls `$.ui.notify(...)` directly inside `try/catch`, because the 2.1.296 engine statically refuses any read of `$.ui` as a value, so no working backward-compat guard exists (recorded as open risk R11 in `.claude/plan/PENDING.md`).
 
-eval: not run: the paid eval measures /ccf:check review quality, not Rem's voice; verified with the hook lib unit tests (562/562), the UI mod's `claude plugin test` (43/43), the repo suite (72 pass, 1 skip) and tsc exit 0.
+eval: not run: the paid eval harness measures /ccf:check review quality, not UI mods; verified with `claude plugin test .` 49/49 (6 new, including a "stays silent" case on an engine without the API), `node --test plugins/ccf/hooks/lib/*.test.mjs` 566/566, repo `tsc --noEmit` exit 0, `claude plugin validate ./plugins/ccf` pass. The notification reaching a real device is not yet observed (R12).
 
 ## 0.22.0
 
