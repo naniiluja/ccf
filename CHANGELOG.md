@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.0
+
+Removed the UI mod by owner command: the Rem mascot and dock, the Waves tab, the CCF band, board, wave map and status line, the AI-generated Rem lines and the native notifications are gone. Deleted `hooks/register.tsx`, `hooks/sprite.ts`, `hooks/ui/`, `types/`, `tests/*.test.tsx`, `plugins/ccf/tsconfig.json`, the mod-only libs `ui-model`, `ui-snapshot`, `rem-lines` and `notify-gate` (with their tests), `.claude/rules/ui-mod.md`, the `"modules"` entry in `hooks/hooks.json` and every `userConfig` option (`uiBand`, `uiBoard`, `uiWaves`, `uiStatusLine`, `remAi`) in `plugin.json`, so the plugin no longer makes any Haiku call on the user's account. The 7 `.mjs` hooks, commands, agents, skills and scripts are unchanged. Also untracked a stray `node_modules` symlink that pointed at another machine's path; `.gitignore` now ignores `node_modules` as a file too.
+
+eval: not run: removes the UI mod only; /ccf:check and the checker prompts are unchanged, so review quality cannot have moved; verified with claude plugin validate, tsc and the node suites.
+
 ## 0.23.0
 
 Rem now raises a native notification through `$.ui.notify` (new in Claude Code 2.1.295) when a long turn (over 30s) finishes or a `/ccf:cook` wave settles, so the user gets pinged on their own device instead of only seeing the toast in the terminal. The decision logic lives in a new pure lib, `plugins/ccf/hooks/lib/notify-gate.mjs`, per the ui-mod rule; `register.tsx` keeps a 60s per-kind cooldown and calls `$.ui.notify(...)` directly inside `try/catch`, because the 2.1.296 engine statically refuses any read of `$.ui` as a value, so no working backward-compat guard exists (recorded as open risk R11 in `.claude/plan/PENDING.md`).
