@@ -75,3 +75,13 @@ test("description still leads with Use when", () => {
 test("run_in_background: false appears on exactly 2 lines", () => {
   assert.equal(SKILL.split("\n").filter((l) => l.includes("run_in_background: false")).length, 2);
 });
+
+test("step 4 sends shared-file edits to one final task and step 5 runs plan-lint (092)", () => {
+  const step4 = SKILL.slice(SKILL.indexOf("## 4."), SKILL.indexOf("## 5."));
+  assert.match(step4, /Give all of them to ONE final task that `Depends on` the feature tasks/);
+  assert.match(step4, /N tasks into N waves of one/);
+  const step5 = SKILL.slice(SKILL.indexOf("## 5."), SKILL.indexOf("### 5b"));
+  assert.match(step5, /plan-lint\.mjs/);
+  assert.match(step5, /`hotspot-collision`/);
+  assert.ok(existsSync(join(ROOT, "plugins", "ccf", "scripts", "plan-lint.mjs")));
+});
