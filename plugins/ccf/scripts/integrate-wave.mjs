@@ -60,6 +60,43 @@ function cleanUp(dir = "", merged = [""]) {
   return { removed, kept };
 }
 
+function sweepHarnessBranches(dir = "") {
+  const checkedOut = worktreesByBranch(git(dir, ["worktree", "list", "--porcelain"]).stdout);
+  const names = git(dir, ["for-each-ref", "--format=%(refname:short)", "refs/heads/worktree-agent-*"]).stdout.split(/\r?\n/).filter(Boolean);
+  const removed = [];
+  const kept = [];
+  for (const branch of names) {
+    if (checkedOut.has(branch)) {
+      kept.push({ branch, reason: "checked-out-in-a-worktree" });
+      continue;
+    }
+    if (git(dir, ["merge-base", "--is-ancestor", branch, "HEAD"]).status !== 0) {
+      kept.push({ branch, reason: "not-an-ancestor-of-HEAD" });
+      continue;
+    }
+    const d = git(dir, ["branch", "-d", branch]);
+    if (d.status === 0) removed.push(branch);
+    else kept.push({ branch, reason: `branch-delete-refused: ${d.stderr.trim()}` });
+  }
+  return { removed, kept };
+}
+
+function wrapUp(dir = "", merged = [""]) {
+  const { removed, kept } = cleanUp(dir, merged);
+  const pruned = git(dir, ["worktree", "prune"]).status === 0;
+  const harness = sweepHarnessBranches(dir);
+  return { removed, kept, harnessRemoved: harness.removed, harnessKept: harness.kept, pruned };
+}
+
+function stopReport(dir = "", merged = [{ branch: "" }], order = [""], failedBranch = "", stage = "") {
+  const cleaned = wrapUp(dir, merged.map((x) => x.branch));
+  const mergedNames = new Set(merged.map((x) => x.branch));
+  const unmerged = order
+    .filter((b) => !mergedNames.has(b))
+    .map((branch) => ({ branch, reason: branch === failedBranch ? `failed-${stage}` : "not-merged" }));
+  return { ...cleaned, kept: [...cleaned.kept, ...unmerged] };
+}
+
 try {
   const argv = process.argv.slice(2);
   const dir = readFlagValue(argv, "--dir") ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -80,17 +117,18 @@ try {
     const m = git(dir, ["merge", "--no-ff", "--no-edit", "-m", `merge ${branch} (ccf wave)`, branch]);
     if (m.status !== 0) {
       git(dir, ["merge", "--abort"]);
-      done({ ok: false, applied: merged.length > 0, start, merged, failed: { branch, stage: "merge", output: tail(m.stdout + m.stderr) }, note: "Worktrees kept; later branches were not merged." });
+      const cleaned = stopReport(dir, merged, order, branch, "merge");
+      done({ ok: false, applied: merged.length > 0, start, merged, failed: { branch, stage: "merge", output: tail(m.stdout + m.stderr) }, ...cleaned, note: "Branches already merged were cleaned; the failed branch and the later ones were not merged and their worktrees are kept." });
     }
     const t = runTests(dir, testCommand);
     if (!t.passed) {
       git(dir, ["reset", "--hard", before]);
-      done({ ok: false, applied: merged.length > 0, start, merged, failed: { branch, stage: "test", output: t.output }, note: `HEAD reset to ${before}, the last green merge. Worktrees kept; later branches were not merged.` });
+      const cleaned = stopReport(dir, merged, order, branch, "test");
+      done({ ok: false, applied: merged.length > 0, start, merged, failed: { branch, stage: "test", output: t.output }, ...cleaned, note: `HEAD reset to ${before}, the last green merge. Branches already merged were cleaned; the failed branch and the later ones were not merged and their worktrees are kept.` });
     }
     merged.push({ branch, mergeSha: git(dir, ["rev-parse", "HEAD"]).stdout.trim() });
   }
-  const { removed, kept } = cleanUp(dir, merged.map((m) => m.branch));
-  done({ ok: true, applied: true, start, merged, removed, kept });
+  done({ ok: true, applied: true, start, merged, ...wrapUp(dir, merged.map((m) => m.branch)) });
 } catch {
   done({ ok: false, reason: "error" });
 }

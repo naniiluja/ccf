@@ -83,3 +83,40 @@ test("cook.md: each wave task is written in-progress in PLAN.md before any inlin
 test("cook.md: the one confirmation names the per-wave in-progress commit", () => {
   assert.match(COOK, /one `PLAN\.md` in-progress commit and one `PLAN\.md` status commit per wave/);
 });
+
+const INIT = readFileSync(join(ROOT, "plugins", "ccf", "commands", "init.md"), "utf8");
+const step = (from = "", to = "") => COOK.slice(COOK.indexOf(from), COOK.indexOf(to));
+
+test("cook.md step 2 lints the plan first and asks the user before running a serial backlog (094)", () => {
+  const two = step("## 2. Compute the waves", "### 2b.");
+  const lint = two.indexOf("plan-lint.mjs");
+  assert.ok(lint >= 0 && lint < two.indexOf("plan-waves.mjs\" --tasks"));
+  assert.match(two, /`hotspot-collision`/);
+  assert.match(two, /`serial`/);
+  assert.match(two, /ask once with `AskUserQuestion`/);
+  assert.match(two, /never choose for the user/);
+  assert.match(step("## 1. Read the backlog", "## 2. Compute the waves"), /plan-lint\.mjs/);
+});
+
+test("cook.md step 3 states the minimum Claude Code build and warns when .worktreeinclude is missing (094)", () => {
+  const three = step("## 3. Preconditions", "## 4. Run one wave");
+  assert.match(three, /2\.1\.302/);
+  assert.match(three, /`\.worktreeinclude`/);
+});
+
+test("cook.md step 4d reads the cleanup fields of integrate-wave instead of sweeping branches by prose (094)", () => {
+  const four = step("### 4d.", "### 4e.");
+  assert.match(four, /`removed`/);
+  assert.match(four, /`harnessKept`/);
+  assert.match(four, /git worktree prune/);
+  assert.doesNotMatch(four, /delete the harness's leftover/);
+  assert.match(four, /git worktree list/);
+});
+
+test("init.md writes .worktreeinclude from its template in both flows, and the template lists the env files (094)", () => {
+  assert.equal(INIT.split("templates/root/.worktreeinclude.tmpl").length - 1, 2);
+  const template = readFileSync(join(ROOT, "plugins", "ccf", "templates", "root", ".worktreeinclude.tmpl"), "utf8");
+  assert.match(template, /^\.env$/m);
+  assert.match(template, /^\.env\.local$/m);
+  assert.match(template, /gitignored/);
+});

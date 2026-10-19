@@ -139,3 +139,31 @@ test("check.md step 6 names the condition under which a FAIL: stands", () => {
   const section = step6Merge(read(checkPath));
   assert.match(section, /`FAIL:` stands only with a score of 80 or more and either a verbatim rule or criterion quote or a `repro:`/);
 });
+
+const updatespecPath = join(pluginRoot, "commands", "updatespec.md");
+
+test("refuter has exactly three verdict words and says when UNRESOLVED applies (090)", () => {
+  const { fields, body } = frontmatter(read(agentPath));
+  assert.match(fields.description, /REFUTED, STANDS or UNRESOLVED/);
+  const returnFormat = body.slice(body.lastIndexOf("## Return format"));
+  assert.match(returnFormat, /UNRESOLVED `?<file:line>/);
+  assert.match(returnFormat, /the one fact that would settle it/);
+  const decide = body.slice(body.indexOf("4. **Decide.**"), body.indexOf("## Say when you did not finish"));
+  assert.match(decide, /`UNRESOLVED` applies only when/);
+  assert.match(decide, /No evidence means `STANDS`/);
+  const verdictWords = new Set(returnFormat.match(/^(REFUTED|STANDS|UNRESOLVED) /gm).map((w) => w.trim()));
+  assert.deepEqual([...verdictWords].sort(), ["REFUTED", "STANDS", "UNRESOLVED"]);
+});
+
+test("check.md step 6c keeps an UNRESOLVED finding standing and read-only (090)", () => {
+  const section = step6c(read(checkPath));
+  assert.match(section, /For an `UNRESOLVED <file:line>` verdict, append `Unresolved \(ccf-finding-refuter\): <its fact>` to the matching `FAIL:` line/);
+  assert.match(section, /the finding keeps standing/);
+  assert.match(section, /`FAIL:` line count before and after this step is equal/);
+});
+
+test("updatespec.md copies each Unresolved fact into the accepted risk row (090)", () => {
+  const text = read(updatespecPath);
+  assert.match(text, /ending in `Unresolved \(ccf-finding-refuter\): <fact>`/);
+  assert.match(text, /put each such fact into the row's `What` cell/);
+});

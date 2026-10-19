@@ -104,7 +104,7 @@ test("integrate-wave: preview merges nothing; --apply merges each branch --no-ff
   assert.equal(git(dir, ["branch", "--list", "worktree-ccf-*"]), "");
 });
 
-test("integrate-wave: a red test on the merged result resets to the last green merge and keeps every worktree", () => {
+test("integrate-wave: a red test on the merged result resets to the last green merge and keeps the failed worktree", () => {
   const dir = makeRepo();
   worktreeWith(dir, "worktree-ccf-wave-test-101", { "src/a.js": "a\n" });
   const b = worktreeWith(dir, "worktree-ccf-wave-test-102", { "src/b.js": "broken\n" });
@@ -132,4 +132,76 @@ test("integrate-wave: the preflight gate blocks --apply (out-of-scope file), and
   assert.deepEqual(run("integrate-wave.mjs", clean, ["--apply"]).out.blockers, ["no-test-command"]);
   write(clean, { "check.mjs": "// edited\n" });
   assert.deepEqual(run("integrate-wave.mjs", clean, ["--apply", "--test", "node check.mjs"]).out.blockers, ["dirty-tree"]);
+});
+
+test("integrate-wave: after a red merge the already merged green branch is cleaned, the failed and the unmerged ones are kept (093)", () => {
+  const dir = makeRepo();
+  const a = worktreeWith(dir, "worktree-ccf-wave-test-101", { "src/a.js": "a\n" });
+  const b = worktreeWith(dir, "worktree-ccf-wave-test-102", { "src/b.js": "broken\n" });
+  const c = worktreeWith(dir, "worktree-ccf-wave-test-103", { "src/c.js": "c\n" });
+  const r = run("integrate-wave.mjs", dir, ["--apply", "--test", "node check.mjs"]);
+  assert.equal(r.out.ok, false);
+  assert.equal(r.out.failed.branch, "worktree-ccf-wave-test-102");
+  assert.deepEqual(r.out.removed, ["worktree-ccf-wave-test-101"]);
+  assert.ok(!existsSync(a), "the merged green worktree is gone");
+  assert.ok(existsSync(b) && existsSync(c), "the failed and the unmerged worktrees stay");
+  assert.equal(git(dir, ["for-each-ref", "--format=%(refname:short)", "refs/heads/worktree-ccf-wave-test-10*"]).split("\n").join(","), "worktree-ccf-wave-test-102,worktree-ccf-wave-test-103");
+  assert.match(r.out.note, /cleaned/);
+  assert.deepEqual(r.out.kept.map((k) => `${k.branch}:${k.reason}`).sort(), ["worktree-ccf-wave-test-102:failed-test", "worktree-ccf-wave-test-103:not-merged"]);
+});
+
+test("integrate-wave: --apply deletes merged, unchecked-out harness worktree-agent-* branches and keeps the rest with a reason (093)", () => {
+  const dir = makeRepo();
+  worktreeWith(dir, "worktree-ccf-wave-test-101", { "src/a.js": "a\n" });
+  git(dir, ["branch", "worktree-agent-stale", "main"]);
+  git(dir, ["worktree", "add", "-q", "-b", "worktree-agent-live", join(dir, ".claude", "worktrees", "live"), "main"]);
+  git(dir, ["checkout", "-q", "-b", "worktree-agent-ahead", "main"]);
+  write(dir, { "ahead.txt": "x\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "ahead"]);
+  git(dir, ["checkout", "-q", "main"]);
+  const r = run("integrate-wave.mjs", dir, ["--apply", "--test", "node check.mjs"]);
+  assert.equal(r.out.ok, true, JSON.stringify(r.out));
+  assert.deepEqual(r.out.harnessRemoved, ["worktree-agent-stale"]);
+  assert.deepEqual(r.out.harnessKept.map((k) => k.branch).sort(), ["worktree-agent-ahead", "worktree-agent-live"]);
+  assert.match(git(dir, ["branch", "--list", "worktree-agent-*"]), /worktree-agent-live/);
+  assert.ok(!git(dir, ["branch", "--list", "worktree-agent-*"]).includes("stale"));
+});
+
+test("integrate-wave: --apply prunes the registration of a deleted worktree directory; a preview touches nothing (093)", () => {
+  const dir = makeRepo();
+  worktreeWith(dir, "worktree-ccf-wave-test-101", { "src/a.js": "a\n" });
+  const gone = join(dir, ".claude", "worktrees", "gone");
+  git(dir, ["worktree", "add", "-q", "-b", "worktree-agent-gone", gone, "main"]);
+  rmSync(gone, { recursive: true, force: true });
+  git(dir, ["branch", "worktree-agent-stale", "main"]);
+  const listed = () => git(dir, ["worktree", "list", "--porcelain"]);
+  assert.match(listed(), /gone/);
+  run("integrate-wave.mjs", dir);
+  assert.match(listed(), /gone/, "preview leaves the stale registration");
+  assert.match(git(dir, ["branch", "--list", "worktree-agent-stale"]), /stale/, "preview leaves the harness branch");
+  const r = run("integrate-wave.mjs", dir, ["--apply", "--test", "node check.mjs"]);
+  assert.equal(r.out.pruned, true);
+  assert.doesNotMatch(listed(), /gone/);
+  assert.deepEqual([...r.out.harnessRemoved].sort(), ["worktree-agent-gone", "worktree-agent-stale"], "a harness branch whose worktree directory vanished is swept in the same run");
+});
+
+test("integrate-wave: a harness branch merged only into its upstream, not into HEAD, is kept (093)", () => {
+  const dir = makeRepo();
+  worktreeWith(dir, "worktree-ccf-wave-test-101", { "src/a.js": "a\n" });
+  const remote = mkdtempSync(join(tmpdir(), "ccf-remote-"));
+  dirs.push(remote);
+  git(remote, ["init", "-q", "--bare"]);
+  git(dir, ["remote", "add", "origin", remote]);
+  git(dir, ["checkout", "-q", "-b", "worktree-agent-up", "main"]);
+  write(dir, { "up.txt": "x\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "up"]);
+  git(dir, ["push", "-q", "-u", "origin", "worktree-agent-up"]);
+  git(dir, ["checkout", "-q", "main"]);
+  const r = run("integrate-wave.mjs", dir, ["--apply", "--test", "node check.mjs"]);
+  assert.equal(r.out.ok, true, JSON.stringify(r.out));
+  assert.deepEqual(r.out.harnessRemoved, []);
+  assert.deepEqual(r.out.harnessKept.map((k) => `${k.branch}:${k.reason}`), ["worktree-agent-up:not-an-ancestor-of-HEAD"]);
+  assert.match(git(dir, ["branch", "--list", "worktree-agent-up"]), /worktree-agent-up/);
 });
