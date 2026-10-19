@@ -151,10 +151,22 @@ test("criteriaChanged: nothing to freeze or nothing to compare is never a change
 
 test("assessPreflight: a branch that rewrote its own acceptance criteria blocks as criteria-changed", () => {
   const main = TASK("- [ ] It does A");
-  const r = assessPreflight({ gitOk: true, branches: [B("7", { uiText: main, taskText: TASK("- [ ] It does less") })], pairs: [] });
+  const own = { actual: ["src/7.js", ".claude/plan/task-7-x.md"] };
+  const r = assessPreflight({ gitOk: true, branches: [B("7", { ...own, uiText: main, taskText: TASK("- [ ] It does less") })], pairs: [] });
   assert.deepEqual(r.problems, [{ kind: "criteria-changed", branch: "worktree-ccf-it-7", id: "7" }]);
-  const ticked = assessPreflight({ gitOk: true, branches: [B("7", { uiText: main, taskText: TASK("- [x] It does A") })], pairs: [] });
+  const ticked = assessPreflight({ gitOk: true, branches: [B("7", { ...own, uiText: main, taskText: TASK("- [x] It does A") })], pairs: [] });
   assert.deepEqual(ticked.problems, []);
+});
+
+test("assessPreflight: criteria edited on main after the branch forked do not blame a branch that never touched its task file", () => {
+  const r = assessPreflight({ gitOk: true, branches: [B("7", { uiText: TASK("- [ ] edited later on main"), taskText: TASK("- [ ] It does A") })], pairs: [] });
+  assert.deepEqual(r.problems, []);
+});
+
+test("assertionBalance: Rust and Go assertions count; a regex .test(name) call and prose with 'it (' do not", () => {
+  assert.deepEqual(assertionBalance(DIFF("-    assert_eq!(a, b);", "-    assert!(ok);", "-    require.Equal(t, a, b)", "-    t.Errorf(\"bad %v\", x)", "-    t.Fatal(err)")), { removed: 5, added: 0 });
+  assert.deepEqual(assertionBalance(DIFF("-  if (/x/.test(name)) return;", "-  // it (the helper) returns early", "-  const t = test(name);")), { removed: 0, added: 0 });
+  assert.deepEqual(assertionBalance(DIFF("-  it('does a thing', () => {", "-  test(\"another\", async () => {")), { removed: 2, added: 0 });
 });
 
 // ---- existing tests must not get weaker (task 091) -----------------------------------------------

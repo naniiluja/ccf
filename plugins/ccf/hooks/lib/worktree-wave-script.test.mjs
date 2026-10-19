@@ -147,6 +147,7 @@ test("integrate-wave: after a red merge the already merged green branch is clean
   assert.ok(existsSync(b) && existsSync(c), "the failed and the unmerged worktrees stay");
   assert.equal(git(dir, ["for-each-ref", "--format=%(refname:short)", "refs/heads/worktree-ccf-wave-test-10*"]).split("\n").join(","), "worktree-ccf-wave-test-102,worktree-ccf-wave-test-103");
   assert.match(r.out.note, /cleaned/);
+  assert.deepEqual(r.out.kept.map((k) => `${k.branch}:${k.reason}`).sort(), ["worktree-ccf-wave-test-102:failed-test", "worktree-ccf-wave-test-103:not-merged"]);
 });
 
 test("integrate-wave: --apply deletes merged, unchecked-out harness worktree-agent-* branches and keeps the rest with a reason (093)", () => {

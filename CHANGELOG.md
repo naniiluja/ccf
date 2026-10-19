@@ -8,7 +8,7 @@ Worktrees no longer pile up. `integrate-wave.mjs --apply` now removes the worktr
 
 Merge gate. `worktree-preflight.mjs` blocks `criteria-changed` (a branch rewrote its own `## Acceptance criteria`; ticking a box is fine) and `existing-test-weakened` (more assertion-like lines removed than added across a branch's test files; moving a test is fine). `ccf-finding-refuter` returns a third verdict, `UNRESOLVED <file:line> — <fact>`: the `FAIL:` keeps standing with the fact appended, and `/ccf:updatespec` copies it into the `risk` row of an accepted task. `/ccf:init` writes a `.worktreeinclude` (so a gitignored `.env` reaches the task agents), and `/ccf:cook` checks for Claude Code 2.1.302 or newer. The spec records the 2.1.284 to 2.1.303 audit (`architecture.md`), with what is observed and what is unverified marked apart.
 
-eval: not run: the paid eval measures `/ccf:check` review quality and the refuter's verdict change is an annotation that leaves the `FAIL:` count unchanged; it needs a sandbox-capable host (PENDING A6). Verified with the hook lib suite 535/535, the repo suite, `tsc --noEmit` and `claude plugin validate`; a live `/ccf:cook` run is not yet observed (PENDING A7).
+eval: not run: the paid eval measures `/ccf:check` review quality and the refuter's verdict change is an annotation that leaves the `FAIL:` count unchanged; it needs a sandbox-capable host (PENDING A6). Verified with the hook lib suite 537/537, the repo suite, `tsc --noEmit` and `claude plugin validate`; a live `/ccf:cook` run is not yet observed (PENDING A7).
 
 ## 0.24.0
 

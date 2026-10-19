@@ -29,7 +29,7 @@ Every agent inherits the host project's tools, MCP servers and skills (no per-ag
 | `ccf-spec-writer` | Drafts spec text from a decisions summary; the main thread writes the files. |
 | `ccf-spec-checker` | Fresh-context reviewer used by `/ccf:check`. |
 | `ccf-scope-checker` | Second reviewer in `/ccf:check`: does the diff stay inside the task's files and criteria, and cover all of them. |
-| `ccf-finding-refuter` | Runs in `/ccf:check` step 6c when a `FAIL:` exists: tries to disprove each one with quoted evidence and returns REFUTED or STANDS. A refuted finding stays `FAIL:` with a note. |
+| `ccf-finding-refuter` | Runs in `/ccf:check` step 6c when a `FAIL:` exists: tries to disprove each one with quoted evidence and returns REFUTED, STANDS or UNRESOLVED (a fact it could not observe). A refuted or unresolved finding stays `FAIL:` with a note. |
 
 ## Hooks
 

@@ -84,6 +84,15 @@ function wrapUp(dir = "", merged = [""]) {
   return { removed, kept, harnessRemoved: harness.removed, harnessKept: harness.kept, pruned };
 }
 
+function stopReport(dir = "", merged = [{ branch: "" }], order = [""], failedBranch = "", stage = "") {
+  const cleaned = wrapUp(dir, merged.map((x) => x.branch));
+  const mergedNames = new Set(merged.map((x) => x.branch));
+  const unmerged = order
+    .filter((b) => !mergedNames.has(b))
+    .map((branch) => ({ branch, reason: branch === failedBranch ? `failed-${stage}` : "not-merged" }));
+  return { ...cleaned, kept: [...cleaned.kept, ...unmerged] };
+}
+
 try {
   const argv = process.argv.slice(2);
   const dir = readFlagValue(argv, "--dir") ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
@@ -104,13 +113,13 @@ try {
     const m = git(dir, ["merge", "--no-ff", "--no-edit", "-m", `merge ${branch} (ccf wave)`, branch]);
     if (m.status !== 0) {
       git(dir, ["merge", "--abort"]);
-      const cleaned = wrapUp(dir, merged.map((x) => x.branch));
+      const cleaned = stopReport(dir, merged, order, branch, "merge");
       done({ ok: false, applied: merged.length > 0, start, merged, failed: { branch, stage: "merge", output: tail(m.stdout + m.stderr) }, ...cleaned, note: "Branches already merged were cleaned; the failed branch and the later ones were not merged and their worktrees are kept." });
     }
     const t = runTests(dir, testCommand);
     if (!t.passed) {
       git(dir, ["reset", "--hard", before]);
-      const cleaned = wrapUp(dir, merged.map((x) => x.branch));
+      const cleaned = stopReport(dir, merged, order, branch, "test");
       done({ ok: false, applied: merged.length > 0, start, merged, failed: { branch, stage: "test", output: t.output }, ...cleaned, note: `HEAD reset to ${before}, the last green merge. Branches already merged were cleaned; the failed branch and the later ones were not merged and their worktrees are kept.` });
     }
     merged.push({ branch, mergeSha: git(dir, ["rev-parse", "HEAD"]).stdout.trim() });

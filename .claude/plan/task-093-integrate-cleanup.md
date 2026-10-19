@@ -12,8 +12,8 @@
 After `integrate-wave.mjs --apply`, no worktree or branch whose work is already merged into HEAD is left behind, on a green run AND on a stopped one, and stale worktree registrations are pruned.
 
 ## Acceptance criteria (verifiable)
-- [x] When a merge or test stage fails, branches already merged and green are removed (worktree, then `branch -d`) and reported under `removed`; the failed branch and the unmerged ones are kept and listed under `kept` with a reason.
-- [x] On every `--apply` outcome the script also deletes leftover `worktree-agent-*` branches that are fully merged into HEAD and checked out nowhere (`git branch -d`, never `-D`), reporting a refusal under `kept`.
+- [x] When a merge or test stage fails, branches already merged and green are removed (worktree, then `branch -d`) and reported under `removed`; the failed branch (`failed-<stage>`) and the unmerged ones (`not-merged`) are kept and listed under `kept` with that reason.
+- [x] On every `--apply` outcome the script also deletes leftover `worktree-agent-*` branches that are fully merged into HEAD and checked out nowhere (`git branch -d`, never `-D`), reporting a refusal under `harnessKept`.
 - [x] It runs `git worktree prune` at the end and reports `pruned: true`; a prunable registration from a deleted directory disappears.
 - [x] A dry run (no `--apply`) removes nothing; the existing green-run behavior and JSON fields are unchanged.
 

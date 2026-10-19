@@ -58,7 +58,7 @@ export function outOfScope(actual, declared) {
 }
 
 const CRITERIA_HEADING = /^##\s+Acceptance criteria\b/i;
-const ASSERTION_LINE = /(^|[^\w])(assert\w*|expect|test|it|should)\s*[.(]|^\s*assert\s/;
+const ASSERTION_LINE = /(^|[^\w$.])(assert\w*!?\s*[.(]|expect\s*[.(]|should\.\w|require\.\w+\s*[.(]|(it|test|describe)\s*\(\s*['"`]|t\.(Error|Errorf|Fatal|Fatalf|Fail|FailNow)\s*\()|^\s*assert\s/;
 
 export function normalizedCriteria(text = "") {
   if (typeof text !== "string") return null;
@@ -94,7 +94,7 @@ export function assertionBalance(diffText = "") {
 
 /**
  * @typedef {{ branch: string, id: string | null, taskFile: string | null, declared: string[], actual: string[], mergeClean: boolean | null }} PreflightBranch
- * @typedef {{ kind: string, branch?: string, id?: string | null, with?: string, files?: string[], removed?: number, added?: number }} PreflightProblem
+ * @typedef {{ kind: string, branch?: string, id?: string | null, with?: string, files?: string[] }} PreflightProblem
  */
 
 /**
@@ -133,9 +133,11 @@ export function assessPreflight(input) {
       if (extra.length) problems.push({ kind: "out-of-scope", branch, id, files: extra });
     }
     if (readRuntimeEvidence(b.taskText, b.uiText).state === "empty") problems.push({ kind: "missing-runtime-evidence", branch, id });
-    if (criteriaChanged(b.uiText, b.taskText)) problems.push({ kind: "criteria-changed", branch, id });
+    const touchedTaskFile = Array.isArray(b.actual) && b.actual.map(String).includes(`.claude/plan/${b.taskFile}`);
+    if (touchedTaskFile && criteriaChanged(b.uiText, b.taskText)) problems.push({ kind: "criteria-changed", branch, id });
     const { removed, added } = assertionBalance(b.testDiff);
-    if (removed > added) problems.push({ kind: "existing-test-weakened", branch, id, removed, added });
+    const weakened = { kind: "existing-test-weakened", branch, id, removed, added };
+    if (removed > added) problems.push(weakened);
     if (b.mergeClean === false) problems.push({ kind: "merge-conflict", branch, id });
     else if (b.mergeClean !== true) problems.push({ kind: "git-error", branch, id });
   }
