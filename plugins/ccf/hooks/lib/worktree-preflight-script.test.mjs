@@ -185,3 +185,42 @@ test("worktree-preflight: not a git repository → exit 0 with a reason, never a
   assert.equal(r.out.ok, false);
   assert.equal(r.out.reason, "not-a-git-repo");
 });
+
+test("worktree-preflight: a branch that rewrites its own acceptance criteria blocks (criteria-changed); ticking a box does not", () => {
+  const dir = makeRepo();
+  write(dir, { ".claude/plan/task-101-a.md": "# 101\n\n## Acceptance criteria\n- [ ] does A\n\n## Files to touch\n- src/a.js\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "criteria"]);
+  branchWith(dir, "worktree-ccf-it-101", { "src/a.js": "a\n", ".claude/plan/task-101-a.md": "# 101\n\n## Acceptance criteria\n- [x] does A\n\n## Files to touch\n- src/a.js\n" });
+  assert.deepEqual(run(dir).out.problems, []);
+  git(dir, ["branch", "-D", "worktree-ccf-it-101"]);
+  branchWith(dir, "worktree-ccf-it-101", { "src/a.js": "a\n", ".claude/plan/task-101-a.md": "# 101\n\n## Acceptance criteria\n- [x] does nothing much\n\n## Files to touch\n- src/a.js\n" });
+  const r = run(dir);
+  assert.equal(r.out.ready, false);
+  assert.deepEqual(kinds(r.out), ["criteria-changed"]);
+});
+
+test("worktree-preflight: a branch that deletes assertions of an existing test blocks (existing-test-weakened)", () => {
+  const dir = makeRepo();
+  write(dir, { "test/a.test.js": "import assert from 'node:assert';\nassert.equal(1, 1);\nassert.equal(2, 2);\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "tests"]);
+  branchWith(dir, "worktree-ccf-it-101", { "src/a.js": "a\n", "test/a.test.js": "import assert from 'node:assert';\nassert.equal(1, 1);\n" });
+  const r = run(dir);
+  assert.equal(r.out.ready, false);
+  assert.deepEqual(r.out.problems.map((p) => [p.kind, p.removed, p.added]), [["existing-test-weakened", 1, 0]]);
+});
+
+test("worktree-preflight: moving a test file keeps its assertions, so it is not weakened", () => {
+  const dir = makeRepo();
+  write(dir, { "test/a.test.js": "assert.equal(1, 1);\nassert.equal(2, 2);\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "tests"]);
+  git(dir, ["checkout", "-q", "-b", "worktree-ccf-it-101", "main"]);
+  git(dir, ["mv", "test/a.test.js", "test/b.test.js"]);
+  write(dir, { "src/a.js": "a\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "move"]);
+  git(dir, ["checkout", "-q", "main"]);
+  assert.deepEqual(run(dir).out.problems, []);
+});

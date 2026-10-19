@@ -57,9 +57,44 @@ export function outOfScope(actual, declared) {
   return actual.map(String).filter((f) => !isTestPath(f) && !decl.some((d) => pathsClash(d, f)));
 }
 
+const CRITERIA_HEADING = /^##\s+Acceptance criteria\b/i;
+const ASSERTION_LINE = /(^|[^\w])(assert\w*|expect|test|it|should)\s*[.(]|^\s*assert\s/;
+
+export function normalizedCriteria(text = "") {
+  if (typeof text !== "string") return null;
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((l) => CRITERIA_HEADING.test(l));
+  if (start < 0) return null;
+  const out = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^##\s/.test(line)) break;
+    const clean = line.replace(/^\s*(?:[-*+]|\d+[.)])\s+/, "").replace(/^\[[ xX]\]\s*/, "").replace(/\s+/g, " ").trim();
+    if (clean) out.push(clean);
+  }
+  return out;
+}
+
+export function criteriaChanged(mainText = "", branchText = "") {
+  const frozen = normalizedCriteria(mainText);
+  if (!frozen || typeof branchText !== "string" || branchText === "") return false;
+  const now = normalizedCriteria(branchText);
+  return !now || now.length !== frozen.length || now.some((c, i) => c !== frozen[i]);
+}
+
+export function assertionBalance(diffText = "") {
+  const balance = { removed: 0, added: 0 };
+  if (typeof diffText !== "string") return balance;
+  for (const line of diffText.split(/\r?\n/)) {
+    if (line.startsWith("---") || line.startsWith("+++")) continue;
+    const sign = line[0];
+    if ((sign === "-" || sign === "+") && ASSERTION_LINE.test(line.slice(1))) balance[sign === "-" ? "removed" : "added"]++;
+  }
+  return balance;
+}
+
 /**
  * @typedef {{ branch: string, id: string | null, taskFile: string | null, declared: string[], actual: string[], mergeClean: boolean | null }} PreflightBranch
- * @typedef {{ kind: string, branch?: string, id?: string | null, with?: string, files?: string[] }} PreflightProblem
+ * @typedef {{ kind: string, branch?: string, id?: string | null, with?: string, files?: string[], removed?: number, added?: number }} PreflightProblem
  */
 
 /**
@@ -98,6 +133,9 @@ export function assessPreflight(input) {
       if (extra.length) problems.push({ kind: "out-of-scope", branch, id, files: extra });
     }
     if (readRuntimeEvidence(b.taskText, b.uiText).state === "empty") problems.push({ kind: "missing-runtime-evidence", branch, id });
+    if (criteriaChanged(b.uiText, b.taskText)) problems.push({ kind: "criteria-changed", branch, id });
+    const { removed, added } = assertionBalance(b.testDiff);
+    if (removed > added) problems.push({ kind: "existing-test-weakened", branch, id, removed, added });
     if (b.mergeClean === false) problems.push({ kind: "merge-conflict", branch, id });
     else if (b.mergeClean !== true) problems.push({ kind: "git-error", branch, id });
   }

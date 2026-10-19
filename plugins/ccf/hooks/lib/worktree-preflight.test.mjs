@@ -5,7 +5,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { taskIdFromBranch, isTestPath, outOfScope, assessPreflight } from "./worktree-preflight.mjs";
+import { taskIdFromBranch, isTestPath, outOfScope, assessPreflight, normalizedCriteria, criteriaChanged, assertionBalance } from "./worktree-preflight.mjs";
 
 // ---- taskIdFromBranch --------------------------------------------------------------------------
 
@@ -121,5 +121,67 @@ test("assessPreflight: ran, not run with a reason, a non-UI task and no task tex
     undefined,
   ]) {
     assert.deepEqual(assessPreflight({ gitOk: true, branches: [B("7", { taskText })], pairs: [] }).problems, [], String(taskText));
+  }
+});
+
+// ---- criteria freeze (task 091) ------------------------------------------------------------------
+
+const TASK = (criteria) => `# 7\n\n## Goal\nx\n\n## Acceptance criteria (verifiable)\n${criteria}\n\n## Files to touch\n- src/7.js\n`;
+
+test("normalizedCriteria: the section body without list markers, checkbox state or spacing; null without the section", () => {
+  assert.deepEqual(normalizedCriteria(TASK("- [ ] It   does  A\n* [x] It does B\n\n1. It does C")), ["It does A", "It does B", "It does C"]);
+  assert.equal(normalizedCriteria("# 7\n## Goal\nx\n"), null);
+  for (const g of [undefined, null, 5]) assert.equal(normalizedCriteria(g), null);
+});
+
+test("criteriaChanged: ticking a box or reflowing is NOT a change; rewording, adding or removing a criterion is", () => {
+  const main = TASK("- [ ] It does A\n- [ ] It does B");
+  assert.equal(criteriaChanged(main, TASK("- [x] It does A\n- [x] It  does B")), false);
+  assert.equal(criteriaChanged(main, TASK("- [ ] It does A\n- [ ] It does B, mostly")), true);
+  assert.equal(criteriaChanged(main, TASK("- [ ] It does A")), true);
+  assert.equal(criteriaChanged(main, TASK("- [ ] It does A\n- [ ] It does B\n- [ ] It does C")), true);
+  assert.equal(criteriaChanged(main, "# 7\n## Goal\nx\n"), true, "the branch dropped the section");
+});
+
+test("criteriaChanged: nothing to freeze or nothing to compare is never a change", () => {
+  assert.equal(criteriaChanged("# 7\n## Goal\nx\n", TASK("- [ ] anything")), false);
+  for (const g of [undefined, null, 5, ""]) assert.equal(criteriaChanged(g, g), false);
+  assert.equal(criteriaChanged(TASK("- [ ] A"), undefined), false);
+});
+
+test("assessPreflight: a branch that rewrote its own acceptance criteria blocks as criteria-changed", () => {
+  const main = TASK("- [ ] It does A");
+  const r = assessPreflight({ gitOk: true, branches: [B("7", { uiText: main, taskText: TASK("- [ ] It does less") })], pairs: [] });
+  assert.deepEqual(r.problems, [{ kind: "criteria-changed", branch: "worktree-ccf-it-7", id: "7" }]);
+  const ticked = assessPreflight({ gitOk: true, branches: [B("7", { uiText: main, taskText: TASK("- [x] It does A") })], pairs: [] });
+  assert.deepEqual(ticked.problems, []);
+});
+
+// ---- existing tests must not get weaker (task 091) -----------------------------------------------
+
+const DIFF = (...lines) => ["diff --git a/test/a.test.js b/test/a.test.js", "--- a/test/a.test.js", "+++ b/test/a.test.js", "@@ -1,3 +1,3 @@", ...lines].join("\n");
+
+test("assertionBalance: counts assertion-like lines removed and added in a unified diff, ignoring file headers", () => {
+  assert.deepEqual(assertionBalance(DIFF("-  assert.equal(f(1), 2);", "-  expect(x).toBe(1);", "+  assert.equal(f(1), 3);", "-  const y = 1;")), { removed: 2, added: 1 });
+  assert.deepEqual(assertionBalance(DIFF("-test('a', () => {", "+test('a renamed', () => {")), { removed: 1, added: 1 });
+  assert.deepEqual(assertionBalance(DIFF("-    assert x == 1")), { removed: 1, added: 0 });
+  for (const g of [undefined, null, 5, ""]) assert.deepEqual(assertionBalance(g), { removed: 0, added: 0 });
+});
+
+test("assessPreflight: more assertions removed than added in test files blocks as existing-test-weakened", () => {
+  const weak = DIFF("-  assert.equal(f(1), 2);", "-  assert.equal(f(2), 4);", "+  assert.equal(f(1), 2);");
+  const r = assessPreflight({ gitOk: true, branches: [B("7", { testDiff: weak })], pairs: [] });
+  assert.deepEqual(r.problems, [{ kind: "existing-test-weakened", branch: "worktree-ccf-it-7", id: "7", removed: 2, added: 1 }]);
+});
+
+test("assessPreflight: a rewritten, renamed or only-extended test is not weakened; neither is deleting a non-assertion line", () => {
+  for (const testDiff of [
+    DIFF("-  assert.equal(f(1), 2);", "+  assert.equal(f(1), 3);"),
+    DIFF("-  assert.equal(f(1), 2);", "+  assert.equal(f(1), 2);", "+  assert.equal(f(2), 4);"),
+    DIFF("-  const y = 1;", "+  const y = 2;"),
+    "",
+    undefined,
+  ]) {
+    assert.deepEqual(assessPreflight({ gitOk: true, branches: [B("7", { testDiff })], pairs: [] }).problems, [], String(testDiff));
   }
 });

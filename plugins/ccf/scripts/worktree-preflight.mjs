@@ -21,7 +21,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { extractFiles } from "../hooks/lib/slice-check.mjs";
-import { taskIdFromBranch, assessPreflight } from "../hooks/lib/worktree-preflight.mjs";
+import { taskIdFromBranch, isTestPath, assessPreflight } from "../hooks/lib/worktree-preflight.mjs";
 import { readRuntimeEvidence } from "../hooks/lib/runtime-evidence.mjs";
 
 const NOTE =
@@ -103,7 +103,9 @@ try {
     // file into a declared path cannot hide the source from the scope and overlap checks.
     const actual = base ? lines(git(dir, ["diff", "--name-only", "--no-renames", base, branch]).stdout) : [];
     const mergeClean = gitOk && base ? mergesCleanly(dir, into, branch) : null;
-    return { branch, id, taskFile, declared, actual, mergeClean, taskText, uiText: mainText };
+    const testPaths = actual.filter(isTestPath);
+    const testDiff = base && testPaths.length ? git(dir, ["diff", "-U0", "--no-renames", base, branch, "--", ...testPaths]).stdout : "";
+    return { branch, id, taskFile, declared, actual, mergeClean, taskText, uiText: mainText, testDiff };
   });
 
   /** @type {{ a: string, b: string, clean: boolean | null }[]} */
@@ -116,7 +118,7 @@ try {
   }
 
   const verdict = assessPreflight({ gitOk, branches, pairs });
-  const report = branches.map(({ taskText, uiText, ...b }) => ({ ...b, runtimeEvidence: readRuntimeEvidence(taskText, uiText) }));
+  const report = branches.map(({ taskText, uiText, testDiff, ...b }) => ({ ...b, runtimeEvidence: readRuntimeEvidence(taskText, uiText) }));
   done({ ok: true, ready: verdict.ready, into, branches: report, pairs, problems: verdict.problems, note: NOTE });
 } catch {
   done({ ok: false, reason: "error" });
