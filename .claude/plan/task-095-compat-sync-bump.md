@@ -13,7 +13,7 @@ The spec states what is now true (13 scripts, the new preflight problems, the cl
 
 ## Acceptance criteria (verifiable)
 - [x] `package.json`, `plugin.json` and `marketplace.json` read 0.25.0 and `CHANGELOG.md` has a 0.25.0 entry ending in `eval: not run: <reason>`.
-- [x] `tooling.md` documents `plan-lint.mjs` and the new preflight problems and cleanup fields; `architecture.md`, `CLAUDE.md` and `README.md` say 13 scripts.
+- [x] `tooling.md` documents `plan-lint.mjs` and the new preflight problems and cleanup fields; `architecture.md`, `CLAUDE.md`, `plugins/ccf/README.md`, `README.md` and its two translations say 13 scripts.
 - [x] The audit facts are written once, with versions: auto mode default (2.1.284), `UserPromptSubmit` before skill expansion (2.1.299), `onFailure` (2.1.295, not valid on `Stop`), per-call `effort` on the Agent tool (2.1.292), worktree isolation fix (2.1.302), fork and foreground defaults conflicting between docs and changelog (2.1.302), `sonnet` alias is Sonnet 5.5; what was observed live is marked observed and the rest is marked unverified.
 - [x] `CLAUDE.md` is under 200 lines and 12KB, and the `ccf-budget` label equals the measured paid total (`context-budget.test.mjs` green).
 - [x] PENDING A5 is closed with the measured suite result; every task of this iteration is `in-review` before `/ccf:updatespec`.
@@ -28,6 +28,8 @@ The spec states what is now true (13 scripts, the new preflight problems, the cl
 - `CHANGELOG.md`
 - `plugins/ccf/README.md`
 - `README.md`
+- `README.vi.md` — script count (was 11, stale before this iteration)
+- `README.zh-CN.md` — script count (was 11, stale before this iteration)
 - `CLAUDE.md`
 - `.claude/rules/architecture.md`
 - `.claude/rules/components.md`
