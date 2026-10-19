@@ -12,11 +12,11 @@
 The spec states what is now true (13 scripts, the new preflight problems, the cleanup behavior, the root cause of sequential waves, the Claude Code 2.1.284 to 2.1.303 facts) and the plugin is at 0.25.0.
 
 ## Acceptance criteria (verifiable)
-- [ ] `package.json`, `plugin.json` and `marketplace.json` read 0.25.0 and `CHANGELOG.md` has a 0.25.0 entry ending in `eval: not run: <reason>`.
-- [ ] `tooling.md` documents `plan-lint.mjs` and the new preflight problems and cleanup fields; `architecture.md`, `CLAUDE.md` and `README.md` say 13 scripts.
-- [ ] The audit facts are written once, with versions: auto mode default (2.1.284), `UserPromptSubmit` before skill expansion (2.1.299), `onFailure` (2.1.295, not valid on `Stop`), per-call `effort` on the Agent tool (2.1.292), worktree isolation fix (2.1.302), fork and foreground defaults conflicting between docs and changelog (2.1.302), `sonnet` alias is Sonnet 5.5; what was observed live is marked observed and the rest is marked unverified.
-- [ ] `CLAUDE.md` is under 200 lines and 12KB, and the `ccf-budget` label equals the measured paid total (`context-budget.test.mjs` green).
-- [ ] PENDING A5 is closed with the measured suite result; every task of this iteration is `in-review` before `/ccf:updatespec`.
+- [x] `package.json`, `plugin.json` and `marketplace.json` read 0.25.0 and `CHANGELOG.md` has a 0.25.0 entry ending in `eval: not run: <reason>`.
+- [x] `tooling.md` documents `plan-lint.mjs` and the new preflight problems and cleanup fields; `architecture.md`, `CLAUDE.md` and `README.md` say 13 scripts.
+- [x] The audit facts are written once, with versions: auto mode default (2.1.284), `UserPromptSubmit` before skill expansion (2.1.299), `onFailure` (2.1.295, not valid on `Stop`), per-call `effort` on the Agent tool (2.1.292), worktree isolation fix (2.1.302), fork and foreground defaults conflicting between docs and changelog (2.1.302), `sonnet` alias is Sonnet 5.5; what was observed live is marked observed and the rest is marked unverified.
+- [x] `CLAUDE.md` is under 200 lines and 12KB, and the `ccf-budget` label equals the measured paid total (`context-budget.test.mjs` green).
+- [x] PENDING A5 is closed with the measured suite result; every task of this iteration is `in-review` before `/ccf:updatespec`.
 
 ## Test first (write before implementing)
 `.claude/tests/changelog.test.mjs` goes red as soon as `package.json` reads 0.25.0 without an entry; `context-budget.test.mjs` is red until the label is moved.

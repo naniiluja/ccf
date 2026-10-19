@@ -12,10 +12,10 @@
 When the refuter can neither disprove nor confirm a `FAIL:` because one fact is unobservable, it says which fact (`UNRESOLVED`), the `FAIL:` keeps standing, and `/ccf:updatespec` copies that fact into the `risk` row it writes when a task is `accepted`.
 
 ## Acceptance criteria (verifiable)
-- [ ] The refuter's return format has exactly three verdict words, `REFUTED`, `STANDS` and `UNRESOLVED <file:line> — <the one fact that would settle it>`, and its decision step says when `UNRESOLVED` applies (a needed fact the refuter could not observe) and that no evidence still means `STANDS`.
-- [ ] `check.md` step 6c leaves the `FAIL:` count unchanged for `UNRESOLVED` (the finding stands and is not downgraded), appends `Unresolved (ccf-finding-refuter): <fact>` to that `FAIL:` line, and keeps `/ccf:check` read-only.
-- [ ] `updatespec.md`, in the step that writes the `risk` row before marking `accepted`, tells the model to put each `Unresolved (ccf-finding-refuter)` fact of the accepted task into the row's `What` cell.
-- [ ] `.claude/tests/check-refuter.test.mjs` pins all three: the three verdict words in the agent, the unchanged count and the appended text in `check.md`, and the `updatespec.md` sentence; seen RED before the prompts change.
+- [x] The refuter's return format has exactly three verdict words, `REFUTED`, `STANDS` and `UNRESOLVED <file:line> — <the one fact that would settle it>`, and its decision step says when `UNRESOLVED` applies (a needed fact the refuter could not observe) and that no evidence still means `STANDS`.
+- [x] `check.md` step 6c leaves the `FAIL:` count unchanged for `UNRESOLVED` (the finding stands and is not downgraded), appends `Unresolved (ccf-finding-refuter): <fact>` to that `FAIL:` line, and keeps `/ccf:check` read-only.
+- [x] `updatespec.md`, in the step that writes the `risk` row before marking `accepted`, tells the model to put each `Unresolved (ccf-finding-refuter)` fact of the accepted task into the row's `What` cell.
+- [x] `.claude/tests/check-refuter.test.mjs` pins all three: the three verdict words in the agent, the unchanged count and the appended text in `check.md`, and the `updatespec.md` sentence; seen RED before the prompts change.
 
 ## Test first (write before implementing)
 Extend `.claude/tests/check-refuter.test.mjs` with the four assertions above and run it red.

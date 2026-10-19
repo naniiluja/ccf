@@ -12,7 +12,7 @@ plugins/ccf/
 ├─ agents/                      # 6 subagents, ALL read-only (see below)
 ├─ skills/                      # plan/ (the /ccf:plan workflow), grill-me/ (internal interview engine)
 ├─ hooks/                       # 7 .mjs hooks + hooks.json + lib/ helpers
-├─ scripts/                     # 12 human-run CLIs (nothing invokes them automatically)
+├─ scripts/                     # 13 human-run CLIs (nothing invokes them automatically)
 └─ templates/                   # {{...}} files that /ccf:init instantiates
 ```
 
@@ -62,9 +62,10 @@ Human-run CLIs. File-mutating actions belong here, never in a hook.
 | `jev-slice-check.mjs` | Advisory: ask Jev which open tasks depend on each other (needs `TYPESAFE_API_KEY`). |
 | `jev-backtest.mjs` | Backtest Jev's dependency recall against the archived task corpus (needs `TYPESAFE_API_KEY`). |
 | `jev-verify-findings.mjs` | Advisory: ask Jev whether each `FAIL:` in a `/ccf:check` report is really in the diff. Annotates only. |
+| `plan-lint.mjs` | Read-only: lint the open task files (shared-file edits that force one-task waves, missing files or criteria, unknown predecessors, cycles). |
 | `plan-waves.mjs` | Print the wave split for the backlog; `--inline` lets Jev mark small tasks to run in the main session. |
-| `worktree-preflight.mjs` | Read-only pre-merge check of a parallel wave (scope, overlap, merge conflicts). |
-| `integrate-wave.mjs` | Merge a wave: preflight, `--no-ff` merge per branch, tests after every merge, reset to last green on red. |
+| `worktree-preflight.mjs` | Read-only pre-merge check of a parallel wave (scope, overlap, merge conflicts, rewritten acceptance criteria, weakened tests). |
+| `integrate-wave.mjs` | Merge a wave: preflight, `--no-ff` merge per branch, tests after every merge, reset to last green on red; removes the worktrees of merged branches (also after a stop), merged `worktree-agent-*` branches and stale registrations. |
 | `prune-archive.mjs` | Keep the task files of the newest 10 archived iterations; `--apply` stages `git rm` of older ones (default previews; never commits). `ARCHIVE.md` and git history stay the record. |
 | `spec-budget.mjs` | Read-only: measure `CLAUDE.md` plus every recursive `@import` (bytes, lines, depth, total); `/ccf:updatespec` prints it before → after. |
 | `eval-changelog.mjs` | Write the current version's `CHANGELOG.md` entry from the newest eval results, or `--not-run "<reason>"` (`--apply` to write; default previews; never commits). |

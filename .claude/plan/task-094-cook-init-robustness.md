@@ -12,10 +12,10 @@
 `/ccf:cook` refuses to start a run whose plan would serialise into one-task waves without telling the owner why, leaves nothing merged behind, and a new project's worktrees receive its gitignored `.env` files.
 
 ## Acceptance criteria (verifiable)
-- [ ] `cook.md` step 2 runs `plan-lint.mjs` before `plan-waves.mjs`, shows each `hotspot-collision`, and asks (`AskUserQuestion`, already allowed) whether to continue serially or stop to merge the sync into one final task; the answer is never defaulted.
-- [ ] `cook.md` step 3 states the minimum Claude Code build for worktree agents (2.1.302) and step 4d replaces the prose branch sweep with the `removed`, `kept` and `pruned` fields of `integrate-wave.mjs`, and reports `git worktree list` leftovers on a STOP.
-- [ ] `init.md` instantiates `templates/root/.worktreeinclude.tmpl` as `.worktreeinclude` (kept when it already exists), and the template lists `.env` and `.env.local` with a comment that only gitignored files are copied.
-- [ ] `parallel-cook.test.mjs` pins the lint step, the cleanup fields and the `init.md` mapping; `run_in_background: false` count stays as pinned.
+- [x] `cook.md` step 2 runs `plan-lint.mjs` before `plan-waves.mjs`, shows each `hotspot-collision`, and asks (`AskUserQuestion`, already allowed) whether to continue serially or stop to merge the sync into one final task; the answer is never defaulted.
+- [x] `cook.md` step 3 states the minimum Claude Code build for worktree agents (2.1.302) and step 4d replaces the prose branch sweep with the `removed`, `kept` and `pruned` fields of `integrate-wave.mjs`, and reports `git worktree list` leftovers on a STOP.
+- [x] `init.md` instantiates `templates/root/.worktreeinclude.tmpl` as `.worktreeinclude` (kept when it already exists), and the template lists `.env` and `.env.local` with a comment that only gitignored files are copied.
+- [x] `parallel-cook.test.mjs` pins the lint step, the cleanup fields and the `init.md` mapping; `run_in_background: false` count stays as pinned.
 
 ## Test first (write before implementing)
 Assertions in `.claude/tests/parallel-cook.test.mjs` for the three prompt changes, seen RED.

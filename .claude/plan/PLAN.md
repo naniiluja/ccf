@@ -27,9 +27,9 @@ Decisions taken without the owner, each with its reason:
 ## Task backlog — harness-refresh (waves: 090, 091, 092 and 093 in parallel, then 094, then 095)
 | # | Slice | Layers | Gate (tests green) | Depends on | Status |
 |---|-------|--------|--------------------|-----------|--------|
-| 090 | Refuter `UNRESOLVED` verdict, carried into the `accepted` risk row | agent + check.md 6c + updatespec.md + latch test | repo suite | — | todo |
+| 090 | Refuter `UNRESOLVED` verdict, carried into the `accepted` risk row | agent + check.md 6c + updatespec.md + latch test | repo suite | — | in-review |
 | 091 | Preflight: `criteria-changed` and `existing-test-weakened` | lib + script + unit and git tests | hooks/lib suite + tsc | — | in-review |
-| 092 | `plan-lint.mjs`: hotspot collision, criteria, files, depends | lib + script + plan skill step | hooks/lib suite + repo suite + tsc | — | todo |
-| 093 | `integrate-wave.mjs` cleans merged work after a stop, harness branches and stale registrations | script + lib + git tests | hooks/lib suite + tsc | — | todo |
-| 094 | `/ccf:cook` and `/ccf:init`: lint call, cleanup wording, `.worktreeinclude`, minimum build | cook.md + init.md + template + latch tests | repo suite + validate | 092, 093 | todo |
-| 095 | Compatibility audit 2.1.284 to 2.1.303, spec sync, version 0.25.0 | rules + README + CHANGELOG + versions | all suites + tsc + validate | 090, 091, 092, 093, 094 | todo |
+| 092 | `plan-lint.mjs`: hotspot collision, criteria, files, depends | lib + script + plan skill step | hooks/lib suite + repo suite + tsc | — | in-review |
+| 093 | `integrate-wave.mjs` cleans merged work after a stop, harness branches and stale registrations | script + lib + git tests | hooks/lib suite + tsc | — | in-review |
+| 094 | `/ccf:cook` and `/ccf:init`: lint call, cleanup wording, `.worktreeinclude`, minimum build | cook.md + init.md + template + latch tests | repo suite + validate | 092, 093 | in-review |
+| 095 | Compatibility audit 2.1.284 to 2.1.303, spec sync, version 0.25.0 | rules + README + CHANGELOG + versions | all suites + tsc + validate | 090, 091, 092, 093, 094 | in-review |
