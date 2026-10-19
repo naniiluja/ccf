@@ -105,7 +105,7 @@ try {
     const mergeClean = gitOk && base ? mergesCleanly(dir, into, branch) : null;
     const testPaths = actual.filter(isTestPath);
     const testDiff = base && testPaths.length ? git(dir, ["diff", "-U0", "--no-renames", base, branch, "--", ...testPaths]).stdout : "";
-    return { branch, id, taskFile, declared, actual, mergeClean, taskText, uiText: mainText, testDiff };
+    return { branch, id, taskFile, declared, actual, mergeClean, taskText, uiText: mainText, testDiff, taskGone: !!branchText && branchText.status !== 0 };
   });
 
   /** @type {{ a: string, b: string, clean: boolean | null }[]} */
@@ -118,7 +118,7 @@ try {
   }
 
   const verdict = assessPreflight({ gitOk, branches, pairs });
-  const report = branches.map(({ taskText, uiText, testDiff, ...b }) => ({ ...b, runtimeEvidence: readRuntimeEvidence(taskText, uiText) }));
+  const report = branches.map(({ taskText, uiText, testDiff, taskGone, ...b }) => ({ ...b, runtimeEvidence: readRuntimeEvidence(taskText, uiText) }));
   done({ ok: true, ready: verdict.ready, into, branches: report, pairs, problems: verdict.problems, note: NOTE });
 } catch {
   done({ ok: false, reason: "error" });

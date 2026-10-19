@@ -70,6 +70,10 @@ function sweepHarnessBranches(dir = "") {
       kept.push({ branch, reason: "checked-out-in-a-worktree" });
       continue;
     }
+    if (git(dir, ["merge-base", "--is-ancestor", branch, "HEAD"]).status !== 0) {
+      kept.push({ branch, reason: "not-an-ancestor-of-HEAD" });
+      continue;
+    }
     const d = git(dir, ["branch", "-d", branch]);
     if (d.status === 0) removed.push(branch);
     else kept.push({ branch, reason: `branch-delete-refused: ${d.stderr.trim()}` });

@@ -58,7 +58,7 @@ export function outOfScope(actual, declared) {
 }
 
 const CRITERIA_HEADING = /^##\s+Acceptance criteria\b/i;
-const ASSERTION_LINE = /(^|[^\w$.])(assert\w*!?\s*[.(]|expect\s*[.(]|should\.\w|require\.\w+\s*[.(]|(it|test|describe)\s*\(\s*['"`]|t\.(Error|Errorf|Fatal|Fatalf|Fail|FailNow)\s*\()|^\s*assert\s/;
+const ASSERTION_LINE = /(^|[^\w$])(assert\w*!?\s*[.(]|XCTAssert\w*\s*\(|Assert\.\w+\s*\(|expect\s*[.(]|should\.\w|require\.\w+\s*[.(])|(^|[^\w$.])((it|test|describe)\s*\(\s*['"`]|t\.(Error|Errorf|Fatal|Fatalf|Fail|FailNow)\s*\()|^\s*assert\s/;
 
 export function normalizedCriteria(text = "") {
   if (typeof text !== "string") return null;
@@ -134,7 +134,8 @@ export function assessPreflight(input) {
     }
     if (readRuntimeEvidence(b.taskText, b.uiText).state === "empty") problems.push({ kind: "missing-runtime-evidence", branch, id });
     const touchedTaskFile = Array.isArray(b.actual) && b.actual.map(String).includes(`.claude/plan/${b.taskFile}`);
-    if (touchedTaskFile && criteriaChanged(b.uiText, b.taskText)) problems.push({ kind: "criteria-changed", branch, id });
+    const taskFileGone = b.taskGone === true && normalizedCriteria(b.uiText) !== null;
+    if ((touchedTaskFile && criteriaChanged(b.uiText, b.taskText)) || taskFileGone) problems.push({ kind: "criteria-changed", branch, id });
     const { removed, added } = assertionBalance(b.testDiff);
     const weakened = { kind: "existing-test-weakened", branch, id, removed, added };
     if (removed > added) problems.push(weakened);

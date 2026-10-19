@@ -124,8 +124,6 @@ test("assessPreflight: ran, not run with a reason, a non-UI task and no task tex
   }
 });
 
-// ---- criteria freeze (task 091) ------------------------------------------------------------------
-
 const TASK = (criteria) => `# 7\n\n## Goal\nx\n\n## Acceptance criteria (verifiable)\n${criteria}\n\n## Files to touch\n- src/7.js\n`;
 
 test("normalizedCriteria: the section body without list markers, checkbox state or spacing; null without the section", () => {
@@ -169,8 +167,6 @@ test("assertionBalance: Rust and Go assertions count; a regex .test(name) call a
   assert.deepEqual(assertionBalance(DIFF("-  it('does a thing', () => {", "-  test(\"another\", async () => {")), { removed: 2, added: 0 });
 });
 
-// ---- existing tests must not get weaker (task 091) -----------------------------------------------
-
 const DIFF = (...lines) => ["diff --git a/test/a.test.js b/test/a.test.js", "--- a/test/a.test.js", "+++ b/test/a.test.js", "@@ -1,3 +1,3 @@", ...lines].join("\n");
 
 test("assertionBalance: counts assertion-like lines removed and added in a unified diff, ignoring file headers", () => {
@@ -196,4 +192,15 @@ test("assessPreflight: a rewritten, renamed or only-extended test is not weakene
   ]) {
     assert.deepEqual(assessPreflight({ gitOk: true, branches: [B("7", { testDiff })], pairs: [] }).problems, [], String(testDiff));
   }
+});
+
+test("assertionBalance: unittest self.assert*, XCTAssert*, JUnit and xUnit Assert.* forms count", () => {
+  assert.deepEqual(assertionBalance(DIFF("-        self.assertEqual(total(1, 2), 3)", "-        self.assertRaises(ValueError, parse, \"\")", "-    XCTAssertEqual(a, b)", "-    Assert.assertEquals(1, x);", "-    Assert.Equal(1, x);")), { removed: 5, added: 0 });
+});
+
+test("assessPreflight: a branch that deleted its own task file loses the frozen criteria and blocks as criteria-changed", () => {
+  const r = assessPreflight({ gitOk: true, branches: [B("7", { uiText: TASK("- [ ] It does A"), taskText: TASK("- [ ] It does A"), taskGone: true })], pairs: [] });
+  assert.deepEqual(r.problems, [{ kind: "criteria-changed", branch: "worktree-ccf-it-7", id: "7" }]);
+  const noCriteria = assessPreflight({ gitOk: true, branches: [B("7", { uiText: "# 7\n", taskGone: true })], pairs: [] });
+  assert.deepEqual(noCriteria.problems, []);
 });

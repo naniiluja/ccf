@@ -224,3 +224,19 @@ test("worktree-preflight: moving a test file keeps its assertions, so it is not 
   git(dir, ["checkout", "-q", "main"]);
   assert.deepEqual(run(dir).out.problems, []);
 });
+
+test("worktree-preflight: a branch that deletes its own task file blocks (criteria-changed)", () => {
+  const dir = makeRepo();
+  write(dir, { ".claude/plan/task-101-a.md": "# 101\n\n## Acceptance criteria\n- [ ] does A\n\n## Files to touch\n- src/a.js\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "criteria"]);
+  git(dir, ["checkout", "-q", "-b", "worktree-ccf-it-101", "main"]);
+  git(dir, ["rm", "-q", ".claude/plan/task-101-a.md"]);
+  write(dir, { "src/a.js": "a\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "delete task file"]);
+  git(dir, ["checkout", "-q", "main"]);
+  const r = run(dir);
+  assert.equal(r.out.ready, false);
+  assert.deepEqual(kinds(r.out), ["criteria-changed"]);
+});

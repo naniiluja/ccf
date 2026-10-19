@@ -184,3 +184,23 @@ test("integrate-wave: --apply prunes the registration of a deleted worktree dire
   assert.equal(r.out.pruned, true);
   assert.doesNotMatch(listed(), /gone/);
 });
+
+test("integrate-wave: a harness branch merged only into its upstream, not into HEAD, is kept (093)", () => {
+  const dir = makeRepo();
+  worktreeWith(dir, "worktree-ccf-wave-test-101", { "src/a.js": "a\n" });
+  const remote = mkdtempSync(join(tmpdir(), "ccf-remote-"));
+  dirs.push(remote);
+  git(remote, ["init", "-q", "--bare"]);
+  git(dir, ["remote", "add", "origin", remote]);
+  git(dir, ["checkout", "-q", "-b", "worktree-agent-up", "main"]);
+  write(dir, { "up.txt": "x\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "up"]);
+  git(dir, ["push", "-q", "-u", "origin", "worktree-agent-up"]);
+  git(dir, ["checkout", "-q", "main"]);
+  const r = run("integrate-wave.mjs", dir, ["--apply", "--test", "node check.mjs"]);
+  assert.equal(r.out.ok, true, JSON.stringify(r.out));
+  assert.deepEqual(r.out.harnessRemoved, []);
+  assert.deepEqual(r.out.harnessKept.map((k) => `${k.branch}:${k.reason}`), ["worktree-agent-up:not-an-ancestor-of-HEAD"]);
+  assert.match(git(dir, ["branch", "--list", "worktree-agent-up"]), /worktree-agent-up/);
+});
