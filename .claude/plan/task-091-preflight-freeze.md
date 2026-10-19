@@ -32,3 +32,4 @@ Unit tests in `worktree-preflight.test.mjs` and git-backed cases in `worktree-pr
 
 ## Notes / best-practice sources
 Idea from Consort (arXiv 2609.09671): a frozen spec and "an agent may not edit tests to force a pass". The main checkout's task file already is the frozen copy at preflight time, so no hash is stored.
+Known limit (round 4 `WARN:`, accepted): `criteria-changed` compares the branch's criteria with the main checkout's current copy, not with the merge-base copy, so a branch that touched its task file (for example only `Runtime evidence`) is blocked if main's criteria changed after the fork. Rare during a wave (`/ccf:cook` commits only `PLAN.md` then), and the block is recoverable by rebasing the task file.

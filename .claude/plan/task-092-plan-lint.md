@@ -12,7 +12,7 @@
 Before `/ccf:cook` runs, code tells the planner which open tasks would be forced into separate waves by a shared hotspot file, and which task files lack verifiable criteria, concrete files or real predecessors.
 
 ## Acceptance criteria (verifiable)
-- [x] `plan-lint.mjs [--dir] [--tasks a,b]` prints JSON `{ ok, findings, waves, ... }`, always exits 0, writes nothing, and reuses `slice-check.mjs` (`extractFiles`, `extractDependsOn`, `certainEdge`, `hotspotClasses`) and `plan.mjs` for reading tasks.
+- [x] `plan-lint.mjs [--dir] [--tasks a,b]` prints JSON `{ ok, tasks, findings, waveCount, serial, edgeKinds }`, always exits 0, writes nothing, and reuses `slice-check.mjs` (`extractFiles`, `extractDependsOn`, `certainEdge`, `hotspotClasses`) and `plan.mjs` for reading tasks.
 - [x] Each finding has a `kind`: `hotspot-collision` (two open tasks on one hotspot class, naming both ids, the class and the files; the advice is one final sync task), `no-files` (no `Files to touch`), `no-criteria` (no `## Acceptance criteria` bullets), `unknown-dependency` (a `Depends on` id that is no task in `PLAN.md`), `dependency-cycle`.
 - [x] The output reports the wave count `plan-waves` would compute and, when it equals the number of tasks while there are 3 or more, says the hotspot or declared edges that cause it.
 - [x] The `plan` skill runs it before step 7 and fixes `hotspot-collision` by moving the shared-spec edits into one final task that `Depends on` the others; the skill latch pins that step.
