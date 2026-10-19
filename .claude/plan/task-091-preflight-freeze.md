@@ -12,7 +12,7 @@
 A wave whose branch rewrote its own acceptance criteria, or deleted more assertions than it added in test files, is blocked before it merges.
 
 ## Acceptance criteria (verifiable)
-- [x] `criteria-changed` is reported when a branch that edited (or deleted) its own task file has an `## Acceptance criteria` section that differs from the main checkout's after normalising list markers, checkbox state and whitespace; ticking a box is not a change, and a branch that never touched its task file is not blamed for criteria edited on main after it forked.
+- [x] `criteria-changed` is reported when a branch that edited, emptied or deleted its own task file has an `## Acceptance criteria` section that differs from the main checkout's after normalising list markers, checkbox state and whitespace; ticking a box is not a change, and a branch that never touched its task file is not blamed for criteria edited on main after it forked.
 - [x] `existing-test-weakened` is reported when, summed over every changed test file of a branch, assertion-like lines removed exceed those added (with both counts in the problem); moving a test file is not flagged. Assertion-like covers JS/TS, Python (`assert`, `self.assert*`), Rust, Go, JUnit, xUnit and XCTest forms; a regex `.test(name)` call is not one.
 - [x] Both are blocking problems (`ready: false`), pure and defensive on garbage input, and exercised in unit tests and against a real temporary git repository.
 

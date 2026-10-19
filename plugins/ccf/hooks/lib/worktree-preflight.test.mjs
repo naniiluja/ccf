@@ -144,7 +144,7 @@ test("criteriaChanged: ticking a box or reflowing is NOT a change; rewording, ad
 test("criteriaChanged: nothing to freeze or nothing to compare is never a change", () => {
   assert.equal(criteriaChanged("# 7\n## Goal\nx\n", TASK("- [ ] anything")), false);
   for (const g of [undefined, null, 5, ""]) assert.equal(criteriaChanged(g, g), false);
-  assert.equal(criteriaChanged(TASK("- [ ] A"), undefined), false);
+  for (const g of [undefined, null, ""]) assert.equal(criteriaChanged(TASK("- [ ] A"), g), true, "an empty or missing branch text has no criteria left");
 });
 
 test("assessPreflight: a branch that rewrote its own acceptance criteria blocks as criteria-changed", () => {
@@ -198,9 +198,10 @@ test("assertionBalance: unittest self.assert*, XCTAssert*, JUnit and xUnit Asser
   assert.deepEqual(assertionBalance(DIFF("-        self.assertEqual(total(1, 2), 3)", "-        self.assertRaises(ValueError, parse, \"\")", "-    XCTAssertEqual(a, b)", "-    Assert.assertEquals(1, x);", "-    Assert.Equal(1, x);")), { removed: 5, added: 0 });
 });
 
-test("assessPreflight: a branch that deleted its own task file loses the frozen criteria and blocks as criteria-changed", () => {
-  const r = assessPreflight({ gitOk: true, branches: [B("7", { uiText: TASK("- [ ] It does A"), taskText: TASK("- [ ] It does A"), taskGone: true })], pairs: [] });
-  assert.deepEqual(r.problems, [{ kind: "criteria-changed", branch: "worktree-ccf-it-7", id: "7" }]);
-  const noCriteria = assessPreflight({ gitOk: true, branches: [B("7", { uiText: "# 7\n", taskGone: true })], pairs: [] });
-  assert.deepEqual(noCriteria.problems, []);
+test("assessPreflight: a branch that emptied or deleted its own task file blocks; one that never touched it is not blamed", () => {
+  const own = { actual: ["src/7.js", ".claude/plan/task-7-x.md"] };
+  const gone = assessPreflight({ gitOk: true, branches: [B("7", { ...own, uiText: TASK("- [ ] It does A"), taskText: "" })], pairs: [] });
+  assert.deepEqual(gone.problems, [{ kind: "criteria-changed", branch: "worktree-ccf-it-7", id: "7" }]);
+  const untouched = assessPreflight({ gitOk: true, branches: [B("7", { uiText: TASK("- [ ] It does A"), taskText: "" })], pairs: [] });
+  assert.deepEqual(untouched.problems, []);
 });

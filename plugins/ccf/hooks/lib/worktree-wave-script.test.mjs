@@ -183,6 +183,7 @@ test("integrate-wave: --apply prunes the registration of a deleted worktree dire
   const r = run("integrate-wave.mjs", dir, ["--apply", "--test", "node check.mjs"]);
   assert.equal(r.out.pruned, true);
   assert.doesNotMatch(listed(), /gone/);
+  assert.deepEqual([...r.out.harnessRemoved].sort(), ["worktree-agent-gone", "worktree-agent-stale"], "a harness branch whose worktree directory vanished is swept in the same run");
 });
 
 test("integrate-wave: a harness branch merged only into its upstream, not into HEAD, is kept (093)", () => {

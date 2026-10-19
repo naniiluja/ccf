@@ -240,3 +240,26 @@ test("worktree-preflight: a branch that deletes its own task file blocks (criter
   assert.equal(r.out.ready, false);
   assert.deepEqual(kinds(r.out), ["criteria-changed"]);
 });
+
+test("worktree-preflight: a branch that empties its own task file blocks (criteria-changed)", () => {
+  const dir = makeRepo();
+  write(dir, { ".claude/plan/task-101-a.md": "# 101\n\n## Acceptance criteria\n- [ ] does A\n\n## Files to touch\n- src/a.js\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "criteria"]);
+  branchWith(dir, "worktree-ccf-it-101", { "src/a.js": "a\n", ".claude/plan/task-101-a.md": "" });
+  const r = run(dir);
+  assert.equal(r.out.ready, false);
+  assert.deepEqual(kinds(r.out), ["criteria-changed"]);
+});
+
+test("worktree-preflight: a task file that appeared or was renamed on main after the fork does not blame a branch that never touched it", () => {
+  const dir = makeRepo();
+  branchWith(dir, "worktree-ccf-it-101", { "src/a.js": "a\n" });
+  write(dir, { ".claude/plan/task-101-a.md": "# 101\n\n## Acceptance criteria\n- [ ] edited on main\n\n## Files to touch\n- src/a.js\n" });
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-q", "-m", "criteria edited on main"]);
+  assert.deepEqual(run(dir).out.problems, []);
+  git(dir, ["mv", ".claude/plan/task-101-a.md", ".claude/plan/task-101-renamed.md"]);
+  git(dir, ["commit", "-q", "-m", "rename on main"]);
+  assert.deepEqual(kinds(run(dir).out), []);
+});

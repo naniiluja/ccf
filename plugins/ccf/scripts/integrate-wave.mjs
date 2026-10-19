@@ -83,8 +83,8 @@ function sweepHarnessBranches(dir = "") {
 
 function wrapUp(dir = "", merged = [""]) {
   const { removed, kept } = cleanUp(dir, merged);
-  const harness = sweepHarnessBranches(dir);
   const pruned = git(dir, ["worktree", "prune"]).status === 0;
+  const harness = sweepHarnessBranches(dir);
   return { removed, kept, harnessRemoved: harness.removed, harnessKept: harness.kept, pruned };
 }
 

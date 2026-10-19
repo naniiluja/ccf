@@ -76,8 +76,8 @@ export function normalizedCriteria(text = "") {
 
 export function criteriaChanged(mainText = "", branchText = "") {
   const frozen = normalizedCriteria(mainText);
-  if (!frozen || typeof branchText !== "string" || branchText === "") return false;
-  const now = normalizedCriteria(branchText);
+  if (!frozen) return false;
+  const now = normalizedCriteria(typeof branchText === "string" ? branchText : "");
   return !now || now.length !== frozen.length || now.some((c, i) => c !== frozen[i]);
 }
 
@@ -134,8 +134,7 @@ export function assessPreflight(input) {
     }
     if (readRuntimeEvidence(b.taskText, b.uiText).state === "empty") problems.push({ kind: "missing-runtime-evidence", branch, id });
     const touchedTaskFile = Array.isArray(b.actual) && b.actual.map(String).includes(`.claude/plan/${b.taskFile}`);
-    const taskFileGone = b.taskGone === true && normalizedCriteria(b.uiText) !== null;
-    if ((touchedTaskFile && criteriaChanged(b.uiText, b.taskText)) || taskFileGone) problems.push({ kind: "criteria-changed", branch, id });
+    if (touchedTaskFile && criteriaChanged(b.uiText, b.taskText)) problems.push({ kind: "criteria-changed", branch, id });
     const { removed, added } = assertionBalance(b.testDiff);
     const weakened = { kind: "existing-test-weakened", branch, id, removed, added };
     if (removed > added) problems.push(weakened);
